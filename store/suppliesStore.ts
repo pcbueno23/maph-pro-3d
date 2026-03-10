@@ -17,6 +17,8 @@ interface SuppliesState {
   updateSupply: (s: Supply) => void;
   removeSupply: (id: string) => void;
   hydrateFromStorage: () => void;
+  /** Preenche insumos com dados da nuvem (e grava no localStorage). */
+  hydrateFromCloud: (supplies: Supply[]) => void;
   /** Consome uma quantidade de filamento em gramas, percorrendo os insumos de tipo filament. */
   consumeFilamentGrams: (grams: number) => void;
 }
@@ -42,6 +44,12 @@ export const useSuppliesStore = create<SuppliesState>((set, get) => ({
       }
     } catch {
       // ignore
+    }
+  },
+  hydrateFromCloud: (supplies) => {
+    set({ supplies });
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(supplies));
     }
   },
   addSupply: (s) => {

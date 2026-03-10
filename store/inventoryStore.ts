@@ -22,6 +22,8 @@ export interface InventoryItem {
 interface InventoryState {
   items: InventoryItem[];
   hydrateFromStorage: () => void;
+  /** Preenche o estoque com dados da nuvem (e grava no localStorage). */
+  hydrateFromCloud: (items: InventoryItem[]) => void;
   upsertFromProduct: (product: Product, quantity: number, sku?: string) => void;
   updateItem: (item: InventoryItem) => void;
   removeItem: (id: string) => void;
@@ -42,6 +44,12 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       }
     } catch {
       // ignore
+    }
+  },
+  hydrateFromCloud: (items) => {
+    set({ items });
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     }
   },
   upsertFromProduct: (product, quantity, sku) => {

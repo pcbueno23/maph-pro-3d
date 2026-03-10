@@ -9,7 +9,7 @@ interface SettingsState {
   updateSettings: (next: SettingsValues) => void;
 }
 
-const defaultSettings: SettingsValues = {
+export const defaultSettings: SettingsValues = {
   currency: "BRL",
   defaults: {
     kwhPrice: 1.2,
