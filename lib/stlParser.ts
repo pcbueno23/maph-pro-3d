@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
+import { STLLoader } from "three/addons/loaders/STLLoader.js";
 
 export interface STLAnalysis {
   volume: number;
