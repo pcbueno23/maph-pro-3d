@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
 import { syncProductsOnLogin } from "@/lib/productSync";
+import { syncUserDataOnLogin } from "@/lib/userDataSync";
+import { PersistUserData } from "./PersistUserData";
 
 const PUBLIC_PATHS = ["/login"];
 
@@ -57,7 +59,10 @@ export function AuthGuard({ children }: Props) {
 
   useEffect(() => {
     if (user) {
-      void syncProductsOnLogin(user.id);
+      void (async () => {
+        await syncProductsOnLogin(user.id);
+        await syncUserDataOnLogin(user.id);
+      })();
     }
   }, [user]);
 
@@ -79,6 +84,11 @@ export function AuthGuard({ children }: Props) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {user ? <PersistUserData /> : null}
+      {children}
+    </>
+  );
 }
 

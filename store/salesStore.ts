@@ -19,6 +19,8 @@ export interface Sale {
 interface SalesState {
   sales: Sale[];
   hydrateFromStorage: () => void;
+  /** Preenche vendas com dados da nuvem (e grava no localStorage). */
+  hydrateFromCloud: (sales: Sale[]) => void;
   registerSale: (sale: Omit<Sale, "id" | "date">) => void;
   removeSale: (id: string) => void;
   clearSales: () => void;
@@ -39,6 +41,12 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       }
     } catch {
       // ignore
+    }
+  },
+  hydrateFromCloud: (sales) => {
+    set({ sales });
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sales));
     }
   },
   registerSale: (saleInput) => {

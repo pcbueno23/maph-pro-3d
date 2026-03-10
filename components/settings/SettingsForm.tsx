@@ -5,9 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { settingsSchema, type SettingsValues } from "@/types";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useAuthStore } from "@/store/authStore";
+import { saveUserSettings } from "@/lib/supabaseUserData";
 
 export function SettingsForm() {
   const { settings, updateSettings } = useSettingsStore();
+  const user = useAuthStore((s) => s.user);
 
   const form = useForm<SettingsValues>({
     resolver: zodResolver(settingsSchema) as Resolver<SettingsValues>,
@@ -20,6 +23,9 @@ export function SettingsForm() {
     const normalized = settingsSchema.parse(values);
     updateSettings(normalized);
     form.reset(normalized);
+    if (user) {
+      saveUserSettings(user.id, normalized).catch(() => {});
+    }
   };
 
   return (
