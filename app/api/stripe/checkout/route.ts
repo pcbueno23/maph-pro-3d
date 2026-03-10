@@ -10,9 +10,9 @@ if (!stripeSecretKey) {
   console.warn("STRIPE_SECRET_KEY não configurada.");
 }
 
-const stripe = stripeSecretKey
-  ? new Stripe(stripeSecretKey, { apiVersion: "2024-09-30.acacia" })
-  : null;
+// Em produção, usamos a versão padrão da API Stripe disponível na conta.
+// Remover apiVersion evita erros de type em builds quando a SDK atualiza a lista de versões.
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 export async function POST(req: NextRequest) {
   if (!stripe) {
