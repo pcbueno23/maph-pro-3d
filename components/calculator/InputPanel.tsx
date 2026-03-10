@@ -4,8 +4,11 @@ import type { CalculatorFormValues } from "@/types";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useSuppliesStore } from "@/store/suppliesStore";
 
+// Afrouxamos levemente o tipo genérico aqui para evitar
+// incompatibilidades entre versões de TypeScript/react-hook-form
+// em ambientes diferentes (local vs Vercel), mantendo a forma principal.
 interface Props {
-  form: UseFormReturn<CalculatorFormValues>;
+  form: UseFormReturn<CalculatorFormValues, any, any>;
 }
 
 export function InputPanel({ form }: Props) {
