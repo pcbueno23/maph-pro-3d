@@ -53,7 +53,7 @@ export function Sidebar() {
           return (
             <Link
               key={href}
-              href={href}
+              href={href as Parameters<typeof Link>[0]["href"]}
               className={`group flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
                 active
                   ? "bg-slate-900 text-cyan-400 shadow-neon-cyan"

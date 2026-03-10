@@ -1,5 +1,6 @@
 "use client";
 
+import type { Resolver } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { settingsSchema, type SettingsValues } from "@/types";
@@ -9,7 +10,7 @@ export function SettingsForm() {
   const { settings, updateSettings } = useSettingsStore();
 
   const form = useForm<SettingsValues>({
-    resolver: zodResolver(settingsSchema),
+    resolver: zodResolver(settingsSchema) as Resolver<SettingsValues>,
     defaultValues: settings,
   });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import type { Resolver } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { calculatorSchema, type CalculatorFormValues } from "@/types";
@@ -79,7 +80,7 @@ export function useCalculator() {
   const defaultValues = getDefaultValues(settings, printerSettings);
 
   const form = useForm<CalculatorFormValues>({
-    resolver: zodResolver(calculatorSchema),
+    resolver: zodResolver(calculatorSchema) as Resolver<CalculatorFormValues>,
     mode: "onChange",
     defaultValues,
   });

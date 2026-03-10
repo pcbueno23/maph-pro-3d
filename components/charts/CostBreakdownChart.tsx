@@ -2,6 +2,7 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
@@ -48,7 +49,9 @@ export function CostBreakdownChart({ items }: Props) {
               borderRadius: 12,
               fontSize: 11,
             }}
-            formatter={(value: number) => formatCurrency(value)}
+            formatter={(value) =>
+              value != null ? formatCurrency(Number(value)) : ""
+            }
           />
           <Bar
             dataKey="value"
@@ -57,7 +60,7 @@ export function CostBreakdownChart({ items }: Props) {
             style={{ transition: "all 0.2s ease-out" }}
           >
             {items.map((entry) => (
-              <cell key={entry.name} fill={entry.color} />
+              <Cell key={entry.name} fill={entry.color} />
             ))}
           </Bar>
         </BarChart>

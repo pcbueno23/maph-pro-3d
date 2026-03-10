@@ -1,11 +1,12 @@
 "use client";
 
+import { Suspense } from "react";
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, Mail, Lock, Chrome } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function LoginPage() {
+function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/dashboard";
@@ -39,6 +40,7 @@ export default function LoginPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!supabase) return;
     setError(null);
     setMessage(null);
     setLoading(true);
@@ -51,7 +53,7 @@ export default function LoginPage() {
             password,
           });
         if (signInError) throw signInError;
-        router.replace(redirectTo);
+        router.replace(redirectTo as Parameters<typeof router.replace>[0]);
       } else {
         const { error: signUpError } = await supabase.auth.signUp({
           email,
@@ -207,6 +209,20 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-400">
+          Carregando…
+        </div>
+      }
+    >
+      <LoginFormContent />
+    </Suspense>
   );
 }
 
