@@ -1,0 +1,135 @@
+[00:00:01.352] Server  LOG     ✓ Ready in 916ms
+[00:00:03.008] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:03.870] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:00:04.130] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:00:04.369] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:00:29.886] Browser ERROR   Erro ao analisar arquivo 3D {}
+[00:00:58.050] Browser ERROR   Erro ao analisar arquivo 3D {}
+[00:02:45.818] Browser ERROR   Erro ao analisar arquivo 3D {}
+[00:02:52.860] Browser ERROR   Erro ao analisar arquivo 3D {}
+[00:03:01.881] Browser ERROR   Erro ao analisar arquivo 3D {}
+[00:06:13.005] Server  LOG     ✓ Compiled in 447ms
+[00:06:31.067] Browser LOG     [3MF Parser] Iniciando parse: Purge Deflector.3mf Size: 28621
+[00:06:31.067] Browser LOG     [3MF Parser] ArrayBuffer lido: 28621 bytes
+[00:06:31.067] Browser LOG     [3MF Parser] Geometria 0 criada: 968 vértices
+[00:06:31.067] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:06:31.067] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:07:06.607] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:07:08.355] Browser WARN    The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[00:07:08.355] Browser WARN    The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[00:07:09.020] Browser LOG     THREE.WebGLRenderer: Context Lost.
+[00:07:47.114] Browser LOG     [3MF Parser] Iniciando parse: Purge Bin Base Protector - Z-axis Stiffener.3mf Size: 12377
+[00:07:47.114] Browser LOG     [3MF Parser] ArrayBuffer lido: 12377 bytes
+[00:07:47.114] Browser LOG     [3MF Parser] Geometria 0 criada: 368 vértices
+[00:07:47.114] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:07:47.114] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:08:08.482] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:08:09.459] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:08:09.721] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:08:09.952] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:08:16.793] Browser LOG     [3MF Parser] Iniciando parse: Purge Bin Base Protector - Standard.3mf Size: 12833
+[00:08:16.793] Browser LOG     [3MF Parser] ArrayBuffer lido: 12833 bytes
+[00:08:16.793] Browser LOG     [3MF Parser] Geometria 0 criada: 386 vértices
+[00:08:16.793] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:08:16.793] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:08:29.491] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:08:29.914] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:08:30.209] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:08:30.429] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:08:35.459] Browser LOG     [3MF Parser] Iniciando parse: Purge Bin - Z-axis Stiffener.3mf Size: 156923
+[00:08:35.459] Browser LOG     [3MF Parser] ArrayBuffer lido: 156923 bytes
+[00:08:35.459] Browser LOG     [3MF Parser] Geometria 0 criada: 6240 vértices
+[00:08:35.459] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:08:35.459] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:09:04.918] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:09:05.346] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:09:05.599] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:09:05.841] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:09:25.208] Browser LOG     [3MF Parser] Iniciando parse: Familia Sagrada.3mf Size: 30829740
+[00:09:25.208] Browser LOG     [3MF Parser] ArrayBuffer lido: 30829740 bytes
+[00:09:25.208] Browser ERROR   Erro ao analisar arquivo 3D {}
+[00:09:43.572] Browser LOG     [3MF Parser] Iniciando parse: A1+Poop+Bin.3mf Size: 2795684
+[00:09:43.572] Browser LOG     [3MF Parser] ArrayBuffer lido: 2795684 bytes
+[00:09:43.572] Browser ERROR   Erro ao analisar arquivo 3D {}
+[00:11:25.381] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:11:25.381] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:11:35.247] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:11:36.353] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:11:36.597] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:11:36.833] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:11:37.927] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:11:37.927] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:11:53.736] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:11:54.165] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:11:54.409] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:11:56.954] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:11:56.954] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:12:08.041] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:12:08.486] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:08.824] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:09.145] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:11.438] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:12:11.438] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:12:24.486] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:12:24.898] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:25.145] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:25.385] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:29.215] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:12:29.215] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:12:41.261] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:12:41.692] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:41.953] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:42.192] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:43.789] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:12:43.789] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:12:49.324] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:12:49.732] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:49.964] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:50.206] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
+[00:12:51.304] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:12:51.304] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:12:59.287] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:13:01.325] Browser WARN    The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[00:13:01.325] Browser WARN    The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[00:13:01.996] Browser LOG     THREE.WebGLRenderer: Context Lost.
+[00:19:10.309] Browser WARN    THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[00:19:10.309] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:19:44.376] Browser WARN    THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[00:19:45.411] Browser WARN    The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[00:19:45.411] Browser WARN    The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[00:19:46.015] Browser LOG     THREE.WebGLRenderer: Context Lost.
+[00:25:30.915] Browser WARN    The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[00:25:30.915] Browser WARN    The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[00:30:48.429] Browser WARN    The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[00:30:48.429] Browser WARN    The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[00:30:51.300] Browser ERROR   Erro ao buscar produtos do Supabase: {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.products' in the schema cache"}
