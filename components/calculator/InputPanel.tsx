@@ -30,6 +30,8 @@ export function InputPanel({ form }: Props) {
     settings.printer?.presetId ??
     "";
   const [selectedPrinterId, setSelectedPrinterId] = useState(defaultPresetValue);
+  const [cep, setCep] = useState("");
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
 
   useEffect(() => {
     setSelectedPrinterId(defaultPresetValue);
@@ -103,6 +105,37 @@ export function InputPanel({ form }: Props) {
                   {errors.material.weight.message}
                 </p>
               )}
+              <div className="mt-2">
+                <label className="mb-1 block text-xs text-slate-300">
+                  Peças por impressão (na mesma mesa)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                  {...register("time.unitsPerBatch", { valueAsNumber: true })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-300">
+                Peso da placa (g) – opcional
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                {...register("material.plateWeight", { valueAsNumber: true })}
+              />
+              {errors.material?.plateWeight && (
+                <p className="mt-1 text-xs text-rose-400">
+                  {errors.material.plateWeight.message}
+                </p>
+              )}
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                Use o peso total da mesa do fatiador quando imprimir várias peças juntas.
+              </p>
             </div>
 
             <div>
@@ -137,7 +170,7 @@ export function InputPanel({ form }: Props) {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
             Tempo & energia
           </p>
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="space-y-2 text-sm">
             <div className="space-y-1.5">
               <label className="mb-1 block text-xs text-slate-300">
                 Duração (h/min)
@@ -252,17 +285,95 @@ export function InputPanel({ form }: Props) {
             </div>
           </div>
 
+
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
               <label className="mb-1 block text-xs text-slate-300">
                 Energia (R$/kWh)
               </label>
-              <input
-                type="number"
-                step="0.01"
-                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("costs.kwhPrice", { valueAsNumber: true })}
-              />
+              <div className="space-y-1.5">
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                  {...register("costs.kwhPrice", { valueAsNumber: true })}
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={9}
+                    placeholder="CEP para sugerir tarifa"
+                    className="w-full rounded-lg border border-slate-900 bg-slate-950/70 px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    value={cep}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/\D/g, "");
+                      if (v.length > 8) v = v.slice(0, 8);
+                      if (v.length > 5) {
+                        v = `${v.slice(0, 5)}-${v.slice(5)}`;
+                      }
+                      setCep(v);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={isFetchingCep}
+                    className="whitespace-nowrap rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-300 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={async () => {
+                      const numericCep = cep.replace(/\D/g, "");
+                      if (numericCep.length !== 8) {
+                        return;
+                      }
+                      setIsFetchingCep(true);
+                      try {
+                        const resp = await fetch(`https://viacep.com.br/ws/${numericCep}/json/`);
+                        const data = await resp.json();
+                        if (!data || data.erro || !data.uf) {
+                          return;
+                        }
+                        const stateRates: Record<string, number> = {
+                          AC: 0.88,
+                          AL: 0.84,
+                          AP: 0.82,
+                          AM: 0.94,
+                          BA: 0.89,
+                          CE: 0.92,
+                          DF: 0.76,
+                          ES: 0.74,
+                          GO: 0.81,
+                          MA: 0.86,
+                          MT: 0.9,
+                          MS: 0.88,
+                          MG: 0.82,
+                          PA: 0.96,
+                          PB: 0.83,
+                          PR: 0.72,
+                          PE: 0.85,
+                          PI: 0.87,
+                          RJ: 1.05,
+                          RN: 0.84,
+                          RS: 0.8,
+                          RO: 0.85,
+                          RR: 0.78,
+                          SC: 0.68,
+                          SP: 0.78,
+                          SE: 0.81,
+                          TO: 0.86,
+                        };
+                        const uf: string = data.uf;
+                        const rate = stateRates[uf] ?? 0.85;
+                        setValue("costs.kwhPrice", rate, { shouldDirty: true });
+                      } catch {
+                        // falha silenciosa; usuário pode digitar manualmente
+                      } finally {
+                        setIsFetchingCep(false);
+                      }
+                    }}
+                  >
+                    {isFetchingCep ? "Buscando..." : "Usar CEP"}
+                  </button>
+                </div>
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-300">
@@ -410,6 +521,19 @@ export function InputPanel({ form }: Props) {
             max={100}
             className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
             {...register("pricing.taxPercent", { valueAsNumber: true })}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-slate-300">
+            Taxa cartão direto (%)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min={0}
+            max={100}
+            className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+            {...register("pricing.cardFeePercent", { valueAsNumber: true })}
           />
         </div>
             <div className="flex flex-col justify-end">

@@ -3,11 +3,16 @@ import "./globals.css";
 import { Sidebar } from "./layout/Sidebar";
 import { Header } from "./layout/Header";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
-  title: "Precifica3D",
+  title: "Maph Pro 3D",
   description:
-    "Precifica3D - Calculadora inteligente de custos e margens para empreendedores de impressão 3D.",
+    "Maph Pro 3D - Calculadora inteligente de custos e margens para empreendedores de impressão 3D.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -30,6 +35,7 @@ export default function RootLayout({
               </main>
             </div>
           </div>
+          <ServiceWorkerRegister />
         </AuthGuard>
       </body>
     </html>

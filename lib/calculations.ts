@@ -181,13 +181,27 @@ function buildCascata(params: {
 }
 
 export function calculateAll(input: CalculatorFormValues): CalculatorResults {
+  const unitsPerBatch =
+    typeof input.time.unitsPerBatch === "number" && input.time.unitsPerBatch > 0
+      ? input.time.unitsPerBatch
+      : 1;
+  const effectiveHoursPerUnit =
+    unitsPerBatch > 0 ? input.time.hours / unitsPerBatch : input.time.hours;
+
+  const effectiveWeightPerUnit =
+    typeof input.material.plateWeight === "number" &&
+    input.material.plateWeight > 0 &&
+    unitsPerBatch > 0
+      ? input.material.plateWeight / unitsPerBatch
+      : input.material.weight;
+
   const filamentCost = calcFilamentCost(
-    input.material.weight,
+    effectiveWeightPerUnit,
     input.material.pricePerKg,
   );
   const energyCost = calcEnergyCost(
     input.time.powerW,
-    input.time.hours,
+    effectiveHoursPerUnit,
     input.costs.kwhPrice,
   );
   const depreciationCost = calcDepreciation(
@@ -198,7 +212,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
       annualMaintenance: input.costs.annualMaintenance ?? 0,
       infrastructureYear: input.costs.infrastructureYear ?? 0,
       yearlyPrintHours: input.costs.yearlyPrintHours ?? 0,
-      printHours: input.time.hours,
+      printHours: effectiveHoursPerUnit,
     },
   );
   const packagingCost = input.costs.packaging;
@@ -313,10 +327,10 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
   const margin = Math.min(cascataShopee.marginPercent, cascataML.marginPercent);
   const profitPerSale = Math.min(cascataShopee.netProfit, cascataML.netProfit);
   const profitPerHour =
-    input.time.hours > 0
+    effectiveHoursPerUnit > 0
       ? Math.min(
-          cascataShopee.netProfit / input.time.hours,
-          cascataML.netProfit / input.time.hours,
+          cascataShopee.netProfit / effectiveHoursPerUnit,
+          cascataML.netProfit / effectiveHoursPerUnit,
         )
       : 0;
 
@@ -326,29 +340,41 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
       ? calcPriceToAnnounceForPromo(suggestedPrice, discountPercent)
       : null;
 
-  // Preço mínimo conservador (maior dos dois canais)
-  const minFeeShopee = getEffectiveMarketplaceFeePercent(
-    "Shopee",
-    input.pricing.personType,
-    totalCost + 5,
-    { freeShipping: false },
-  );
-  const minFeeML = getEffectiveMarketplaceFeePercent(
-    "Mercado Livre",
-    input.pricing.personType,
-    totalCost + 5,
-    { classicML: input.pricing.mlClassic ?? false },
-  );
-  const minimumPrice = Math.max(
-    calcMinimumPrice({
-      totalCost,
-      marketplaceFeePercent: minFeeShopee,
-    }),
-    calcMinimumPrice({
-      totalCost,
-      marketplaceFeePercent: minFeeML,
-    }),
-  );
+  // Sugestões adicionais para venda direta
+  const cardFeePercent = input.pricing.cardFeePercent ?? 0;
+  const suggestedPriceDirectCash = calcSuggestedPrice({
+    totalCost,
+    marketplaceFeePercent: 0,
+    desiredMarginPercent: input.pricing.desiredMargin,
+    shippingAmount,
+    taxPercent,
+  });
+  const suggestedPriceDirectCard = calcSuggestedPrice({
+    totalCost,
+    marketplaceFeePercent: cardFeePercent,
+    desiredMarginPercent: input.pricing.desiredMargin,
+    shippingAmount,
+    taxPercent,
+  });
+
+  // Preço mínimo (lucro zero) por canal, usando o mesmo motor das sugestões
+  const minimumPriceShopee = getShopeeSuggestedPrice({
+    totalCost,
+    shippingAmount,
+    taxPercent,
+    desiredMarginPercent: 0,
+    freeShipping: input.pricing.freeShipping ?? false,
+    personType: input.pricing.personType,
+  });
+  const minimumPriceML = getMLSuggestedPrice({
+    totalCost,
+    shippingAmount,
+    taxPercent,
+    desiredMarginPercent: 0,
+    personType: input.pricing.personType,
+    classic: input.pricing.mlClassic ?? false,
+  });
+  const minimumPrice = Math.max(minimumPriceShopee, minimumPriceML);
 
   let compareAtPriceResult: CalculatorResults["compareAtPriceResult"] = null;
   const comparePrice = input.pricing.comparePrice;
@@ -383,7 +409,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
         comparePrice - feeAmount - shippingAmount - taxAmt - totalCost;
       const marginPct = comparePrice > 0 ? (net / comparePrice) * 100 : 0;
       const perHour =
-        input.time.hours > 0 ? net / input.time.hours : 0;
+        effectiveHoursPerUnit > 0 ? net / effectiveHoursPerUnit : 0;
       return {
         marketplaceFeePercent: feePercent,
         marketplaceFeeAmount: feeAmount,
@@ -392,17 +418,163 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
         profitPerHour: perHour,
       };
     };
+    const shopeeCompare = buildCompare(
+      feeShopee,
+      shopeeBreakdown.commissionRateDecimal,
+    );
+    const mlCompare = buildCompare(
+      feeML,
+      mlBreakdown.commissionRateDecimal,
+    );
+    // Direto PIX e crédito: imposto calculado sempre sobre o preço cheio,
+    // então usamos commissionRateDecimal = 0 no cálculo do imposto.
+    const directCashCompare = buildCompare(0, 0);
+    const directCardCompare = buildCompare(cardFeePercent, 0);
+
     compareAtPriceResult = {
       sellingPrice: comparePrice,
-      shopee: buildCompare(
-        feeShopee,
-        shopeeBreakdown.commissionRateDecimal,
-      ),
-      ml: buildCompare(
-        feeML,
-        mlBreakdown.commissionRateDecimal,
-      ),
+      shopee: shopeeCompare,
+      ml: mlCompare,
+      directCash: directCashCompare,
+      directCard: directCardCompare,
     };
+  }
+
+  const plateTotalCost = totalCost * unitsPerBatch;
+
+  // Sugestões de preço para KIT (placa inteira)
+  let kitSuggestedPriceShopee: number | undefined;
+  let kitSuggestedPriceML: number | undefined;
+  let kitSuggestedPriceDirectCash: number | undefined;
+  let kitSuggestedPriceDirectCard: number | undefined;
+  let kitMarginShopee: number | undefined;
+  let kitMarginML: number | undefined;
+  let kitMarginDirectCash: number | undefined;
+  let kitMarginDirectCard: number | undefined;
+
+  if (unitsPerBatch > 1) {
+    const kitCost = plateTotalCost;
+    kitSuggestedPriceShopee = getShopeeSuggestedPrice({
+      totalCost: kitCost,
+      shippingAmount,
+      taxPercent,
+      desiredMarginPercent: input.pricing.desiredMargin,
+      freeShipping: input.pricing.freeShipping ?? false,
+      personType: input.pricing.personType,
+    });
+    kitSuggestedPriceML = getMLSuggestedPrice({
+      totalCost: kitCost,
+      shippingAmount,
+      taxPercent,
+      desiredMarginPercent: input.pricing.desiredMargin,
+      personType: input.pricing.personType,
+      classic: input.pricing.mlClassic ?? false,
+    });
+    kitSuggestedPriceDirectCash = calcSuggestedPrice({
+      totalCost: kitCost,
+      marketplaceFeePercent: 0,
+      desiredMarginPercent: input.pricing.desiredMargin,
+      shippingAmount,
+      taxPercent,
+    });
+    kitSuggestedPriceDirectCard = calcSuggestedPrice({
+      totalCost: kitCost,
+      marketplaceFeePercent: cardFeePercent,
+      desiredMarginPercent: input.pricing.desiredMargin,
+      shippingAmount,
+      taxPercent,
+    });
+
+    // Margens reais do kit por canal
+    const kitFeePercentShopee = getEffectiveMarketplaceFeePercent(
+      "Shopee",
+      input.pricing.personType,
+      kitSuggestedPriceShopee,
+      { freeShipping: input.pricing.freeShipping ?? false },
+    );
+    const kitShopeeBreakdown = getShopeeFeeBreakdown(
+      kitSuggestedPriceShopee,
+      input.pricing.personType,
+      input.pricing.freeShipping ?? false,
+    );
+    const kitTaxAmountShopee = computeTaxAmount(
+      kitSuggestedPriceShopee,
+      kitShopeeBreakdown.commissionRateDecimal,
+    );
+    const kitMarketplaceFeeAmountShopee =
+      (kitSuggestedPriceShopee * kitFeePercentShopee) / 100;
+    const kitNetProfitShopee =
+      kitSuggestedPriceShopee -
+      kitMarketplaceFeeAmountShopee -
+      shippingAmount -
+      kitTaxAmountShopee -
+      kitCost;
+    kitMarginShopee =
+      kitSuggestedPriceShopee > 0
+        ? (kitNetProfitShopee / kitSuggestedPriceShopee) * 100
+        : 0;
+
+    const kitFeePercentML = getEffectiveMarketplaceFeePercent(
+      "Mercado Livre",
+      input.pricing.personType,
+      kitSuggestedPriceML,
+      { classicML: input.pricing.mlClassic ?? false },
+    );
+    const kitMLBreakdown = getMLFeeBreakdown(
+      kitSuggestedPriceML,
+      input.pricing.personType,
+      input.pricing.mlClassic ?? false,
+    );
+    const kitTaxAmountML = computeTaxAmount(
+      kitSuggestedPriceML,
+      kitMLBreakdown.commissionRateDecimal,
+    );
+    const kitMarketplaceFeeAmountML =
+      (kitSuggestedPriceML * kitFeePercentML) / 100;
+    const kitNetProfitML =
+      kitSuggestedPriceML -
+      kitMarketplaceFeeAmountML -
+      shippingAmount -
+      kitTaxAmountML -
+      kitCost;
+    kitMarginML =
+      kitSuggestedPriceML > 0
+        ? (kitNetProfitML / kitSuggestedPriceML) * 100
+        : 0;
+
+    // Direto PIX (sem marketplace)
+    const kitTaxAmountDirectCash = computeTaxAmount(
+      kitSuggestedPriceDirectCash,
+      0,
+    );
+    const kitNetProfitDirectCash =
+      kitSuggestedPriceDirectCash -
+      shippingAmount -
+      kitTaxAmountDirectCash -
+      kitCost;
+    kitMarginDirectCash =
+      kitSuggestedPriceDirectCash > 0
+        ? (kitNetProfitDirectCash / kitSuggestedPriceDirectCash) * 100
+        : 0;
+
+    // Direto crédito (taxa cartão)
+    const kitFeeAmountDirectCard =
+      (kitSuggestedPriceDirectCard * cardFeePercent) / 100;
+    // Imposto também sobre o preço cheio (igual PIX e igual calculadora HTML)
+    const kitTaxAmountDirectCard = computeTaxAmount(
+      kitSuggestedPriceDirectCard,
+      0,
+    );
+    const kitNetProfitDirectCard =
+      kitSuggestedPriceDirectCard -
+      kitFeeAmountDirectCard -
+      shippingAmount -
+      kitTaxAmountDirectCard -
+      kitCost;
+    kitMarginDirectCard =
+      kitSuggestedPriceDirectCard > 0
+        ? (kitNetProfitDirectCard / kitSuggestedPriceDirectCard) * 100
+        : 0;
   }
 
   return {
@@ -411,10 +583,22 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     depreciationCost,
     packagingCost,
     totalCost,
+    unitsPerBatch,
+    plateTotalCost,
     minimumPrice,
     suggestedPrice,
     suggestedPriceShopee,
     suggestedPriceML,
+    suggestedPriceDirectCash,
+    suggestedPriceDirectCard,
+    kitSuggestedPriceShopee,
+    kitSuggestedPriceML,
+    kitSuggestedPriceDirectCash,
+    kitSuggestedPriceDirectCard,
+    kitMarginShopee,
+    kitMarginML,
+    kitMarginDirectCash,
+    kitMarginDirectCard,
     profitPerSale,
     margin,
     cascataShopee,

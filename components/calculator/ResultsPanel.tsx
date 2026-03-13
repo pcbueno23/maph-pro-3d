@@ -27,6 +27,10 @@ export function ResultsPanel({ results, isDirty }: Props) {
     suggestedPrice,
     suggestedPriceShopee,
     suggestedPriceML,
+    suggestedPriceDirectCash,
+    suggestedPriceDirectCard,
+    unitsPerBatch,
+    plateTotalCost,
     profitPerSale,
     margin,
     cascataShopee,
@@ -34,6 +38,14 @@ export function ResultsPanel({ results, isDirty }: Props) {
     priceToAnnounceForPromo,
     profitPerHour,
     compareAtPriceResult,
+    kitSuggestedPriceShopee,
+    kitSuggestedPriceML,
+    kitSuggestedPriceDirectCash,
+    kitSuggestedPriceDirectCard,
+    kitMarginShopee,
+    kitMarginML,
+    kitMarginDirectCash,
+    kitMarginDirectCard,
   } = results;
 
   const worstChannel =
@@ -175,6 +187,22 @@ export function ResultsPanel({ results, isDirty }: Props) {
           <p className="mt-0.5">
             ML: <span className="font-semibold text-slate-50">{fmt(suggestedPriceML)}</span>
           </p>
+          {(suggestedPriceDirectCash != null || suggestedPriceDirectCard != null) && (
+            <div className="mt-1 border-t border-slate-800 pt-1">
+              <p className="mt-0.5">
+                Direto PIX:{" "}
+                <span className="font-semibold text-slate-50">
+                  {fmt(suggestedPriceDirectCash ?? 0)}
+                </span>
+              </p>
+              <p className="mt-0.5">
+                Direto crédito:{" "}
+                <span className="font-semibold text-slate-50">
+                  {fmt(suggestedPriceDirectCard ?? 0)}
+                </span>
+              </p>
+            </div>
+          )}
         </div>
         {compareAtPriceResult && (
           <div className="rounded-xl bg-cyan-500/10 px-3 py-2 text-right text-xs text-cyan-400">
@@ -195,7 +223,27 @@ export function ResultsPanel({ results, isDirty }: Props) {
               </span>
             </p>
             <p className="mt-0.5 text-[10px] text-slate-400">
-              {fmt(Math.min(compareAtPriceResult.shopee.profitPerHour, compareAtPriceResult.ml.profitPerHour))}/h
+              Direto PIX:{" "}
+              <span className={compareAtPriceResult.directCash.netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                {fmt(compareAtPriceResult.directCash.netProfit)} ({compareAtPriceResult.directCash.marginPercent.toFixed(1)}%)
+              </span>
+            </p>
+            <p className="mt-0.5 text-[10px] text-slate-400">
+              Direto crédito:{" "}
+              <span className={compareAtPriceResult.directCard.netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                {fmt(compareAtPriceResult.directCard.netProfit)} ({compareAtPriceResult.directCard.marginPercent.toFixed(1)}%)
+              </span>
+            </p>
+            <p className="mt-0.5 text-[10px] text-slate-500">
+              {fmt(
+                Math.min(
+                  compareAtPriceResult.shopee.profitPerHour,
+                  compareAtPriceResult.ml.profitPerHour,
+                  compareAtPriceResult.directCash.profitPerHour,
+                  compareAtPriceResult.directCard.profitPerHour,
+                ),
+              )}
+              /h
             </p>
           </div>
         )}
@@ -220,7 +268,7 @@ export function ResultsPanel({ results, isDirty }: Props) {
       <div className="grid gap-4 text-xs md:grid-cols-2">
         <div className="space-y-2 rounded-xl bg-slate-950/50 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-            Custo total
+            Custo total (por peça)
           </p>
           <p className="text-lg font-semibold text-slate-100">{fmt(totalCost)}</p>
         </div>
@@ -231,6 +279,82 @@ export function ResultsPanel({ results, isDirty }: Props) {
           <p className="text-lg font-semibold text-slate-100">{fmt(minimumPrice)}</p>
         </div>
       </div>
+
+      {unitsPerBatch && unitsPerBatch > 1 && plateTotalCost != null && (
+        <div className="rounded-xl bg-slate-950/60 p-3 text-xs">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Impressão em placa / kit
+          </p>
+          <p className="text-slate-300">
+            <span className="font-medium text-slate-100">
+              {unitsPerBatch} peças por impressão
+            </span>{" "}
+            → custo total da placa:{" "}
+            <span className="font-semibold text-slate-100">
+              {fmt(plateTotalCost)}
+            </span>
+          </p>
+          {(kitSuggestedPriceShopee ||
+            kitSuggestedPriceML ||
+            kitSuggestedPriceDirectCash ||
+            kitSuggestedPriceDirectCard) && (
+            <div className="mt-1 border-t border-slate-800 pt-1 space-y-0.5 text-slate-300">
+              {kitSuggestedPriceShopee && (
+                <p>
+                  Kit Shopee:{" "}
+                  <span className="font-semibold text-slate-50">
+                    {fmt(kitSuggestedPriceShopee)}
+                  </span>
+                  {typeof kitMarginShopee === "number" && (
+                    <span className="ml-1 text-[11px] text-slate-400">
+                      ({kitMarginShopee.toFixed(1)}%)
+                    </span>
+                  )}
+                </p>
+              )}
+              {kitSuggestedPriceML && (
+                <p>
+                  Kit ML:{" "}
+                  <span className="font-semibold text-slate-50">
+                    {fmt(kitSuggestedPriceML)}
+                  </span>
+                  {typeof kitMarginML === "number" && (
+                    <span className="ml-1 text-[11px] text-slate-400">
+                      ({kitMarginML.toFixed(1)}%)
+                    </span>
+                  )}
+                </p>
+              )}
+              {kitSuggestedPriceDirectCash && (
+                <p>
+                  Kit direto PIX:{" "}
+                  <span className="font-semibold text-slate-50">
+                    {fmt(kitSuggestedPriceDirectCash)}
+                  </span>
+                  {typeof kitMarginDirectCash === "number" && (
+                    <span className="ml-1 text-[11px] text-slate-400">
+                      ({kitMarginDirectCash.toFixed(1)}%)
+                    </span>
+                  )}
+                </p>
+              )}
+              {kitSuggestedPriceDirectCard && (
+                <p>
+                  Kit direto crédito:{" "}
+                  <span className="font-semibold text-slate-50">
+                    {fmt(kitSuggestedPriceDirectCard)}
+                  </span>
+                  {typeof kitMarginDirectCard === "number" && (
+                    <span className="ml-1 text-[11px] text-slate-400">
+                      ({kitMarginDirectCard.toFixed(1)}%)
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-xs">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">

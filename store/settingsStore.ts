@@ -25,6 +25,12 @@ export const defaultSettings: SettingsValues = {
     shopeeFreeShippingDefault: false,
     taxMode: "net_marketplace",
     mlClassic: false,
+    shopeeBaseCommission: 14,
+    shopeeFreeShippingCommission: 20,
+    mlClassicCommission: 13,
+    mlPremiumCommission: 16,
+    // taxa padrão de cartão para venda direta (crédito)
+    cardFeePercent: 4.99,
   },
   printer: {
     presetId: "",
