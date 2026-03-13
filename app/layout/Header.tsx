@@ -96,14 +96,14 @@ export function Header() {
             <button
               type="button"
               onClick={() => requestSave()}
-              className="hidden rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-1.5 text-xs font-medium text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 md:inline-flex"
+              className="inline-flex rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-1.5 text-xs font-medium text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
             >
               Salvar e nova simulação
             </button>
           ) : (
             <Link
               href="/calculator"
-              className="hidden rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-1.5 text-xs font-medium text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 md:inline-flex"
+              className="inline-flex rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-1.5 text-xs font-medium text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
             >
               Nova simulação
             </Link>
