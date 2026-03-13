@@ -12,6 +12,7 @@
 
 import type { Marketplace } from "@/types";
 import type { PersonType } from "./constants";
+import { useSettingsStore } from "@/store/settingsStore";
 
 const SHOPEE_COMMISSION_CAP = 100;
 
@@ -21,7 +22,10 @@ function getShopeeFixedFee(): number {
 }
 
 function getShopeeCommissionPercent(freeShipping: boolean): number {
-  return freeShipping ? 20 : 14; // Padrão 14%; Frete Grátis 20%
+  const defaults = useSettingsStore.getState().settings.defaults;
+  const base = defaults.shopeeBaseCommission ?? 14;
+  const free = defaults.shopeeFreeShippingCommission ?? 20;
+  return freeShipping ? free : base;
 }
 
 /** Taxa efetiva em % sobre o preço (comissão% + taxa fixa diluída). Teto comissão R$ 100. */
@@ -63,7 +67,10 @@ export function getMercadoLivreEffectiveFeePercent(
 ): number {
   if (price <= 0) return 16;
   const isClassic = options.classic ?? false;
-  const basePct = isClassic ? 13 : 16;
+  const defaults = useSettingsStore.getState().settings.defaults;
+  const classicPct = defaults.mlClassicCommission ?? 13;
+  const premiumPct = defaults.mlPremiumCommission ?? 16;
+  const basePct = isClassic ? classicPct : premiumPct;
   const fixedFee = isClassic ? 6.5 : getMLFixedFee(price);
   const commissionAmount = (price * basePct) / 100;
   const totalFee = commissionAmount + fixedFee;
@@ -118,7 +125,10 @@ export function getMLFeeBreakdown(
   personType: PersonType,
   classic: boolean = false
 ): { commissionRateDecimal: number; commissionAmount: number; fixedFeeAmount: number } {
-  const basePct = classic ? 13 : 16;
+  const defaults = useSettingsStore.getState().settings.defaults;
+  const classicPct = defaults.mlClassicCommission ?? 13;
+  const premiumPct = defaults.mlPremiumCommission ?? 16;
+  const basePct = classic ? classicPct : premiumPct;
   const commissionAmount = (price * basePct) / 100;
   const fixedFeeAmount = classic ? 6.5 : getMLFixedFee(price);
   return {

@@ -7,7 +7,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { calculatorSchema, type CalculatorFormValues } from "@/types";
 import type { Product } from "@/types";
 import { DEFAULT_MARKETPLACE_FEES } from "@/lib/constants";
-import { calculateAll } from "@/lib/calculations";
+import {
+  computePricingFromFormValues,
+  safeParseCalculatorValues,
+} from "@/lib/pricingEngine";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useCalculatorStore } from "@/store/calculatorStore";
 import { useProductsStore } from "@/store/productsStore";
@@ -28,7 +31,7 @@ function getDefaultValues(
   return {
     productName: "",
     material: { weight: 50, pricePerKg: 120, type: "PLA" as const },
-    time: { hours: 3, powerW },
+    time: { hours: 3, powerW, unitsPerBatch: 1 },
     costs: {
       kwhPrice: settings.defaults.kwhPrice,
       printerCost: settings.defaults.printerCost,
@@ -51,6 +54,7 @@ function getDefaultValues(
       freeShipping: settings.defaults.shopeeFreeShippingDefault ?? false,
       discountPercent: 0,
       comparePrice: undefined as number | undefined,
+      cardFeePercent: settings.defaults.cardFeePercent ?? 0,
     },
   };
 }
@@ -89,21 +93,16 @@ export function useCalculator() {
   const debouncedValues = useDebounce(watched, 300);
 
   const results = useMemo(() => {
-    try {
-      const parsed = calculatorSchema.parse(debouncedValues);
-      return calculateAll(parsed);
-    } catch {
-      return null;
-    }
+    const parsed = safeParseCalculatorValues(debouncedValues);
+    if (!parsed) return null;
+    return computePricingFromFormValues(parsed);
   }, [debouncedValues]);
 
   useEffect(() => {
     if (results) {
-      try {
-        const parsed = calculatorSchema.parse(debouncedValues);
+      const parsed = safeParseCalculatorValues(debouncedValues);
+      if (parsed) {
         setLastCalculation(parsed, results);
-      } catch {
-        // ignore
       }
     }
   }, [debouncedValues, results, setLastCalculation]);

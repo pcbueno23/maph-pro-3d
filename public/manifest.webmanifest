@@ -1,0 +1,23 @@
+{
+  "name": "Precifica3D",
+  "short_name": "Precifica3D",
+  "description": "Calculadora inteligente de custos e margens para empreendedores de impressão 3D.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#06b6d4",
+  "icons": [
+    {
+      "src": "/logo-maph-pro-3d.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo-maph-pro-3d.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+

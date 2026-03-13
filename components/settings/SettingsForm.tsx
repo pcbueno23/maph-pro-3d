@@ -153,6 +153,95 @@ export function SettingsForm() {
                 Quando ativo, a Shopee usa 20% de comissão automaticamente.
               </p>
             </div>
+
+            <div>
+              <label className="mb-1 block text-xs text-slate-300">
+                Taxa cartão direto (%)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                {...form.register("defaults.cardFeePercent", {
+                  valueAsNumber: true,
+                })}
+              />
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                Usada para sugerir preço em venda direta no crédito.
+              </p>
+            </div>
+
+            <div className="md:col-span-2 mt-2 rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Presets de comissão – Shopee e Mercado Livre
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs text-slate-300">
+                    Shopee – comissão base (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    {...form.register("defaults.shopeeBaseCommission", {
+                      valueAsNumber: true,
+                    })}
+                  />
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Comissão padrão quando o frete grátis da Shopee não está ativo.
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-slate-300">
+                    Shopee – comissão com frete grátis (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    {...form.register("defaults.shopeeFreeShippingCommission", {
+                      valueAsNumber: true,
+                    })}
+                  />
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Usada quando você marca “Frete Grátis (Shopee)” na calculadora.
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-slate-300">
+                    Mercado Livre – anúncio Clássico (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    {...form.register("defaults.mlClassicCommission", {
+                      valueAsNumber: true,
+                    })}
+                  />
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Usada quando “Mercado Livre Clássico” está marcado na calculadora.
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-slate-300">
+                    Mercado Livre – anúncio Premium (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                    {...form.register("defaults.mlPremiumCommission", {
+                      valueAsNumber: true,
+                    })}
+                  />
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Usada quando “Mercado Livre Clássico” está desmarcado (Premium).
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
