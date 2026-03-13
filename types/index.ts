@@ -271,6 +271,10 @@ export const settingsSchema = z.object({
       .union([z.number(), z.nan()])
       .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 16))
       .default(16),
+    cardFeePercent: z
+      .union([z.number(), z.nan()])
+      .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
+      .default(0),
   }),
   printer: z.object({
     presetId: z.string().optional(),
