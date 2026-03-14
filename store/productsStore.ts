@@ -26,34 +26,8 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         // ignore
       }
     }
-
-    const sample: Product[] = [
-      {
-        id: "sample-1",
-        name: "Organizador de Bits 3D",
-        weight: 85,
-        price: 39.9,
-        margin: 55,
-        marketplace: "Shopee",
-        currency: "BRL",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "sample-2",
-        name: "Suporte de Fio – Bambu",
-        weight: 120,
-        price: 59.9,
-        margin: 48,
-        marketplace: "Mercado Livre",
-        currency: "BRL",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
-
-    set({ products: sample });
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sample));
+    // Sem dados no localStorage: manter lista vazia (não pré-preencher com exemplos)
+    set({ products: [] });
   },
   addProduct: (product: Product) => {
     const next = [product, ...get().products];

@@ -67,6 +67,8 @@ export function calcTotalCost(params: {
 
 /**
  * Preço sugerido para manter a margem desejada (taxa fixa em %).
+ * Quando margem = 100%, matematicamente não é possível (custo > 0);
+ * interpretamos como 100% de markup (dobro do custo) para venda direta.
  */
 export function calcSuggestedPrice(params: {
   totalCost: number;
@@ -86,8 +88,13 @@ export function calcSuggestedPrice(params: {
   const margin = desiredMarginPercent / 100;
   const tax = taxPercent / 100;
   const divisor = 1 - fee - tax - margin;
-  if (divisor <= 0) return totalCost + shippingAmount;
-  return (totalCost + shippingAmount) / divisor;
+  const base = totalCost + shippingAmount;
+  if (divisor <= 0) {
+    // 100% margem é impossível; tratamos como 100% markup (dobro do custo)
+    if (desiredMarginPercent >= 100) return base * 2;
+    return base;
+  }
+  return base / divisor;
 }
 
 export function calcMinimumPrice(params: {

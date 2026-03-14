@@ -32,9 +32,9 @@ export async function syncProductsOnLogin(userId: string): Promise<void> {
 
   if (remoteProducts.length > 0) {
     useProductsStore.getState().hydrateFromCloud(remoteProducts);
-  } else if (localProducts.length > 0) {
-    // Caso a nuvem ainda esteja vazia, manter o estado local sincronizado
-    useProductsStore.getState().hydrateFromCloud(localProducts);
+  } else {
+    // Nuvem vazia: não usar dados locais (podem ser de outro usuário após troca de conta)
+    useProductsStore.getState().hydrateFromCloud([]);
   }
 }
 

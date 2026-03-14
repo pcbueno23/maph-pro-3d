@@ -16,6 +16,8 @@ interface CalculatorState {
   clearSaveRequested: () => void;
   setProductToLoad: (product: Product | null) => void;
   setStlPreset: (data: { weightGrams: number; estimatedMinutes: number } | null) => void;
+  /** Zera estado da calculadora (última conta, produto para carregar, preset STL). Usado no logout. */
+  clearOnLogout: () => void;
 }
 
 export const useCalculatorStore = create<CalculatorState>((set) => ({
@@ -24,6 +26,13 @@ export const useCalculatorStore = create<CalculatorState>((set) => ({
   saveRequested: false,
   productToLoad: null,
   stlPreset: null,
+  clearOnLogout: () =>
+    set({
+      lastInput: null,
+      lastResults: null,
+      productToLoad: null,
+      stlPreset: null,
+    }),
   setLastCalculation: (input, results) =>
     set({
       lastInput: input,

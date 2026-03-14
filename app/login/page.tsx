@@ -77,12 +77,19 @@ function LoginFormContent() {
     setError(null);
     setLoading(true);
     try {
-      const origin =
-        typeof window !== "undefined" ? window.location.origin : "";
+      // Em produção (Vercel) usar sempre a URL do app; em dev usar a origem atual (localhost)
+      const appUrl =
+        typeof process.env.NEXT_PUBLIC_APP_URL === "string" &&
+        process.env.NEXT_PUBLIC_APP_URL
+          ? process.env.NEXT_PUBLIC_APP_URL
+          : typeof window !== "undefined"
+            ? window.location.origin
+            : "";
+      const redirectTo = appUrl ? `${appUrl.replace(/\/$/, "")}/dashboard` : undefined;
       await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: origin ? `${origin}/dashboard` : undefined,
+          redirectTo,
         },
       });
     } catch (err: any) {
