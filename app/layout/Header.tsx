@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useCalculatorStore } from "@/store/calculatorStore";
 import { supabase } from "@/lib/supabaseClient";
+import { clearUserData } from "@/lib/clearUserData";
 
 const titles: Record<string, string> = {
   "/": "Visão geral",
@@ -45,6 +46,7 @@ export function Header() {
   }
 
   async function handleLogout() {
+    clearUserData();
     if (supabase) {
       await supabase.auth.signOut();
     }

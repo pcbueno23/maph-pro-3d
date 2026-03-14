@@ -11,7 +11,8 @@ export const metadata: Metadata = {
     "Maph Pro 3D - Calculadora inteligente de custos e margens para empreendedores de impressão 3D.",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/logo.png",
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    apple: "/logo.png",
   },
 };
 

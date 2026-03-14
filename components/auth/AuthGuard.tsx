@@ -4,6 +4,7 @@ import { ReactNode, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
+import { clearUserData } from "@/lib/clearUserData";
 import { syncProductsOnLogin } from "@/lib/productSync";
 import { syncUserDataOnLogin } from "@/lib/userDataSync";
 import { PersistUserData } from "./PersistUserData";
@@ -47,6 +48,7 @@ export function AuthGuard({ children }: Props) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuth(session?.user ?? null, session ?? null);
       if (!session) {
+        clearUserData();
         clearAuth();
       }
     });
@@ -59,6 +61,8 @@ export function AuthGuard({ children }: Props) {
 
   useEffect(() => {
     if (user) {
+      // Limpar primeiro para nunca mostrar dados de outro usuário (mesmo navegador / troca de conta)
+      clearUserData();
       void (async () => {
         await syncProductsOnLogin(user.id);
         await syncUserDataOnLogin(user.id);
