@@ -31,7 +31,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-64 flex-col border-r border-slate-800 bg-slate-950/80 px-4 py-6 md:flex">
+    <aside className="hidden w-64 flex-col overflow-hidden border-r border-slate-800 bg-slate-950/80 px-4 py-6 md:flex">
       <div className="mb-8 flex items-center gap-3">
         <div className="h-12 w-12 overflow-hidden rounded-2xl bg-slate-900/80">
           <Image
@@ -51,7 +51,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="space-y-1">
+      <nav className="flex-1 space-y-1 overflow-y-auto">
         {links.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
