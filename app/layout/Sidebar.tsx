@@ -9,6 +9,8 @@ import {
   Package,
   Settings,
   CreditCard,
+  Store,
+  Percent,
 } from "lucide-react";
 
 const links = [
@@ -19,6 +21,8 @@ const links = [
   { href: "/sales", label: "Vendas", icon: Package },
   { href: "/reports", label: "Relatórios", icon: LineChart },
   { href: "/analyzer", label: "Analisador STL", icon: LineChart },
+  { href: "/fornecedores", label: "Fornecedores", icon: Store },
+  { href: "/promocoes", label: "Promoções", icon: Percent },
   { href: "/pricing", label: "Planos", icon: CreditCard },
   { href: "/settings", label: "Configurações", icon: Settings },
 ];
