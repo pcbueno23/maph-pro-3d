@@ -72,6 +72,9 @@ export async function computeProductUnitCost(userId: string, product: Product): 
       plateWeight: undefined,
       pricePerKg: 0, // custo de material vem do BOM abaixo
       type: "PLA" as const,
+      // Neste contexto não usamos o preset de insumo da calculadora,
+      // apenas o BOM; fornecemos uma string vazia para satisfazer o tipo.
+      supplyId: "",
     },
     time: {
       hours,
