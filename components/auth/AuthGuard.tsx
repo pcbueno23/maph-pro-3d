@@ -30,6 +30,10 @@ export function AuthGuard({ children }: Props) {
     }
 
     let cancelled = false;
+    const failSafe = setTimeout(() => {
+      // Evita travar indefinidamente em "Carregando sessão..."
+      if (!cancelled) setInitialized(true);
+    }, 4000);
 
     supabase.auth
       .getSession()
@@ -41,6 +45,9 @@ export function AuthGuard({ children }: Props) {
       .catch(() => {
         if (cancelled) return;
         setInitialized(true);
+      })
+      .finally(() => {
+        clearTimeout(failSafe);
       });
 
     const {
@@ -55,6 +62,7 @@ export function AuthGuard({ children }: Props) {
 
     return () => {
       cancelled = true;
+      clearTimeout(failSafe);
       subscription.unsubscribe();
     };
   }, [setAuth, setInitialized, clearAuth]);

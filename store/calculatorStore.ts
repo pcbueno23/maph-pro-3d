@@ -6,6 +6,8 @@ interface CalculatorState {
   lastInput: CalculatorFormValues | null;
   lastResults: CalculatorResults | null;
   saveRequested: boolean;
+  /** Timestamp (ms) da última vez que o usuário pediu para salvar. */
+  saveRequestedAt: number | null;
   productToLoad: Product | null;
   stlPreset: { weightGrams: number; estimatedMinutes: number } | null;
   setLastCalculation: (
@@ -24,6 +26,7 @@ export const useCalculatorStore = create<CalculatorState>((set) => ({
   lastInput: null,
   lastResults: null,
   saveRequested: false,
+  saveRequestedAt: null,
   productToLoad: null,
   stlPreset: null,
   clearOnLogout: () =>
@@ -38,8 +41,15 @@ export const useCalculatorStore = create<CalculatorState>((set) => ({
       lastInput: input,
       lastResults: results,
     }),
-  requestSave: () => set({ saveRequested: true }),
-  clearSaveRequested: () => set({ saveRequested: false }),
+  requestSave: () =>
+    set({
+      saveRequested: true,
+      saveRequestedAt: Date.now(),
+    }),
+  clearSaveRequested: () =>
+    set({
+      saveRequested: false,
+    }),
   setProductToLoad: (product) => set({ productToLoad: product }),
   setStlPreset: (data) => set({ stlPreset: data }),
 }));

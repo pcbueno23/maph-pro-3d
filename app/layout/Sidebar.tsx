@@ -11,16 +11,20 @@ import {
   CreditCard,
   Store,
   Percent,
+  Printer,
 } from "lucide-react";
 
 const links = [
   { href: "/", label: "Dashboard", icon: LineChart },
   { href: "/calculator", label: "Calculadora", icon: Calculator },
   { href: "/products", label: "Produtos", icon: Package },
-  { href: "/inventory", label: "Estoque", icon: Package },
+  { href: "/inventory", label: "Peças produzidas", icon: Package },
+  { href: "/ordens", label: "Ordens de produção", icon: Printer },
   { href: "/sales", label: "Vendas", icon: Package },
   { href: "/reports", label: "Relatórios", icon: LineChart },
   { href: "/analyzer", label: "Analisador STL", icon: LineChart },
+  { href: "/insumos", label: "Insumos", icon: Package },
+  { href: "/impressoras", label: "Impressoras", icon: Printer },
   { href: "/fornecedores", label: "Fornecedores", icon: Store },
   { href: "/promocoes", label: "Promoções", icon: Percent },
   { href: "/pricing", label: "Planos", icon: CreditCard },

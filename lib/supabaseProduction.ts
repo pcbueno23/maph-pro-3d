@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 import type {
-  Equipment,
+  Printer,
   SupplyItem,
   SupplyMovement,
   ProductMaterial,
@@ -15,24 +15,26 @@ function mustHaveClient() {
 }
 
 // =========================
-// Equipamentos
+// Impressoras
 // =========================
 
-export async function listEquipments(userId: string): Promise<Equipment[]> {
+export async function listPrinters(userId: string): Promise<Printer[]> {
   const client = mustHaveClient();
   const { data, error } = await client
-    .from("equipments")
+    .from("printers")
     .select("*")
     .eq("user_id", userId)
     .order("updated_at", { ascending: false });
   if (error || !data) throw error ?? new Error("Falha ao listar equipamentos");
-  return data.map(mapEquipmentRow);
+  return data.map(mapPrinterRow);
 }
 
-export async function upsertEquipment(userId: string, input: Omit<Equipment, "userId">): Promise<Equipment> {
+export async function upsertPrinter(
+  userId: string,
+  input: Omit<Printer, "userId" | "id"> & { id?: string },
+): Promise<Printer> {
   const client = mustHaveClient();
-  const payload = {
-    id: input.id,
+  const payload: any = {
     user_id: userId,
     name: input.name,
     model: input.model ?? null,
@@ -44,22 +46,25 @@ export async function upsertEquipment(userId: string, input: Omit<Equipment, "us
     created_at: input.createdAt,
     updated_at: new Date().toISOString(),
   };
+  if (input.id) {
+    payload.id = input.id;
+  }
   const { data, error } = await client
-    .from("equipments")
+    .from("printers")
     .upsert(payload, { onConflict: "id" })
     .select("*")
     .single();
   if (error || !data) throw error ?? new Error("Falha ao salvar equipamento");
-  return mapEquipmentRow(data);
+  return mapPrinterRow(data);
 }
 
-export async function deleteEquipment(userId: string, id: string): Promise<void> {
+export async function deletePrinter(userId: string, id: string): Promise<void> {
   const client = mustHaveClient();
-  const { error } = await client.from("equipments").delete().eq("user_id", userId).eq("id", id);
+  const { error } = await client.from("printers").delete().eq("user_id", userId).eq("id", id);
   if (error) throw error;
 }
 
-function mapEquipmentRow(row: any): Equipment {
+function mapPrinterRow(row: any): Printer {
   return {
     id: row.id,
     userId: row.user_id,
@@ -73,6 +78,17 @@ function mapEquipmentRow(row: any): Equipment {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// Compat: exports antigos (não usar em código novo)
+export async function listEquipments(userId: string) {
+  return listPrinters(userId);
+}
+export async function upsertEquipment(userId: string, input: any) {
+  return upsertPrinter(userId, input);
+}
+export async function deleteEquipment(userId: string, id: string) {
+  return deletePrinter(userId, id);
 }
 
 // =========================
@@ -90,10 +106,12 @@ export async function listSupplies(userId: string): Promise<SupplyItem[]> {
   return data.map(mapSupplyRow);
 }
 
-export async function upsertSupply(userId: string, input: Omit<SupplyItem, "userId">): Promise<SupplyItem> {
+export async function upsertSupply(
+  userId: string,
+  input: Omit<SupplyItem, "userId" | "id"> & { id?: string },
+): Promise<SupplyItem> {
   const client = mustHaveClient();
-  const payload = {
-    id: input.id,
+  const payload: any = {
     user_id: userId,
     name: input.name,
     category: input.category,
@@ -106,6 +124,9 @@ export async function upsertSupply(userId: string, input: Omit<SupplyItem, "user
     created_at: input.createdAt,
     updated_at: new Date().toISOString(),
   };
+  if (input.id) {
+    payload.id = input.id;
+  }
   const { data, error } = await client
     .from("supplies")
     .upsert(payload, { onConflict: "id" })
@@ -123,7 +144,7 @@ export async function deleteSupply(userId: string, id: string): Promise<void> {
 
 export async function createSupplyMovement(
   userId: string,
-  input: Omit<SupplyMovement, "userId" | "createdAt">,
+  input: Omit<SupplyMovement, "userId" | "createdAt" | "id">,
 ): Promise<SupplyMovement> {
   const client = mustHaveClient();
   const payload = {
@@ -194,11 +215,10 @@ export async function listProductMaterials(userId: string, productId: string): P
 
 export async function upsertProductMaterial(
   userId: string,
-  input: Omit<ProductMaterial, "userId">,
+  input: Omit<ProductMaterial, "userId" | "id"> & { id?: string },
 ): Promise<ProductMaterial> {
   const client = mustHaveClient();
-  const payload = {
-    id: input.id,
+  const payload: any = {
     user_id: userId,
     product_id: input.productId,
     supply_id: input.supplyId,
@@ -207,6 +227,9 @@ export async function upsertProductMaterial(
     created_at: input.createdAt,
     updated_at: new Date().toISOString(),
   };
+  if (input.id) {
+    payload.id = input.id;
+  }
   const { data, error } = await client
     .from("product_materials")
     .upsert(payload, { onConflict: "id" })
@@ -255,11 +278,10 @@ export async function upsertProductionOrder(
   input: Omit<ProductionOrder, "userId">,
 ): Promise<ProductionOrder> {
   const client = mustHaveClient();
-  const payload = {
-    id: input.id,
+  const payload: any = {
     user_id: userId,
     product_id: input.productId,
-    equipment_id: input.equipmentId ?? null,
+    printer_id: input.printerId ?? null,
     quantity: input.quantity,
     due_date: input.dueDate ?? null,
     status: input.status,
@@ -267,6 +289,9 @@ export async function upsertProductionOrder(
     created_at: input.createdAt,
     updated_at: new Date().toISOString(),
   };
+  if (input.id) {
+    payload.id = input.id;
+  }
   const { data, error } = await client
     .from("production_orders")
     .upsert(payload, { onConflict: "id" })
@@ -287,7 +312,7 @@ function mapProductionOrderRow(row: any): ProductionOrder {
     id: row.id,
     userId: row.user_id,
     productId: row.product_id,
-    equipmentId: row.equipment_id,
+    printerId: row.printer_id ?? row.equipment_id ?? null,
     quantity: Number(row.quantity ?? 1),
     dueDate: row.due_date,
     status: row.status,
@@ -295,6 +320,63 @@ function mapProductionOrderRow(row: any): ProductionOrder {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// Baixa automática de insumos com base no BOM do produto e quantidade da ordem.
+// Registra movimentações de saída e atualiza o estoque atual dos insumos.
+export async function consumeSuppliesForOrder(
+  userId: string,
+  order: ProductionOrder,
+): Promise<void> {
+  const client = mustHaveClient();
+
+  // Busca materiais do produto (BOM)
+  const { data: mats, error: matsError } = await client
+    .from("product_materials")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("product_id", order.productId);
+  if (matsError) throw matsError;
+  if (!mats || mats.length === 0) return;
+
+  const materials: ProductMaterial[] = mats.map(mapProductMaterialRow);
+  if (materials.length === 0) return;
+
+  // Carrega insumos atuais para ter o estoque
+  const supplies = await listSupplies(userId);
+  const suppliesById = new Map(supplies.map((s) => [s.id, s] as const));
+
+  for (const m of materials) {
+    const supply = suppliesById.get(m.supplyId);
+    if (!supply) continue;
+
+    const totalQty = (m.qty ?? 0) * (order.quantity ?? 1);
+    if (!totalQty || totalQty <= 0) continue;
+
+    // Movimento de saída
+    await createSupplyMovement(userId, {
+      supplyId: supply.id,
+      kind: "out",
+      qty: totalQty,
+      note: `Baixa automática da ordem ${order.id}`,
+    });
+
+    // Atualiza estoque do insumo
+    const nextStock = Math.max(0, (supply.stockQty ?? 0) - totalQty);
+    await upsertSupply(userId, {
+      id: supply.id,
+      name: supply.name,
+      category: supply.category,
+      unit: supply.unit,
+      unitCost: supply.unitCost,
+      stockQty: nextStock,
+      minStockQty: supply.minStockQty ?? null,
+      color: supply.color ?? null,
+      purchaseLink: supply.purchaseLink ?? null,
+      createdAt: supply.createdAt,
+      updatedAt: new Date().toISOString(),
+    });
+  }
 }
 
 // =========================

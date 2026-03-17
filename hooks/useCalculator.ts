@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { Resolver } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,6 +17,20 @@ import { useProductsStore } from "@/store/productsStore";
 import { useAuthStore } from "@/store/authStore";
 import { useDebounce } from "./useDebounce";
 import { upsertProductsForUser } from "@/lib/supabaseProducts";
+import { listSupplies, upsertProductMaterial } from "@/lib/supabaseProduction";
+
+function generateUuid() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  // Fallback simples compatível com formato UUID v4
+  // suficiente para o Supabase aceitar como uuid.
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 function getDefaultValues(
   settings: ReturnType<typeof useSettingsStore.getState>["settings"],
@@ -30,7 +44,7 @@ function getDefaultValues(
   const powerW = printerSettings.customPowerW ?? fromCustom ?? 250;
   return {
     productName: "",
-    material: { weight: 50, pricePerKg: 120, type: "PLA" as const },
+    material: { weight: 50, pricePerKg: 120, type: "PLA" as const, supplyId: undefined },
     time: { hours: 3, powerW, unitsPerBatch: 1 },
     costs: {
       kwhPrice: settings.defaults.kwhPrice,
@@ -65,6 +79,7 @@ export function useCalculator() {
   const {
     setLastCalculation,
     saveRequested,
+    saveRequestedAt,
     clearSaveRequested,
     lastInput,
     lastResults,
@@ -98,6 +113,10 @@ export function useCalculator() {
     return computePricingFromFormValues(parsed);
   }, [debouncedValues]);
 
+  // Garante que cada pedido de save (timestamp) seja processado apenas uma vez,
+  // mesmo com o StrictMode chamando o efeito em duplicidade no dev.
+  const lastHandledSaveAtRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (results) {
       const parsed = safeParseCalculatorValues(debouncedValues);
@@ -108,52 +127,120 @@ export function useCalculator() {
   }, [debouncedValues, results, setLastCalculation]);
 
   useEffect(() => {
-    if (!saveRequested || !lastInput || !lastResults) {
+    if (!saveRequested || !lastInput || !lastResults || !saveRequestedAt) {
       if (saveRequested) clearSaveRequested();
       return;
     }
 
-    const customName =
-      typeof lastInput.productName === "string"
-        ? lastInput.productName.trim()
-        : "";
-    const name =
-      customName ||
-      "Simulação " +
-        new Date().toLocaleString("pt-BR", {
-          day: "2-digit",
-          month: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-    const product: Product = {
-      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `prod_${Date.now()}`,
-      name,
-      weight: lastInput.material.weight,
-      price: lastResults.suggestedPrice,
-      margin: Math.min(
-        lastResults.cascataShopee.marginPercent,
-        lastResults.cascataML.marginPercent,
-      ),
-      marketplace: "Shopee",
-      currency: settings.currency ?? "BRL",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      suggestedPriceShopee: lastResults.suggestedPriceShopee,
-      suggestedPriceML: lastResults.suggestedPriceML,
-      totalCost: lastResults.totalCost,
-    };
-
-    addProduct(product);
-
-    if (user && typeof window !== "undefined") {
-      const list = useProductsStore.getState().products;
-      upsertProductsForUser(user.id, list).catch(() => {});
+    if (lastHandledSaveAtRef.current === saveRequestedAt) {
+      // já processamos este pedido de save
+      clearSaveRequested();
+      return;
     }
+    lastHandledSaveAtRef.current = saveRequestedAt;
 
-    form.reset(getDefaultValues(settings, printerSettings));
-    clearSaveRequested();
-  }, [saveRequested, lastInput, lastResults, clearSaveRequested, addProduct, user, settings, form, printerSettings]);
+    void (async () => {
+      const unitsPerBatch =
+        typeof lastInput.time.unitsPerBatch === "number" && lastInput.time.unitsPerBatch > 0
+          ? lastInput.time.unitsPerBatch
+          : 1;
+      const effectiveWeightPerUnit =
+        typeof lastInput.material.plateWeight === "number" &&
+        lastInput.material.plateWeight > 0 &&
+        unitsPerBatch > 0
+          ? lastInput.material.plateWeight / unitsPerBatch
+          : lastInput.material.weight;
+
+      const customName =
+        typeof lastInput.productName === "string" ? lastInput.productName.trim() : "";
+      const name =
+        customName ||
+        "Simulação " +
+          new Date().toLocaleString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+      const minutesFromHours =
+        typeof lastInput.time.hours === "number" && Number.isFinite(lastInput.time.hours)
+          ? Math.max(0, Math.round(lastInput.time.hours * 60))
+          : null;
+
+      const product: Product = {
+        id: generateUuid(),
+        name,
+        // peso efetivo por peça (considera plateWeight/unidades do lote)
+        weight: effectiveWeightPerUnit,
+        price: lastResults.suggestedPrice,
+        margin: Math.min(lastResults.cascataShopee.marginPercent, lastResults.cascataML.marginPercent),
+        marketplace: "Shopee",
+        currency: settings.currency ?? "BRL",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        suggestedPriceShopee: lastResults.suggestedPriceShopee,
+        suggestedPriceML: lastResults.suggestedPriceML,
+        totalCost: lastResults.totalCost,
+        // Preenche automaticamente parte da ficha técnica:
+        // tempo estimado em minutos baseado no tempo da simulação.
+        printTimeMinutes: minutesFromHours,
+      };
+
+      addProduct(product);
+
+      if (user && typeof window !== "undefined") {
+        const list = useProductsStore.getState().products;
+        await upsertProductsForUser(user.id, list).catch(() => {});
+
+        // Grava BOM (materiais) a partir da simulação quando houver supplyId do filamento
+        // e o produto tiver ID compatível com a tabela UUID do Supabase.
+        const supplyId = lastInput.material.supplyId;
+        const isUuid = /^[0-9a-fA-F-]{36}$/.test(product.id);
+        if (supplyId && isUuid) {
+          try {
+            const supplies = await listSupplies(user.id);
+            const supply = supplies.find((s) => s.id === supplyId);
+            if (supply) {
+              const unit = (supply.unit ?? "").toLowerCase();
+              const gramsPerPiece = effectiveWeightPerUnit;
+              const qty =
+                unit === "g"
+                  ? gramsPerPiece
+                  : unit === "kg"
+                    ? gramsPerPiece / 1000
+                    : gramsPerPiece;
+
+              const nowIso = new Date().toISOString();
+              await upsertProductMaterial(user.id, {
+                productId: product.id,
+                supplyId: supply.id,
+                qty,
+                unit: null,
+                createdAt: nowIso,
+                updatedAt: nowIso,
+              });
+            }
+          } catch {
+            // se falhar em gravar BOM, não bloqueia o fluxo de salvar produto
+          }
+        }
+      }
+
+      form.reset(getDefaultValues(settings, printerSettings));
+      clearSaveRequested();
+    })();
+  }, [
+    saveRequested,
+    saveRequestedAt,
+    lastInput,
+    lastResults,
+    clearSaveRequested,
+    addProduct,
+    user,
+    settings,
+    form,
+    printerSettings,
+  ]);
 
   useEffect(() => {
     const customPresets = printerSettings.customPresets ?? [];

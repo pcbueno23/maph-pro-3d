@@ -2,6 +2,7 @@ import type {
   CalculatorFormValues,
   CalculatorResults,
   ProfitSimulationResult,
+  Printer,
 } from "@/types";
 import {
   getEffectiveMarketplaceFeePercent,
@@ -21,6 +22,13 @@ export function calcEnergyCost(
   kwhPrice: number,
 ): number {
   return (powerW / 1000) * hours * kwhPrice;
+}
+
+export function calcEnergyCostFromPrinter(params: {
+  printer: Pick<Printer, "powerW" | "energyRateBrlKwh">;
+  printHours: number;
+}): number {
+  return calcEnergyCost(params.printer.powerW, params.printHours, params.printer.energyRateBrlKwh);
 }
 
 export function calcDepreciation(
@@ -53,6 +61,27 @@ export function calcDepreciation(
 
   const machineHourCost = depreciationPerHour + maintenancePerHour + infrastructurePerHour;
   return machineHourCost * printHours;
+}
+
+export function calcDepreciationFromPrinter(params: {
+  printer: Pick<Printer, "purchaseValue" | "usefulLifeHours">;
+  printHours: number;
+  residualValue?: number;
+  annualMaintenance?: number;
+  infrastructureYear?: number;
+  yearlyPrintHours?: number;
+}): number {
+  const printerCost = params.printer.purchaseValue ?? 0;
+  const lifetimeHours = params.printer.usefulLifeHours ?? 0;
+  return calcDepreciation({
+    printerCost,
+    residualValue: params.residualValue ?? 0,
+    lifetimeHours,
+    annualMaintenance: params.annualMaintenance ?? 0,
+    infrastructureYear: params.infrastructureYear ?? 0,
+    yearlyPrintHours: params.yearlyPrintHours ?? 0,
+    printHours: params.printHours,
+  });
 }
 
 export function calcTotalCost(params: {
@@ -188,6 +217,8 @@ function buildCascata(params: {
 }
 
 export function calculateAll(input: CalculatorFormValues): CalculatorResults {
+  // Compat: enquanto a UI não seleciona uma impressora (entidade),
+  // o motor usa os campos atuais do formulário.
   const unitsPerBatch =
     typeof input.time.unitsPerBatch === "number" && input.time.unitsPerBatch > 0
       ? input.time.unitsPerBatch
@@ -613,6 +644,77 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     priceToAnnounceForPromo,
     profitPerHour,
     compareAtPriceResult,
+  };
+}
+
+/**
+ * Versão do motor para quando a impressão é associada a uma "Impressora" (entidade).
+ * Isso permite tirar energia/depreciação das configurações e centralizar por impressora.
+ */
+export function calculateAllWithPrinter(params: {
+  input: CalculatorFormValues;
+  printer: Pick<Printer, "powerW" | "energyRateBrlKwh" | "purchaseValue" | "usefulLifeHours">;
+  // opcionais para manter seu modelo de custo atual (podem sair do settings depois)
+  residualValue?: number;
+  annualMaintenance?: number;
+  infrastructureYear?: number;
+  yearlyPrintHours?: number;
+}): CalculatorResults {
+  const { input, printer } = params;
+
+  const unitsPerBatch =
+    typeof input.time.unitsPerBatch === "number" && input.time.unitsPerBatch > 0 ? input.time.unitsPerBatch : 1;
+  const effectiveHoursPerUnit = unitsPerBatch > 0 ? input.time.hours / unitsPerBatch : input.time.hours;
+
+  const effectiveWeightPerUnit =
+    typeof input.material.plateWeight === "number" && input.material.plateWeight > 0 && unitsPerBatch > 0
+      ? input.material.plateWeight / unitsPerBatch
+      : input.material.weight;
+
+  const filamentCost = calcFilamentCost(effectiveWeightPerUnit, input.material.pricePerKg);
+  const energyCost = calcEnergyCostFromPrinter({ printer, printHours: effectiveHoursPerUnit });
+  const depreciationCost = calcDepreciationFromPrinter({
+    printer,
+    printHours: effectiveHoursPerUnit,
+    residualValue: params.residualValue,
+    annualMaintenance: params.annualMaintenance,
+    infrastructureYear: params.infrastructureYear,
+    yearlyPrintHours: params.yearlyPrintHours,
+  });
+  const packagingCost = input.costs.packaging;
+  const totalCost = calcTotalCost({ filamentCost, energyCost, depreciationCost, packagingCost });
+
+  // A partir daqui, reaproveita o resto do motor atual, só trocando os custos.
+  // Para manter consistência, clonamos o input e substituímos os campos antigos.
+  const patched: CalculatorFormValues = {
+    ...input,
+    time: { ...input.time, powerW: printer.powerW },
+    costs: {
+      ...input.costs,
+      kwhPrice: printer.energyRateBrlKwh,
+      printerCost: printer.purchaseValue ?? 0,
+      lifetimeHours: printer.usefulLifeHours ?? 0,
+      residualValue: params.residualValue ?? input.costs.residualValue,
+      annualMaintenance: params.annualMaintenance ?? input.costs.annualMaintenance,
+      infrastructureYear: params.infrastructureYear ?? input.costs.infrastructureYear,
+      yearlyPrintHours: params.yearlyPrintHours ?? input.costs.yearlyPrintHours,
+    },
+  };
+
+  // Reusa o motor existente para manter todos os cálculos de marketplace/cascata/compare/kit.
+  // Ele vai recomputar custos internamente; por isso, garantimos que os campos foram patchados.
+  // (Próximo passo: extrair a parte "taxas e preços" para evitar recomputo.)
+  const full = calculateAll(patched);
+
+  // Garante consistência de custos caso o motor interno mude no futuro.
+  return {
+    ...full,
+    filamentCost,
+    energyCost,
+    depreciationCost,
+    packagingCost,
+    totalCost,
+    plateTotalCost: (full.unitsPerBatch ?? 1) * totalCost,
   };
 }
 

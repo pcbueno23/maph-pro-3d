@@ -7,7 +7,7 @@ export const calculatorSchema = z
   .object({
   productName: z.string().optional(),
   material: z.object({
-    // Peso unitário da peça. Obrigatório apenas quando houver 1 peça por impressão.
+  // Peso unitário da peça. Obrigatório apenas quando houver 1 peça por impressão.
     weight: z
       .union([z.number(), z.nan()])
       .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0)),
@@ -20,6 +20,10 @@ export const calculatorSchema = z
       .transform((n) =>
         typeof n === "number" && !Number.isNaN(n) && n > 0 ? n : undefined,
       ),
+      /** Identificador do insumo de filamento selecionado em /insumos (obrigatório). */
+      supplyId: z
+        .string({ required_error: "Selecione um filamento" })
+        .min(1, "Selecione um filamento"),
     pricePerKg: z.number().min(1, "Informe o custo do filamento/kg"),
     type: z.enum(["PLA", "ABS", "PETG"]),
   }),
@@ -211,6 +215,13 @@ export interface Product {
   suggestedPriceShopee?: number;
   suggestedPriceML?: number;
   totalCost?: number;
+  /** Campos de ficha técnica (opcionais; não afetam a calculadora atual) */
+  sku?: string | null;
+  description?: string | null;
+  /** Tempo estimado do produto (minutos) para uso em ordens/BOM. */
+  printTimeMinutes?: number | null;
+  /** Impressora padrão (entidade) para custos em ordens. */
+  defaultPrinterId?: string | null;
 }
 
 export const settingsSchema = z.object({
@@ -337,21 +348,25 @@ export interface ProfitSimulationResult {
 // Entidades de operação (Print Farm)
 // =========================
 
-export type EquipmentStatus = "available" | "busy" | "maintenance" | "offline";
+export type PrinterStatus = "available" | "busy" | "maintenance" | "offline";
 
-export interface Equipment {
+export interface Printer {
   id: string;
   userId: string;
   name: string;
   model?: string | null;
   powerW: number;
   energyRateBrlKwh: number;
-  status: EquipmentStatus;
+  status: PrinterStatus;
   purchaseValue?: number | null;
   usefulLifeHours?: number | null;
   createdAt: string;
   updatedAt: string;
 }
+
+// Compat: nome antigo (não usar em código novo)
+export type EquipmentStatus = PrinterStatus;
+export type Equipment = Printer;
 
 export type SupplyCategory = "filament" | "resin" | "ink" | "packaging" | "tool" | "part" | "other";
 
@@ -407,7 +422,7 @@ export interface ProductionOrder {
   id: string;
   userId: string;
   productId: string;
-  equipmentId?: string | null;
+  printerId?: string | null;
   quantity: number;
   dueDate?: string | null; // YYYY-MM-DD
   status: ProductionOrderStatus;

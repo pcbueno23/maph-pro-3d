@@ -8,6 +8,7 @@ interface ProductsState {
   hydrateFromStorage: () => void;
   addProduct: (product: Product) => void;
   removeProduct: (id: string) => void;
+  updateProduct: (product: Product) => void;
   hydrateFromCloud: (products: Product[]) => void;
 }
 
@@ -39,6 +40,14 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
   },
   removeProduct: (id: string) => {
     const next = get().products.filter((p) => p.id !== id);
+    set({ products: next });
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    }
+  },
+  updateProduct: (product: Product) => {
+    const next = get().products.map((p) => (p.id === product.id ? product : p));
     set({ products: next });
 
     if (typeof window !== "undefined") {

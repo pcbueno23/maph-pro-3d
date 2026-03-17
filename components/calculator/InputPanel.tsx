@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
-import type { CalculatorFormValues } from "@/types";
+import type { CalculatorFormValues, Printer, SupplyItem } from "@/types";
 import { useSettingsStore } from "@/store/settingsStore";
-import { useSuppliesStore } from "@/store/suppliesStore";
+import { useAuthStore } from "@/store/authStore";
+import { listPrinters, listSupplies } from "@/lib/supabaseProduction";
 
 // Afrouxamos levemente o tipo genérico aqui para evitar
 // incompatibilidades entre versões de TypeScript/react-hook-form
@@ -17,25 +18,40 @@ export function InputPanel({ form }: Props) {
     setValue,
     formState: { errors },
   } = form;
+  const selectedFilamentId = form.watch("material.supplyId") ?? "";
 
   const { settings } = useSettingsStore();
-  const customPresets = settings.printer?.customPresets ?? [];
-  const { supplies, hydrateFromStorage } = useSuppliesStore();
+  const user = useAuthStore((s) => s.user);
+  const [printers, setPrinters] = useState<Printer[]>([]);
+  const [filaments, setFilaments] = useState<SupplyItem[]>([]);
 
-  useEffect(() => {
-    hydrateFromStorage();
-  }, [hydrateFromStorage]);
-
-  const defaultPresetValue =
-    settings.printer?.presetId ??
-    "";
-  const [selectedPrinterId, setSelectedPrinterId] = useState(defaultPresetValue);
+  const [selectedPrinterId, setSelectedPrinterId] = useState<string>("");
   const [cep, setCep] = useState("");
   const [isFetchingCep, setIsFetchingCep] = useState(false);
 
   useEffect(() => {
-    setSelectedPrinterId(defaultPresetValue);
-  }, [defaultPresetValue]);
+    // carrega impressoras e insumos (filamentos) do Supabase
+    if (!user) {
+      setPrinters([]);
+      setFilaments([]);
+      return;
+    }
+    let alive = true;
+    Promise.all([listPrinters(user.id), listSupplies(user.id)])
+      .then(([printerItems, supplyItems]) => {
+        if (!alive) return;
+        setPrinters(printerItems);
+        setFilaments(supplyItems.filter((s) => s.category === "filament"));
+      })
+      .catch(() => {
+        if (!alive) return;
+        setPrinters([]);
+        setFilaments([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
 
   return (
     <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
@@ -66,29 +82,50 @@ export function InputPanel({ form }: Props) {
           <div className="space-y-2 text-sm">
             <div>
               <label className="mb-1 block text-xs text-slate-300">
-                Filamento (preset de insumo)
+                Filamento (preset de insumo) *
               </label>
               <select
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                value={selectedFilamentId}
                 onChange={(e) => {
                   const id = e.target.value;
-                  if (!id) return;
-                  const sup = supplies.find((s) => s.id === id);
-                  if (!sup) return;
-                  setValue("material.pricePerKg", sup.unitCost, { shouldDirty: true });
+                  const sup = filaments.find((s) => s.id === id);
+                  if (!sup) {
+                    setValue("material.supplyId", "", { shouldDirty: true });
+                    return;
+                  }
+                  // A calculadora trabalha com R$/kg. Em /insumos (filamento) podemos ter:
+                  // - unit "g" com custo por grama (R$/g)
+                  // - unit "kg" com custo por kg (R$/kg)
+                  const perKg =
+                    (sup.unit ?? "").toLowerCase() === "g"
+                      ? (sup.unitCost ?? 0) * 1000
+                      : (sup.unitCost ?? 0);
+                  setValue("material.supplyId", id, { shouldDirty: true });
+                  setValue("material.pricePerKg", perKg, { shouldDirty: true });
                 }}
-                defaultValue=""
               >
-                <option value="">Selecionar (opcional)</option>
-                {supplies
-                  .filter((s) => s.kind === "filament")
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} · {s.unitCost.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/
-                      {s.unit}
-                    </option>
-                  ))}
+                <option value="">Selecione um filamento</option>
+                {filaments.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ·{" "}
+                    {(() => {
+                      const unit = (s.unit ?? "").toLowerCase();
+                      const perKg =
+                        unit === "g" ? (s.unitCost ?? 0) * 1000 : (s.unitCost ?? 0);
+                      return `${perKg.toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}/kg`;
+                    })()}
+                  </option>
+                ))}
               </select>
+              {errors.material?.supplyId && (
+                <p className="mt-1 text-xs text-rose-400">
+                  {errors.material.supplyId.message}
+                </p>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-300">
@@ -231,44 +268,38 @@ export function InputPanel({ form }: Props) {
                   const value = e.target.value;
                   setSelectedPrinterId(value);
                   if (value === "") return;
-                  if (value.startsWith("custom:")) {
-                    const id = value.slice("custom:".length);
-                    const preset = customPresets.find((p) => p.id === id);
-                    if (preset) {
-                      setValue("time.powerW", preset.averagePowerW, {
-                        shouldDirty: true,
-                      });
-                      setValue("costs.printerCost", preset.printerCost, {
-                        shouldDirty: true,
-                      });
-                      setValue("costs.lifetimeHours", preset.lifetimeHours, {
-                        shouldDirty: true,
-                      });
-                      setValue(
-                        "costs.annualMaintenance",
-                        preset.annualMaintenance ?? settings.defaults.annualMaintenance ?? 0,
-                        { shouldDirty: true },
-                      );
-                      setValue(
-                        "costs.yearlyPrintHours",
-                        preset.yearlyPrintHours ?? settings.defaults.yearlyPrintHours ?? 1000,
-                        { shouldDirty: true },
-                      );
-                    }
-                    return;
+                  const p = printers.find((x) => x.id === value);
+                  if (!p) return;
+                  // Preenche campos da calculadora a partir da impressora cadastrada
+                  setValue("time.powerW", Number(p.powerW ?? 0), { shouldDirty: true });
+                  setValue("costs.printerCost", Number(p.purchaseValue ?? 0), { shouldDirty: true });
+                  setValue("costs.lifetimeHours", Number(p.usefulLifeHours ?? 0) || 1, { shouldDirty: true });
+                  if (Number.isFinite(Number(p.energyRateBrlKwh))) {
+                    setValue("costs.kwhPrice", Number(p.energyRateBrlKwh ?? 0), { shouldDirty: true });
                   }
+                  setValue(
+                    "costs.annualMaintenance",
+                    settings.defaults.annualMaintenance ?? 0,
+                    { shouldDirty: true },
+                  );
+                  setValue(
+                    "costs.yearlyPrintHours",
+                    settings.defaults.yearlyPrintHours ?? 1000,
+                    { shouldDirty: true },
+                  );
                 }}
               >
                 <option value="">Selecionar</option>
-                {customPresets.length > 0 && (
-                  <optgroup label="Personalizados">
-                    {customPresets.map((p) => (
-                      <option key={p.id} value={`custom:${p.id}`}>
-                        {p.name} · {p.averagePowerW}W
+                {printers.length > 0 ? (
+                  <optgroup label="Impressoras cadastradas">
+                    {printers.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                        {p.powerW ? ` · ${Number(p.powerW).toFixed(0)}W` : ""}
                       </option>
                     ))}
                   </optgroup>
-                )}
+                ) : null}
               </select>
               <input
                 type="number"

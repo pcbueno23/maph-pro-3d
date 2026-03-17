@@ -1,9 +1,16 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
   "/analyzer/page": "app/analyzer/page.js",
   "/calculator/page": "app/calculator/page.js",
+  "/impressoras/page": "app/impressoras/page.js",
+  "/insumos/page": "app/insumos/page.js",
   "/inventory/page": "app/inventory/page.js",
+  "/login/page": "app/login/page.js",
+  "/ordens/page": "app/ordens/page.js",
   "/page": "app/page.js",
+  "/printer/page": "app/printer/page.js",
   "/products/page": "app/products/page.js",
   "/reports/page": "app/reports/page.js",
-  "/sales/page": "app/sales/page.js"
+  "/sales/page": "app/sales/page.js",
+  "/settings/page": "app/settings/page.js"
 }
