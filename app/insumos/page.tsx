@@ -209,7 +209,7 @@ export default function InsumosPage() {
     }
 
     const payload: Omit<SupplyItem, "userId"> = {
-      id: draft.id,
+      id: draft.id ?? newId("supply"),
       name,
       category: draft.category,
       unit,
