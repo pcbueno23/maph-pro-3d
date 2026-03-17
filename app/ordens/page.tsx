@@ -224,7 +224,8 @@ export default function OrdersPage() {
         dueDate: draft.dueDate ?? null,
         status: draft.status,
         notes: draft.notes ?? null,
-        createdAt: draft.id ? draft.createdAt ?? now : now,
+        // Para ordens existentes, preservamos createdAt anterior; para novas, usamos agora.
+        createdAt: previous?.createdAt ?? now,
         updatedAt: now,
       };
       const saved = await upsertProductionOrder(user.id, {
