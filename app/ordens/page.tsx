@@ -133,7 +133,8 @@ export default function OrdersPage() {
   const [costs, setCosts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (!user) return;
+    const currentUser = user;
+    if (!currentUser) return;
     let alive = true;
     async function loadCosts() {
       const entries: [string, number][] = [];
