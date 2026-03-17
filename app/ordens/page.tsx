@@ -142,7 +142,7 @@ export default function OrdersPage() {
         const prod = productsById.get(o.productId);
         if (!prod) continue;
         try {
-          const total = await computeOrderTotalCost(userId, o, prod);
+          const total = await computeOrderTotalCost(userId!, o, prod);
           if (!alive) return;
           entries.push([o.id, total]);
         } catch {
