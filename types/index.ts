@@ -333,3 +333,116 @@ export interface ProfitSimulationResult {
   recommendation: string;
 }
 
+// =========================
+// Entidades de operação (Print Farm)
+// =========================
+
+export type EquipmentStatus = "available" | "busy" | "maintenance" | "offline";
+
+export interface Equipment {
+  id: string;
+  userId: string;
+  name: string;
+  model?: string | null;
+  powerW: number;
+  energyRateBrlKwh: number;
+  status: EquipmentStatus;
+  purchaseValue?: number | null;
+  usefulLifeHours?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SupplyCategory = "filament" | "resin" | "ink" | "packaging" | "tool" | "part" | "other";
+
+export interface SupplyItem {
+  id: string;
+  userId: string;
+  name: string;
+  category: SupplyCategory;
+  unit: string; // ex: g, kg, ml, unit
+  unitCost: number;
+  stockQty: number;
+  minStockQty?: number | null;
+  color?: string | null;
+  purchaseLink?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type StockMovementKind = "in" | "out" | "adjust";
+
+export interface SupplyMovement {
+  id: string;
+  userId: string;
+  supplyId: string;
+  kind: StockMovementKind;
+  qty: number;
+  note?: string | null;
+  createdAt: string;
+}
+
+export interface ProductMaterial {
+  id: string;
+  userId: string;
+  productId: string;
+  supplyId: string;
+  qty: number;
+  unit?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProductionOrderStatus =
+  | "new"
+  | "preparing"
+  | "queued"
+  | "printing"
+  | "post_processing"
+  | "ready_to_ship"
+  | "done"
+  | "cancelled";
+
+export interface ProductionOrder {
+  id: string;
+  userId: string;
+  productId: string;
+  equipmentId?: string | null;
+  quantity: number;
+  dueDate?: string | null; // YYYY-MM-DD
+  status: ProductionOrderStatus;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type QuoteStatus = "draft" | "sent" | "accepted" | "rejected" | "cancelled";
+
+export interface Quote {
+  id: string;
+  userId: string;
+  clientName: string;
+  clientPhone?: string | null;
+  quoteDate: string; // YYYY-MM-DD
+  deliveryDate?: string | null; // YYYY-MM-DD
+  status: QuoteStatus;
+  notes?: string | null;
+  subtotal: number;
+  discount: number;
+  total: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QuoteItem {
+  id: string;
+  userId: string;
+  quoteId: string;
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
