@@ -21,6 +21,17 @@ function normalizeNumber(value: unknown, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function generateUuid() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 function toDraft(p?: Printer | null): DraftPrinter {
   if (!p) {
     return {
@@ -110,7 +121,7 @@ export default function ImpressorasPage() {
 
     const nowIso = new Date().toISOString();
     const payload: Omit<Printer, "userId"> = {
-      id: draft.id,
+      id: draft.id ?? generateUuid(),
       name,
       model: (draft.model ?? "").trim() || null,
       powerW: Math.max(0, normalizeNumber(draft.powerW, 0)),
