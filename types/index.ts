@@ -21,9 +21,7 @@ export const calculatorSchema = z
         typeof n === "number" && !Number.isNaN(n) && n > 0 ? n : undefined,
       ),
       /** Identificador do insumo de filamento selecionado em /insumos (obrigatório). */
-      supplyId: z
-        .string({ required_error: "Selecione um filamento" })
-        .min(1, "Selecione um filamento"),
+      supplyId: z.string().min(1, "Selecione um filamento"),
     pricePerKg: z.number().min(1, "Informe o custo do filamento/kg"),
     type: z.enum(["PLA", "ABS", "PETG"]),
   }),
