@@ -27,6 +27,7 @@
     "autoprefixer": "^10.4.27",
     "class-variance-authority": "^0.7.1",
     "fast-xml-parser": "^5.5.1",
+    "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.577.0",
     "mqtt": "^5.15.0",

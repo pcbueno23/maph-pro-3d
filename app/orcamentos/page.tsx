@@ -34,6 +34,10 @@ function formatDateInput(d: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function formatBRL(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 type WizardStep = 1 | 2 | 3 | 4;
 
 export default function OrcamentosPage() {
@@ -212,7 +216,8 @@ export default function OrcamentosPage() {
 
       const freshQuotes = await listQuotes(user.id);
       setQuotes(freshQuotes);
-      resetWizard();
+      // Mantém o wizard aberto na Etapa 4 para permitir download do PDF.
+      setStep(4);
     } catch (e: any) {
       setError(e?.message ?? "Falha ao salvar orçamento.");
     } finally {
@@ -571,6 +576,125 @@ export default function OrcamentosPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!items.length) {
+                      setError("Adicione pelo menos 1 item antes de gerar o PDF.");
+                      return;
+                    }
+                    setError(null);
+                    setLoading(true);
+                    try {
+                      const mod = await import("jspdf");
+                      const { jsPDF } = mod;
+                      const doc = new jsPDF({
+                        unit: "pt",
+                        format: "a4",
+                      });
+
+                      const marginX = 48;
+                      let y = 54;
+
+                      doc.setFontSize(14);
+                      doc.text("Orçamento", marginX, y);
+                      y += 18;
+
+                      doc.setFontSize(10);
+                      doc.text(`Cliente: ${clientName.trim()}`, marginX, y);
+                      y += 14;
+                      if (clientPhone.trim()) {
+                        doc.text(`Telefone: ${clientPhone.trim()}`, marginX, y);
+                        y += 14;
+                      }
+                      doc.text(`Data: ${quoteDate}${deliveryDate ? ` · Entrega: ${deliveryDate}` : ""}`, marginX, y);
+                      y += 22;
+
+                      doc.setFontSize(10);
+                      doc.text("Itens", marginX, y);
+                      y += 14;
+
+                      const startY = y;
+                      const rowH = 16;
+                      const colProdutoW = 190;
+                      const colQtdW = 60;
+                      const colUnitW = 95;
+                      const colTotalW = 90;
+
+                      const xProduto = marginX;
+                      const xQtd = marginX + colProdutoW;
+                      const xUnit = xQtd + colQtdW;
+                      const xTotal = xUnit + colUnitW;
+
+                      // Header
+                      doc.setFontSize(9);
+                      doc.text("Produto", xProduto, y);
+                      doc.text("Qtd", xQtd, y);
+                      doc.text("Preço/un", xUnit, y);
+                      doc.text("Total", xTotal, y);
+                      y += 10;
+
+                      doc.setDrawColor(150);
+                      doc.line(marginX, y, marginX + colProdutoW + colQtdW + colUnitW + colTotalW, y);
+                      y += 6;
+
+                      doc.setFontSize(9);
+                      for (const it of items) {
+                        const p = productsById.get(it.productId);
+                        const label = p?.name ?? it.productId;
+                        // evita overflow: trunca texto
+                        const safe = label.length > 24 ? `${label.slice(0, 22)}...` : label;
+                        doc.text(safe, xProduto, y);
+                        doc.text(String(it.quantity), xQtd, y);
+                        doc.text(formatBRL(it.unitPrice), xUnit, y);
+                        doc.text(formatBRL(it.quantity * it.unitPrice), xTotal, y);
+                        y += rowH;
+                        if (y > 760) {
+                          // pagina extra simples
+                          doc.addPage();
+                          y = 54;
+                        }
+                      }
+
+                      y = Math.max(y, startY + rowH);
+                      y += 10;
+
+                      doc.setFontSize(10);
+                      doc.text(`Subtotal: ${formatBRL(subtotal)}`, marginX, y);
+                      y += 14;
+                      doc.text(`Desconto: -${formatBRL(discountAmount)}`, marginX, y);
+                      y += 14;
+                      doc.setFontSize(12);
+                      doc.text(`Total: ${formatBRL(total)}`, marginX, y);
+                      y += 22;
+
+                      if (notes.trim()) {
+                        doc.setFontSize(10);
+                        doc.text("Notas:", marginX, y);
+                        y += 14;
+                        doc.setFontSize(9);
+                        const noteLines = doc.splitTextToSize(notes.trim(), 500);
+                        for (const line of noteLines.slice(0, 8)) {
+                          doc.text(String(line), marginX, y);
+                          y += 12;
+                        }
+                      }
+
+                      doc.save(`orcamento_${quoteId}.pdf`);
+                    } catch (e: any) {
+                      setError(e?.message ?? "Falha ao gerar PDF.");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
+                >
+                  Baixar PDF
+                </button>
               </div>
             </div>
           )}
