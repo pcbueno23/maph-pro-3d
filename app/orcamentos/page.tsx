@@ -394,7 +394,7 @@ export default function OrcamentosPage() {
         <button
           type="button"
           onClick={resetWizard}
-          className="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-2 text-xs font-semibold text-slate-100 hover:bg-slate-900/60 disabled:opacity-60"
+            className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
           disabled={loading}
         >
           Novo orçamento
