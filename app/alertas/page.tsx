@@ -473,9 +473,18 @@ export default function AlertasPage() {
             </button>
           )}
 
-          <p className="text-xs text-slate-500">
-            Permissão atual: <span className="text-slate-300">{notifPermission}</span>
-          </p>
+          <div className="mt-1 space-y-1">
+            <p className="text-xs text-slate-500">
+              Permissão do navegador: <span className="text-slate-300">{notifPermission}</span>
+            </p>
+            <p className="text-xs text-slate-500">
+              Notificações no app:{" "}
+              <span className={notifEnabled ? "text-emerald-300" : "text-slate-300"}>{notifEnabled ? "Ativado" : "Desativado"}</span>
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Observação: o navegador não permite revogar automaticamente a permissão via código; para mudar, use as configurações do site no navegador.
+            </p>
+          </div>
         </div>
       </div>
     </div>
