@@ -158,9 +158,12 @@ export default function AlertasPage() {
     return parts.join("\n");
   }
 
-  function maybeShowNotifications() {
+  function maybeShowNotifications(opts?: { force?: boolean }) {
+    const force = opts?.force ?? false;
     if (!supportsNotification) return;
-    if (!notifEnabled) return;
+    // "Testar agora" deve funcionar mesmo se o usuário ainda não clicou para habilitar
+    // (ou se o valor do localStorage não estiver sincronizado).
+    if (!notifEnabled && !force) return;
     if (Notification.permission !== "granted") return;
 
     const now = Date.now();
@@ -175,7 +178,7 @@ export default function AlertasPage() {
     }
 
     // evita spam: 1 notificação por hora quando o usuário estiver no `/alertas`
-    if (now - lastAt < 60 * 60 * 1000) return;
+    if (!force && now - lastAt < 60 * 60 * 1000) return;
 
     const body = buildNotificationBody();
     if (!body.trim()) return;
@@ -447,7 +450,7 @@ export default function AlertasPage() {
               </button>
               <button
                 type="button"
-                onClick={() => maybeShowNotifications()}
+                onClick={() => maybeShowNotifications({ force: true })}
                 disabled={loading}
                 className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
               >
