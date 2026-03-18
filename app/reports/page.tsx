@@ -59,6 +59,26 @@ export default function ReportsPage() {
 
   const totalInvested = totalSuppliesValue + totalPiecesCost;
 
+  const formatBRL = (value: number) =>
+    value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const filamentLabel =
+    (s: { kind: string }) =>
+      s.kind === "filament" ? "Filamentos" : s.kind === "ink" ? "Tintas" : "Outros";
+
+  const piecesRows = items.map((i) => {
+    const priceShopee = i.suggestedPriceShopee ?? i.price;
+    const priceML = i.suggestedPriceML ?? i.price;
+    const worstPerUnit = Math.min(priceShopee, priceML);
+    return {
+      ...i,
+      priceShopee,
+      priceML,
+      worstPerUnit,
+      worstTotal: worstPerUnit * i.quantity,
+    };
+  });
+
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">
@@ -216,6 +236,102 @@ export default function ReportsPage() {
               })}
             </p>
           </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Lista de insumos (tudo que você tem)
+          </p>
+          {supplies.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-400">Nenhum insumo cadastrado.</p>
+          ) : (
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                  <tr>
+                    <th className="px-2 py-2">Insumo</th>
+                    <th className="px-2 py-2">Categoria</th>
+                    <th className="px-2 py-2">Unidade</th>
+                    <th className="px-2 py-2">Custo/un</th>
+                    <th className="px-2 py-2">Estoque</th>
+                    <th className="px-2 py-2">Valor</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {supplies.map((s) => {
+                    const stockQty = Number(s.stockQty ?? 0);
+                    const stockIsEmpty = stockQty <= 0;
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-900/60">
+                        <td className="px-2 py-2 text-slate-100">{s.name}</td>
+                        <td className="px-2 py-2 text-slate-300">{filamentLabel(s)}</td>
+                        <td className="px-2 py-2 text-slate-300">{s.unit}</td>
+                        <td className="px-2 py-2 text-slate-200">{formatBRL(s.unitCost)}</td>
+                        <td className={`px-2 py-2 ${stockIsEmpty ? "text-amber-300" : "text-slate-200"}`}>
+                          {stockQty.toLocaleString("pt-BR")}
+                        </td>
+                        <td className="px-2 py-2 text-slate-200">
+                          {formatBRL(stockQty * (s.unitCost ?? 0))}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Lista de peças produzidas (tudo que você tem)
+          </p>
+          {items.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-400">
+              Nenhuma peça produzida cadastrada. Use a aba Produtos para lançar estoque.
+            </p>
+          ) : (
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                  <tr>
+                    <th className="px-2 py-2">Peça</th>
+                    <th className="px-2 py-2">SKU</th>
+                    <th className="px-2 py-2">Qtd</th>
+                    <th className="px-2 py-2">Preço Shopee</th>
+                    <th className="px-2 py-2">Preço ML</th>
+                    <th className="px-2 py-2">Custo</th>
+                    <th className="px-2 py-2">% Margem</th>
+                    <th className="px-2 py-2">Valor (pior canal)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {piecesRows.map((i) => (
+                    <tr key={i.id} className="hover:bg-slate-900/60">
+                      <td className="px-2 py-2 text-slate-100">{i.name}</td>
+                      <td className="px-2 py-2 text-slate-300">{i.sku || "-"}</td>
+                      <td className="px-2 py-2 text-slate-200">{i.quantity}</td>
+                      <td className="px-2 py-2 text-slate-200">{formatBRL(i.priceShopee)}</td>
+                      <td className="px-2 py-2 text-slate-200">{formatBRL(i.priceML)}</td>
+                      <td className="px-2 py-2 text-slate-200">
+                        {formatBRL(i.productionCost ?? 0)}
+                      </td>
+                      <td className="px-2 py-2">
+                        <span className={i.marginPercent >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                          {i.marginPercent.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="px-2 py-2 text-slate-200">
+                        {formatBRL(i.worstTotal)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
