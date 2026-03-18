@@ -12,10 +12,12 @@ import {
   upsertProductionOrder,
   deleteProductionOrder,
   listPrinters,
+  consumeSuppliesForOrder,
+  listSupplies,
+  listProductMaterials,
 } from "@/lib/supabaseProduction";
 import { fetchUserProducts } from "@/lib/supabaseProducts";
 import { computeOrderTotalCost } from "@/lib/productionCost";
-import { consumeSuppliesForOrder } from "@/lib/supabaseProduction";
 
 type DraftOrder = {
   id?: string;
@@ -219,6 +221,56 @@ export default function OrdersPage() {
         ? orders.find((o) => o.id === draft.id) ?? null
         : null;
       const now = new Date().toISOString();
+
+      // Validação de estoque de filamento antes de criar a ordem.
+      // (evita baixar/consumir insumos quando o estoque não é suficiente)
+      const [mats, sups] = await Promise.all([
+        listProductMaterials(user.id, draft.productId),
+        listSupplies(user.id),
+      ]);
+      const suppliesById = new Map(sups.map((s) => [s.id, s] as const));
+      const filamentDeficits: Array<{
+        supplyName: string;
+        required: number;
+        available: number;
+        unit: string;
+      }> = [];
+
+      for (const m of mats) {
+        const supply = suppliesById.get(m.supplyId);
+        if (!supply) continue;
+        if (supply.category !== "filament") continue;
+
+        const required = (m.qty ?? 0) * draft.quantity;
+        const available = supply.stockQty ?? 0;
+        if (required > available) {
+          filamentDeficits.push({
+            supplyName: supply.name,
+            required,
+            available,
+            unit: supply.unit,
+          });
+        }
+      }
+
+      if (filamentDeficits.length > 0) {
+        const lines = filamentDeficits.map((d) => {
+          const fmt = (n: number) =>
+            n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+          // Se unidade for kg, exibimos também em g (filamento geralmente é em g).
+          if (d.unit === "kg") {
+            const reqG = d.required * 1000;
+            const avG = d.available * 1000;
+            return `${d.supplyName}: necessário ${fmt(reqG)} g, disponível ${fmt(avG)} g`;
+          }
+          return `${d.supplyName}: necessário ${fmt(d.required)} ${d.unit}, disponível ${fmt(
+            d.available,
+          )} ${d.unit}`;
+        });
+        setError(`Estoque de filamento baixo. Não é possível criar esta ordem.\n${lines.join("\n")}`);
+        return; // mantém o modal aberto
+      }
+
       const payload: ProductionOrder = {
         id: draft.id ?? "", // para novo registro não enviamos id ao Supabase
         userId: user.id,
