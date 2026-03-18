@@ -56,7 +56,10 @@ export function STLAnalyzer() {
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Erro ao analisar arquivo 3D", error);
-      alert("Não foi possível analisar este arquivo. Use STL ou 3MF exportado de um slicer.");
+      const msg = error instanceof Error ? error.message : String(error);
+      alert(
+        `Não foi possível analisar este arquivo.\n\nDetalhe: ${msg}\n\nDica: exporte em 3MF padrão do slicer (Bambu Studio/PrusaSlicer etc.) ou use STL.`
+      );
     } finally {
       setLoading(false);
     }

@@ -92,11 +92,10 @@ export async function parse3MF(file: File): Promise<ThreeMFParseResult> {
     throw new Error("XML do modelo 3MF malformado");
   }
 
-  if (!parsed.model) {
+  const model = parsed.model ?? getFirstByLocalName(parsed, "model");
+  if (!model) {
     throw new Error("Estrutura 3MF inválida: tag <model> não encontrada");
   }
-
-  const model = parsed.model;
 
   const metadata = extractMetadata(model);
   const models = extractModels(model);
@@ -146,6 +145,20 @@ export async function parse3MF(file: File): Promise<ThreeMFParseResult> {
   };
 }
 
+function getFirstByLocalName(obj: any, localName: string) {
+  if (!obj || typeof obj !== "object") return undefined;
+  for (const key of Object.keys(obj)) {
+    const local = key.includes(":") ? key.split(":").pop() : key;
+    if (local === localName) return obj[key];
+  }
+  return undefined;
+}
+
+function toArray<T>(val: T | T[] | undefined | null): T[] {
+  if (val == null) return [];
+  return Array.isArray(val) ? val : [val];
+}
+
 function findModelFile(zip: JSZip): string {
   const possiblePaths = ["3D/3dmodel.model", "3D/3DModel.model", "3dmodel.model", "model.model"];
 
@@ -165,9 +178,10 @@ function findModelFile(zip: JSZip): string {
 function extractMetadata(model: any): ThreeMFMetadata {
   const metadata: ThreeMFMetadata = {};
 
-  if (!model.metadata) return metadata;
+  const metadataNode = model.metadata ?? getFirstByLocalName(model, "metadata");
+  if (!metadataNode) return metadata;
 
-  const metaArray = Array.isArray(model.metadata) ? model.metadata : [model.metadata];
+  const metaArray = toArray(metadataNode);
   metaArray.forEach((m: any) => {
     const name = (m["@_name"] || m.name || "").toLowerCase();
     const value = m["#text"] || m.value || m;
@@ -197,33 +211,29 @@ function extractMetadata(model: any): ThreeMFMetadata {
 }
 
 function extractModels(model: any): ThreeMFModel[] {
-  if (!model.resources) return [];
+  const resources = model.resources ?? getFirstByLocalName(model, "resources");
+  if (!resources) return [];
 
-  const resources = model.resources;
-  let objects: any[] = [];
-
-  if (resources.object) {
-    objects = Array.isArray(resources.object) ? resources.object : [resources.object];
-  } else if (resources["m:object"]) {
-    objects = Array.isArray(resources["m:object"])
-      ? resources["m:object"]
-      : [resources["m:object"]];
-  }
+  const objectsNode =
+    resources.object ?? resources["m:object"] ?? getFirstByLocalName(resources, "object");
+  const objects = toArray(objectsNode);
 
   return objects.map((obj: any, index: number) => {
     const id = obj["@_id"] || obj["@_objectid"] || index + 1;
     const name = obj["@_name"] || obj["@_partname"] || `Modelo ${id}`;
 
-    const mesh = obj.mesh || obj["m:mesh"];
+    const mesh = obj.mesh ?? obj["m:mesh"] ?? getFirstByLocalName(obj, "mesh");
     if (!mesh) {
       throw new Error(`Objeto ${id} não contém mesh`);
     }
 
-    const verticesData = mesh.vertices?.vertex || mesh["m:vertices"]?.["m:vertex"];
-    if (!verticesData) {
+    const verticesContainer = mesh.vertices ?? mesh["m:vertices"] ?? getFirstByLocalName(mesh, "vertices");
+    const verticesNode =
+      verticesContainer?.vertex ?? getFirstByLocalName(verticesContainer ?? {}, "vertex");
+    if (!verticesNode) {
       throw new Error(`Mesh ${id} não contém vértices`);
     }
-    const vertexArray = Array.isArray(verticesData) ? verticesData : [verticesData];
+    const vertexArray = toArray(verticesNode);
     const vertices = new Float32Array(vertexArray.length * 3);
     vertexArray.forEach((v: any, i: number) => {
       vertices[i * 3] = parseFloat(v["@_x"] || v.x || 0);
@@ -231,11 +241,13 @@ function extractModels(model: any): ThreeMFModel[] {
       vertices[i * 3 + 2] = parseFloat(v["@_z"] || v.z || 0);
     });
 
-    const trianglesData = mesh.triangles?.triangle || mesh["m:triangles"]?.["m:triangle"];
-    if (!trianglesData) {
+    const trianglesContainer = mesh.triangles ?? mesh["m:triangles"] ?? getFirstByLocalName(mesh, "triangles");
+    const trianglesNode =
+      trianglesContainer?.triangle ?? getFirstByLocalName(trianglesContainer ?? {}, "triangle");
+    if (!trianglesNode) {
       throw new Error(`Mesh ${id} não contém triângulos`);
     }
-    const triangleArray = Array.isArray(trianglesData) ? trianglesData : [trianglesData];
+    const triangleArray = toArray(trianglesNode);
     const triangles = new Uint32Array(triangleArray.length * 3);
     triangleArray.forEach((t: any, i: number) => {
       triangles[i * 3] = parseInt(t["@_v1"] || t.v1 || 0, 10);
@@ -253,13 +265,11 @@ function extractModels(model: any): ThreeMFModel[] {
 }
 
 function extractBuild(model: any): { items: any[] } {
-  if (!model.build) return { items: [] };
+  const build = model.build ?? getFirstByLocalName(model, "build");
+  if (!build) return { items: [] };
 
-  const buildItems = model.build.item
-    ? Array.isArray(model.build.item)
-      ? model.build.item
-      : [model.build.item]
-    : [];
+  const itemsNode = build.item ?? getFirstByLocalName(build, "item");
+  const buildItems = itemsNode ? (Array.isArray(itemsNode) ? itemsNode : [itemsNode]) : [];
 
   return {
     items: buildItems.map((item: any) => ({
