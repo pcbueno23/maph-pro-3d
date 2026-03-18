@@ -596,7 +596,9 @@ export default function OrcamentosPage() {
                     setError("Adicione pelo menos 1 item.");
                     return;
                   }
-                  setStep(((step + 1) as WizardStep) ?? 4);
+                  // Como esse botão só aparece quando step < 4,
+                  // o step + 1 nunca passa de 4.
+                  setStep((step + 1) as WizardStep);
                 }}
                 disabled={loading || (step === 2 && !canGoStep2)}
                 className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
