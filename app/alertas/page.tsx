@@ -164,7 +164,10 @@ export default function AlertasPage() {
     // "Testar agora" deve funcionar mesmo se o usuário ainda não clicou para habilitar
     // (ou se o valor do localStorage não estiver sincronizado).
     if (!notifEnabled && !force) return;
-    if (Notification.permission !== "granted") return;
+    if (Notification.permission !== "granted") {
+      if (force) setError(`Permissão do navegador: ${Notification.permission}. Ative e permita nas configurações do site.`);
+      return;
+    }
 
     const now = Date.now();
     const storageKey = "precifica3d-alerts-notif-last-at";
@@ -181,20 +184,22 @@ export default function AlertasPage() {
     if (!force && now - lastAt < 60 * 60 * 1000) return;
 
     const body = buildNotificationBody();
-    if (!body.trim()) return;
+    if (!body.trim()) {
+      if (force) setError("Não há alertas para notificar agora.");
+      return;
+    }
 
     try {
-      // Mantém uma tag para o navegador não criar "pilhas"
-      // (comportamento varia por browser).
+      // Tag única para garantir que o navegador não substitua silenciosamente.
       // eslint-disable-next-line no-new
       new Notification("MAPH PRO 3D - Alertas", {
         body: buildNotificationBody(),
-        tag: "precifica3d-alerts",
+        tag: `precifica3d-alerts-${now}`,
       });
 
       window.localStorage.setItem(storageKey, String(now));
     } catch {
-      // ignore
+      if (force) setError("Falha ao criar notificação. Verifique se pop-ups/notifications estão bloqueados no navegador.");
     }
   }
 
