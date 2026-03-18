@@ -336,6 +336,66 @@ export default function OrdersPage() {
     const next = nextStatus(order.status);
     if (next === order.status || !user) return;
     try {
+      // Se o próximo status for "Impressão", validamos o estoque antes de salvar.
+      // Isso evita você avançar e consumir filamento que você já não tem.
+      if (next === "printing") {
+        setLoading(true);
+        setError(null);
+
+        const prodId = order.productId;
+        const [mats, sups] = await Promise.all([
+          listProductMaterials(user.id, prodId),
+          listSupplies(user.id),
+        ]);
+
+        const suppliesById = new Map(sups.map((s) => [s.id, s] as const));
+        const filamentDeficits: Array<{
+          supplyName: string;
+          required: number;
+          available: number;
+          unit: string;
+        }> = [];
+
+        for (const m of mats) {
+          const supply = suppliesById.get(m.supplyId);
+          if (!supply) continue;
+          if (supply.category !== "filament") continue;
+
+          const required = (m.qty ?? 0) * (order.quantity ?? 1);
+          const available = supply.stockQty ?? 0;
+          if (required > available) {
+            filamentDeficits.push({
+              supplyName: supply.name,
+              required,
+              available,
+              unit: supply.unit,
+            });
+          }
+        }
+
+        if (filamentDeficits.length > 0) {
+          const lines = filamentDeficits.map((d) => {
+            const fmt = (n: number) =>
+              n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+            if (d.unit === "kg") {
+              const reqG = d.required * 1000;
+              const avG = d.available * 1000;
+              return `${d.supplyName}: necessário ${fmt(reqG)} g, disponível ${fmt(avG)} g`;
+            }
+            return `${d.supplyName}: necessário ${fmt(d.required)} ${d.unit}, disponível ${fmt(
+              d.available,
+            )} ${d.unit}`;
+          });
+          setError(
+            `Estoque de filamento baixo. Não é possível avançar para impressão.\n${lines.join("\n")}`,
+          );
+          setLoading(false);
+          return;
+        }
+
+        setLoading(false);
+      }
+
       const updated: ProductionOrder = {
         ...order,
         status: next,
@@ -397,7 +457,7 @@ export default function OrdersPage() {
         </button>
       </div>
 
-      {error ? (
+      {error && !modalOpen ? (
         <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
           {error}
         </div>
@@ -566,6 +626,11 @@ export default function OrdersPage() {
             </div>
 
             <div className="mt-4 space-y-3 text-sm">
+              {error ? (
+                <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-100 whitespace-pre-wrap">
+                  {error}
+                </div>
+              ) : null}
               <div>
                 <label className="mb-1 block text-xs text-slate-300">
                   Produto
