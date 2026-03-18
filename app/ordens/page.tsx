@@ -5,6 +5,8 @@ import type { ProductionOrder, Product, Printer } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { supabase } from "@/lib/supabaseClient";
+import { useInventoryStore } from "@/store/inventoryStore";
+import { useRouter } from "next/navigation";
 import {
   listProductionOrders,
   upsertProductionOrder,
@@ -57,6 +59,8 @@ function nextStatus(current: ProductionOrder["status"]): ProductionOrder["status
 export default function OrdersPage() {
   const { user } = useAuthStore();
   const { settings } = useSettingsStore();
+  const router = useRouter();
+  const upsertFromProduct = useInventoryStore((s) => s.upsertFromProduct);
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [printers, setPrinters] = useState<Printer[]>([]);
@@ -249,6 +253,16 @@ export default function OrdersPage() {
       if (!cameFromDone && goesToDone) {
         // não bloqueia o salvamento caso algo dê errado na baixa
         consumeSuppliesForOrder(user.id, saved).catch(() => {});
+
+        // Atualiza "Peças produzidas" (estoque pronto pra venda).
+        // inventoryStore é localStorage (MVP), então a atualização é imediata no browser.
+        const prod = productsById.get(draft.productId);
+        if (prod) {
+          upsertFromProduct(prod, saved.quantity, (prod.sku ?? "") || undefined);
+        }
+
+        // Redireciona para o estoque de peças prontas.
+        router.push("/inventory");
       }
       closeModal();
     } catch (e: any) {
@@ -281,6 +295,13 @@ export default function OrdersPage() {
       const goesToDone = saved.status === "done";
       if (!cameFromDone && goesToDone) {
         consumeSuppliesForOrder(user.id, saved).catch(() => {});
+
+        const prod = productsById.get(order.productId);
+        if (prod) {
+          upsertFromProduct(prod, saved.quantity, (prod.sku ?? "") || undefined);
+        }
+
+        router.push("/inventory");
       }
     } catch (e: any) {
       setError(e?.message ?? "Falha ao avançar status.");
