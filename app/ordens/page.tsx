@@ -299,21 +299,22 @@ export default function OrdersPage() {
         return [saved, ...prev];
       });
 
-      // Regra de baixa automática: quando a situação entra em "Concluída"
+      // Baixa automática: consumir insumos quando entrar em "Impressão"
+      const cameFromPrinting = previous?.status === "printing";
+      const goesToPrinting = saved.status === "printing";
+      if (!cameFromPrinting && goesToPrinting) {
+        // Não bloqueia o salvamento caso algo dê errado na baixa.
+        consumeSuppliesForOrder(user.id, saved).catch(() => {});
+      }
+
+      // Atualiza "Peças produzidas" e redireciona quando entrar em "Concluída"
       const cameFromDone = previous?.status === "done";
       const goesToDone = saved.status === "done";
       if (!cameFromDone && goesToDone) {
-        // não bloqueia o salvamento caso algo dê errado na baixa
-        consumeSuppliesForOrder(user.id, saved).catch(() => {});
-
-        // Atualiza "Peças produzidas" (estoque pronto pra venda).
-        // inventoryStore é localStorage (MVP), então a atualização é imediata no browser.
         const prod = productsById.get(draft.productId);
         if (prod) {
           upsertFromProduct(prod, saved.quantity, (prod.sku ?? "") || undefined);
         }
-
-        // Redireciona para o estoque de peças prontas.
         router.push("/inventory");
       }
       closeModal();
@@ -342,16 +343,19 @@ export default function OrdersPage() {
       const saved = await upsertProductionOrder(user.id, updated);
       setOrders((prev) => prev.map((o) => (o.id === saved.id ? saved : o)));
 
-      // Baixa automática ao entrar em "Concluída" via botão Avançar
+      // Baixa automática ao entrar em "Impressão" via botão Avançar
+      const cameFromPrinting = order.status === "printing";
+      const goesToPrinting = saved.status === "printing";
+      if (!cameFromPrinting && goesToPrinting) {
+        consumeSuppliesForOrder(user.id, saved).catch(() => {});
+      }
+
+      // Atualiza "Peças produzidas" e redireciona ao entrar em "Concluída"
       const cameFromDone = order.status === "done";
       const goesToDone = saved.status === "done";
       if (!cameFromDone && goesToDone) {
-        consumeSuppliesForOrder(user.id, saved).catch(() => {});
-
         const prod = productsById.get(order.productId);
-        if (prod) {
-          upsertFromProduct(prod, saved.quantity, (prod.sku ?? "") || undefined);
-        }
+        if (prod) upsertFromProduct(prod, saved.quantity, (prod.sku ?? "") || undefined);
 
         router.push("/inventory");
       }
