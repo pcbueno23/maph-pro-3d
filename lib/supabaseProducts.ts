@@ -84,15 +84,33 @@ export async function upsertProductsForUser(
 
 export async function deleteProduct(userId: string, productId: string): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase
+
+  // O schema usa ON DELETE RESTRICT em alguns relacionamentos (ex.: quote_items e production_orders).
+  // Para permitir deletar o produto, removemos primeiro as referências do usuário.
+  const steps: Array<{
+    table: "quote_items" | "production_orders" | "product_materials" | "products";
+    filters: Record<string, string>;
+  }> = [
+    { table: "quote_items", filters: { user_id: userId, product_id: productId } },
+    { table: "production_orders", filters: { user_id: userId, product_id: productId } },
+    // product_materials tem ON DELETE CASCADE no produto, mas mantemos por consistência.
+    { table: "product_materials", filters: { user_id: userId, product_id: productId } },
+  ];
+
+  for (const step of steps) {
+    const payload = Object.entries(step.filters);
+    let q = supabase.from(step.table).delete();
+    for (const [k, v] of payload) q = q.eq(k, v);
+    const { error } = await q;
+    if (error) throw error;
+  }
+
+  const { error: productsError } = await supabase
     .from("products")
     .delete()
     .eq("user_id", userId)
     .eq("id", productId);
 
-  if (error) {
-    // eslint-disable-next-line no-console
-    console.error("Erro ao deletar produto no Supabase:", error);
-  }
+  if (productsError) throw productsError;
 }
 

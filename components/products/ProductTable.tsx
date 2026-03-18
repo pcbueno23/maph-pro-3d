@@ -225,11 +225,16 @@ export function ProductTable({ products }: Props) {
     }
   };
 
-  function handleRemove(product: Product) {
+  async function handleRemove(product: Product) {
     if (typeof window !== "undefined" && !window.confirm(`Remover "${product.name}" da lista?`)) return;
-    removeProduct(product.id);
-    if (user) {
-      deleteProduct(user.id, product.id).catch(() => {});
+
+    try {
+      if (user) {
+        await deleteProduct(user.id, product.id);
+      }
+      removeProduct(product.id);
+    } catch (e: any) {
+      window.alert(e?.message ? `Falha ao remover: ${e.message}` : "Falha ao remover produto no Supabase.");
     }
   }
   if (products.length === 0) {
