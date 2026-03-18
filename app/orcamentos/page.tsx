@@ -80,6 +80,116 @@ export default function OrcamentosPage() {
   const canGoStep2 = items.length > 0;
   const canGoStep3 = clientName.trim().length > 0 && canGoStep2;
 
+  async function handleDownloadPdf() {
+    if (!items.length) {
+      setError("Adicione pelo menos 1 item antes de gerar o PDF.");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const mod = await import("jspdf");
+      const { jsPDF } = mod;
+      const doc = new jsPDF({
+        unit: "pt",
+        format: "a4",
+      });
+
+      const marginX = 48;
+      let y = 54;
+
+      doc.setFontSize(14);
+      doc.text("Orçamento", marginX, y);
+      y += 18;
+
+      doc.setFontSize(10);
+      doc.text(`Cliente: ${clientName.trim()}`, marginX, y);
+      y += 14;
+      if (clientPhone.trim()) {
+        doc.text(`Telefone: ${clientPhone.trim()}`, marginX, y);
+        y += 14;
+      }
+      doc.text(`Data: ${quoteDate}${deliveryDate ? ` · Entrega: ${deliveryDate}` : ""}`, marginX, y);
+      y += 22;
+
+      doc.setFontSize(10);
+      doc.text("Itens", marginX, y);
+      y += 14;
+
+      const startY = y;
+      const rowH = 16;
+      const colProdutoW = 190;
+      const colQtdW = 60;
+      const colUnitW = 95;
+      const colTotalW = 90;
+
+      const xProduto = marginX;
+      const xQtd = marginX + colProdutoW;
+      const xUnit = xQtd + colQtdW;
+      const xTotal = xUnit + colUnitW;
+
+      // Header
+      doc.setFontSize(9);
+      doc.text("Produto", xProduto, y);
+      doc.text("Qtd", xQtd, y);
+      doc.text("Preço/un", xUnit, y);
+      doc.text("Total", xTotal, y);
+      y += 10;
+
+      doc.setDrawColor(150);
+      doc.line(marginX, y, marginX + colProdutoW + colQtdW + colUnitW + colTotalW, y);
+      y += 6;
+
+      doc.setFontSize(9);
+      for (const it of items) {
+        const p = productsById.get(it.productId);
+        const label = p?.name ?? it.productId;
+        // evita overflow: trunca texto
+        const safe = label.length > 24 ? `${label.slice(0, 22)}...` : label;
+        doc.text(safe, xProduto, y);
+        doc.text(String(it.quantity), xQtd, y);
+        doc.text(formatBRL(it.unitPrice), xUnit, y);
+        doc.text(formatBRL(it.quantity * it.unitPrice), xTotal, y);
+        y += rowH;
+        if (y > 760) {
+          // pagina extra simples
+          doc.addPage();
+          y = 54;
+        }
+      }
+
+      y = Math.max(y, startY + rowH);
+      y += 10;
+
+      doc.setFontSize(10);
+      doc.text(`Subtotal: ${formatBRL(subtotal)}`, marginX, y);
+      y += 14;
+      doc.text(`Desconto: -${formatBRL(discountAmount)}`, marginX, y);
+      y += 14;
+      doc.setFontSize(12);
+      doc.text(`Total: ${formatBRL(total)}`, marginX, y);
+      y += 22;
+
+      if (notes.trim()) {
+        doc.setFontSize(10);
+        doc.text("Notas:", marginX, y);
+        y += 14;
+        doc.setFontSize(9);
+        const noteLines = doc.splitTextToSize(notes.trim(), 500);
+        for (const line of noteLines.slice(0, 8)) {
+          doc.text(String(line), marginX, y);
+          y += 12;
+        }
+      }
+
+      doc.save(`orcamento_${quoteId}.pdf`);
+    } catch (e: any) {
+      setError(e?.message ?? "Falha ao gerar PDF.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!user) return;
     let alive = true;
@@ -581,115 +691,7 @@ export default function OrcamentosPage() {
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={async () => {
-                    if (!items.length) {
-                      setError("Adicione pelo menos 1 item antes de gerar o PDF.");
-                      return;
-                    }
-                    setError(null);
-                    setLoading(true);
-                    try {
-                      const mod = await import("jspdf");
-                      const { jsPDF } = mod;
-                      const doc = new jsPDF({
-                        unit: "pt",
-                        format: "a4",
-                      });
-
-                      const marginX = 48;
-                      let y = 54;
-
-                      doc.setFontSize(14);
-                      doc.text("Orçamento", marginX, y);
-                      y += 18;
-
-                      doc.setFontSize(10);
-                      doc.text(`Cliente: ${clientName.trim()}`, marginX, y);
-                      y += 14;
-                      if (clientPhone.trim()) {
-                        doc.text(`Telefone: ${clientPhone.trim()}`, marginX, y);
-                        y += 14;
-                      }
-                      doc.text(`Data: ${quoteDate}${deliveryDate ? ` · Entrega: ${deliveryDate}` : ""}`, marginX, y);
-                      y += 22;
-
-                      doc.setFontSize(10);
-                      doc.text("Itens", marginX, y);
-                      y += 14;
-
-                      const startY = y;
-                      const rowH = 16;
-                      const colProdutoW = 190;
-                      const colQtdW = 60;
-                      const colUnitW = 95;
-                      const colTotalW = 90;
-
-                      const xProduto = marginX;
-                      const xQtd = marginX + colProdutoW;
-                      const xUnit = xQtd + colQtdW;
-                      const xTotal = xUnit + colUnitW;
-
-                      // Header
-                      doc.setFontSize(9);
-                      doc.text("Produto", xProduto, y);
-                      doc.text("Qtd", xQtd, y);
-                      doc.text("Preço/un", xUnit, y);
-                      doc.text("Total", xTotal, y);
-                      y += 10;
-
-                      doc.setDrawColor(150);
-                      doc.line(marginX, y, marginX + colProdutoW + colQtdW + colUnitW + colTotalW, y);
-                      y += 6;
-
-                      doc.setFontSize(9);
-                      for (const it of items) {
-                        const p = productsById.get(it.productId);
-                        const label = p?.name ?? it.productId;
-                        // evita overflow: trunca texto
-                        const safe = label.length > 24 ? `${label.slice(0, 22)}...` : label;
-                        doc.text(safe, xProduto, y);
-                        doc.text(String(it.quantity), xQtd, y);
-                        doc.text(formatBRL(it.unitPrice), xUnit, y);
-                        doc.text(formatBRL(it.quantity * it.unitPrice), xTotal, y);
-                        y += rowH;
-                        if (y > 760) {
-                          // pagina extra simples
-                          doc.addPage();
-                          y = 54;
-                        }
-                      }
-
-                      y = Math.max(y, startY + rowH);
-                      y += 10;
-
-                      doc.setFontSize(10);
-                      doc.text(`Subtotal: ${formatBRL(subtotal)}`, marginX, y);
-                      y += 14;
-                      doc.text(`Desconto: -${formatBRL(discountAmount)}`, marginX, y);
-                      y += 14;
-                      doc.setFontSize(12);
-                      doc.text(`Total: ${formatBRL(total)}`, marginX, y);
-                      y += 22;
-
-                      if (notes.trim()) {
-                        doc.setFontSize(10);
-                        doc.text("Notas:", marginX, y);
-                        y += 14;
-                        doc.setFontSize(9);
-                        const noteLines = doc.splitTextToSize(notes.trim(), 500);
-                        for (const line of noteLines.slice(0, 8)) {
-                          doc.text(String(line), marginX, y);
-                          y += 12;
-                        }
-                      }
-
-                      doc.save(`orcamento_${quoteId}.pdf`);
-                    } catch (e: any) {
-                      setError(e?.message ?? "Falha ao gerar PDF.");
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
+                  onClick={handleDownloadPdf}
                   disabled={loading}
                   className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
                 >
@@ -730,14 +732,24 @@ export default function OrcamentosPage() {
                 Próximo
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={loading}
-                className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
-              >
-                Salvar orçamento
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={loading || items.length === 0}
+                  className="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-2 text-xs font-semibold text-slate-100 hover:bg-slate-900/60 disabled:opacity-60"
+                >
+                  Baixar PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
+                >
+                  Salvar orçamento
+                </button>
+              </div>
             )}
           </div>
         </div>
