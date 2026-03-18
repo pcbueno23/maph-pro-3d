@@ -218,21 +218,37 @@ function extractModels(model: any): ThreeMFModel[] {
     resources.object ?? resources["m:object"] ?? getFirstByLocalName(resources, "object");
   const objects = toArray(objectsNode);
 
-  return objects.map((obj: any, index: number) => {
+  const models: ThreeMFModel[] = [];
+  const meshlessIds: Array<string | number> = [];
+
+  for (let index = 0; index < objects.length; index += 1) {
+    const obj = objects[index];
     const id = obj["@_id"] || obj["@_objectid"] || index + 1;
     const name = obj["@_name"] || obj["@_partname"] || `Modelo ${id}`;
 
-    const mesh = obj.mesh ?? obj["m:mesh"] ?? getFirstByLocalName(obj, "mesh");
+    const mesh =
+      obj.mesh ??
+      obj["m:mesh"] ??
+      getFirstByLocalName(obj, "mesh") ??
+      findDeepByLocalName(obj, "mesh", 10);
+
     if (!mesh) {
-      throw new Error(`Objeto ${id} não contém mesh`);
+      meshlessIds.push(id);
+      continue; // alguns 3MF têm instâncias/objetos sem mesh explícito
     }
 
-    const verticesContainer = mesh.vertices ?? mesh["m:vertices"] ?? getFirstByLocalName(mesh, "vertices");
+    const verticesContainer =
+      mesh.vertices ??
+      mesh["m:vertices"] ??
+      getFirstByLocalName(mesh, "vertices") ??
+      findDeepByLocalName(mesh, "vertices", 10);
     const verticesNode =
       verticesContainer?.vertex ?? getFirstByLocalName(verticesContainer ?? {}, "vertex");
+
     if (!verticesNode) {
       throw new Error(`Mesh ${id} não contém vértices`);
     }
+
     const vertexArray = toArray(verticesNode);
     const vertices = new Float32Array(vertexArray.length * 3);
     vertexArray.forEach((v: any, i: number) => {
@@ -241,12 +257,18 @@ function extractModels(model: any): ThreeMFModel[] {
       vertices[i * 3 + 2] = parseFloat(v["@_z"] || v.z || 0);
     });
 
-    const trianglesContainer = mesh.triangles ?? mesh["m:triangles"] ?? getFirstByLocalName(mesh, "triangles");
+    const trianglesContainer =
+      mesh.triangles ??
+      mesh["m:triangles"] ??
+      getFirstByLocalName(mesh, "triangles") ??
+      findDeepByLocalName(mesh, "triangles", 10);
     const trianglesNode =
       trianglesContainer?.triangle ?? getFirstByLocalName(trianglesContainer ?? {}, "triangle");
+
     if (!trianglesNode) {
       throw new Error(`Mesh ${id} não contém triângulos`);
     }
+
     const triangleArray = toArray(trianglesNode);
     const triangles = new Uint32Array(triangleArray.length * 3);
     triangleArray.forEach((t: any, i: number) => {
@@ -255,13 +277,36 @@ function extractModels(model: any): ThreeMFModel[] {
       triangles[i * 3 + 2] = parseInt(t["@_v3"] || t.v3 || 0, 10);
     });
 
-    return {
+    models.push({
       name,
       vertices,
       triangles,
       color: obj["@_pid"],
-    };
-  });
+    });
+  }
+
+  if (models.length === 0) {
+    throw new Error(`Não foi possível criar geometrias 3D a partir do arquivo (objetos sem mesh: ${meshlessIds.join(", ")})`);
+  }
+
+  return models;
+}
+
+function findDeepByLocalName(obj: any, localName: string, maxDepth: number): any {
+  if (!obj || typeof obj !== "object" || maxDepth < 0) return undefined;
+
+  for (const key of Object.keys(obj)) {
+    const local = key.includes(":") ? key.split(":").pop() : key;
+    if (local === localName) return obj[key];
+
+    const value = obj[key];
+    if (value && typeof value === "object") {
+      const found = findDeepByLocalName(value, localName, maxDepth - 1);
+      if (found) return found;
+    }
+  }
+
+  return undefined;
 }
 
 function extractBuild(model: any): { items: any[] } {
