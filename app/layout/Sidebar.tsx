@@ -12,6 +12,7 @@ import {
   Store,
   Percent,
   Printer,
+  FileText,
 } from "lucide-react";
 
 const links = [
@@ -20,6 +21,7 @@ const links = [
   { href: "/products", label: "Produtos", icon: Package },
   { href: "/inventory", label: "Peças produzidas", icon: Package },
   { href: "/ordens", label: "Ordens de produção", icon: Printer },
+  { href: "/orcamentos", label: "Orçamentos", icon: FileText },
   { href: "/sales", label: "Vendas", icon: Package },
   { href: "/reports", label: "Relatórios", icon: LineChart },
   { href: "/analyzer", label: "Analisador STL", icon: LineChart },
