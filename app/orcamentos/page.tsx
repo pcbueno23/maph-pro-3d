@@ -687,17 +687,6 @@ export default function OrcamentosPage() {
                   </tbody>
                 </table>
               </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={handleDownloadPdf}
-                  disabled={loading}
-                  className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
-                >
-                  Baixar PDF
-                </button>
-              </div>
             </div>
           )}
 
