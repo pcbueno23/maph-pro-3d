@@ -244,110 +244,129 @@ export function ProductTable({ products }: Props) {
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40">
-        <table className="min-w-full text-left text-sm">
-        <thead className="bg-slate-950/80 text-xs uppercase tracking-[0.15em] text-slate-400">
-          <tr>
-            <th className="px-4 py-3">Nome</th>
-            <th className="px-2 py-3">SKU</th>
-            <th className="px-2 py-3">Peso (g)</th>
-            <th className="px-2 py-3">Preço</th>
-            <th className="px-2 py-3">% Margem</th>
-            <th className="px-2 py-3">Marketplace</th>
-            <th className="px-2 py-3 text-right">Ações</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-800">
-          {products.map((product) => (
-            <tr key={product.id} className="hover:bg-slate-900/60">
-              <td className="px-4 py-2">
-                <button
-                  type="button"
-                  onClick={() => handleLoadInCalculator(product)}
-                  className="text-left font-medium text-cyan-400 underline decoration-cyan-400/50 underline-offset-2 transition hover:text-cyan-300 hover:decoration-cyan-300"
-                  title="Abrir na calculadora para editar"
-                >
-                  {product.name}
-                </button>
-              </td>
-              <td className="px-2 py-2 text-slate-200">{product.sku ?? "-"}</td>
-              <td className="px-2 py-2 text-slate-200">{product.weight}</td>
-              <td className="px-2 py-2 text-slate-100">
-                {product.price.toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: product.currency,
-                })}
-              </td>
-              <td className="px-2 py-2">
-                <span
-                  className={
-                    (product.margin ?? 0) >= 0
-                      ? "text-emerald-400"
-                      : "text-rose-400"
-                  }
-                >
-                  {(product.margin ?? 0).toFixed(1)}%
-                </span>
-              </td>
-              <td className="px-2 py-2 text-slate-300">
-                {product.marketplace}
-              </td>
-              <td className="px-2 py-2 text-right">
-                <button
-                  type="button"
-                  onClick={() => openTechnical(product)}
-                  className="mr-2 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-slate-200 transition hover:bg-slate-800/60 hover:text-slate-50"
-                  title="Editar ficha técnica (SKU, tempo, impressora padrão)"
-                >
-                  Ficha técnica
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openBom(product)}
-                  className="mr-2 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-slate-200 transition hover:bg-slate-800/60 hover:text-slate-50"
-                  title="Materiais (BOM) do produto"
-                >
-                  Materiais
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const qtyStr =
-                      typeof window !== "undefined"
-                        ? window.prompt("Quantidade produzida para estoque:", "1")
-                        : null;
-                    if (!qtyStr) return;
-                    const qty = Number(qtyStr);
-                    if (!Number.isFinite(qty) || qty <= 0) return;
-                    const sku =
-                      typeof window !== "undefined"
-                        ? window.prompt("SKU da peça (opcional):", "")
-                        : "";
-                    upsertFromProduct(product, qty, sku ?? undefined);
-                    // baixa filamento do estoque (aproxima usando primeiro insumo de filamento)
-                    if (product.weight > 0) {
-                      const grams = product.weight * qty;
-                      consumeFilamentGrams(grams);
-                    }
-                  }}
-                  className="mr-2 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-emerald-300 transition hover:bg-emerald-500/10 hover:text-emerald-200"
-                >
-                  Produzida
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRemove(product)}
-                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-400"
-                  title="Remover item"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Remover
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        </table>
+      <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {products.map((product) => {
+            const marginClass = (product.margin ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400";
+            return (
+              <div
+                key={product.id}
+                className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 transition hover:border-cyan-500/50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 shadow-neon-cyan/30">
+                      <div className="absolute inset-0 grid place-items-center">
+                        <span className="text-xs font-bold text-slate-100">3D</span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-50">{product.name}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {product.sku ? `SKU: ${product.sku}` : "SKU: —"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="rounded-full border border-slate-800 bg-slate-900/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                    {product.marketplace}
+                  </span>
+                </div>
+
+                <div className="mt-3 space-y-1.5 text-xs">
+                  <p className="text-slate-300">Peso: {product.weight.toLocaleString("pt-BR")} g</p>
+                  <p className="text-slate-300">
+                    Tempo:{" "}
+                    <span className="text-slate-100">
+                      {product.printTimeMinutes != null && Number.isFinite(product.printTimeMinutes)
+                        ? `${product.printTimeMinutes} min`
+                        : "—"}
+                    </span>
+                  </p>
+                  <p className="text-slate-300">
+                    Preço:{" "}
+                    <span className="text-slate-100">
+                      {product.price.toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: product.currency,
+                      })}
+                    </span>
+                  </p>
+                  <p className={marginClass}>
+                    Margem:{" "}
+                    <span className="text-slate-100">{(product.margin ?? 0).toFixed(1)}%</span>
+                  </p>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleLoadInCalculator(product)}
+                    className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-3 py-2 text-[11px] font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
+                    title="Abrir na calculadora para editar"
+                  >
+                    Abrir
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => openTechnical(product)}
+                    className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-[11px] font-semibold text-slate-200 hover:bg-slate-900/60"
+                    title="Editar ficha técnica (SKU, tempo, impressora padrão)"
+                  >
+                    Ficha técnica
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => openBom(product)}
+                    className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-[11px] font-semibold text-slate-200 hover:bg-slate-900/60"
+                    title="Materiais (BOM) do produto"
+                  >
+                    Materiais
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const qtyStr =
+                        typeof window !== "undefined"
+                          ? window.prompt("Quantidade produzida para estoque:", "1")
+                          : null;
+                      if (!qtyStr) return;
+                      const qty = Number(qtyStr);
+                      if (!Number.isFinite(qty) || qty <= 0) return;
+                      const sku =
+                        typeof window !== "undefined"
+                          ? window.prompt("SKU da peça (opcional):", "")
+                          : "";
+                      upsertFromProduct(product, qty, sku ?? undefined);
+                      // baixa filamento do estoque (aproxima usando o peso do produto)
+                      if (product.weight > 0) {
+                        const grams = product.weight * qty;
+                        consumeFilamentGrams(grams);
+                      }
+                    }}
+                    className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/15"
+                    title="Adicionar no estoque e reduzir insumos"
+                  >
+                    Produzida
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(product)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] font-semibold text-rose-300 hover:bg-rose-500/15"
+                    title="Remover item"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Remover
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {bomOpen && bomProduct ? (
