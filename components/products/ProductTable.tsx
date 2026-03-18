@@ -7,7 +7,7 @@ import type { Printer, Product } from "@/types";
 import { useProductsStore } from "@/store/productsStore";
 import { useCalculatorStore } from "@/store/calculatorStore";
 import { useAuthStore } from "@/store/authStore";
-import { upsertProductsForUser } from "@/lib/supabaseProducts";
+import { deleteProduct, upsertProductsForUser } from "@/lib/supabaseProducts";
 import { useInventoryStore } from "@/store/inventoryStore";
 import { useSuppliesStore } from "@/store/suppliesStore";
 import type { ProductMaterial, SupplyItem } from "@/types";
@@ -229,8 +229,7 @@ export function ProductTable({ products }: Props) {
     if (typeof window !== "undefined" && !window.confirm(`Remover "${product.name}" da lista?`)) return;
     removeProduct(product.id);
     if (user) {
-      const list = useProductsStore.getState().products;
-      upsertProductsForUser(user.id, list).catch(() => {});
+      deleteProduct(user.id, product.id).catch(() => {});
     }
   }
   if (products.length === 0) {

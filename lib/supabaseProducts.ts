@@ -82,3 +82,17 @@ export async function upsertProductsForUser(
   }
 }
 
+export async function deleteProduct(userId: string, productId: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("products")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", productId);
+
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error("Erro ao deletar produto no Supabase:", error);
+  }
+}
+
