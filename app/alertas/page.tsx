@@ -432,7 +432,7 @@ export default function AlertasPage() {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {!supportsNotification ? (
             <p className="text-sm text-slate-400">Seu navegador não suporta notificações.</p>
-          ) : notifPermission === "granted" || notifEnabled ? (
+          ) : notifEnabled ? (
             <>
               <button
                 type="button"
