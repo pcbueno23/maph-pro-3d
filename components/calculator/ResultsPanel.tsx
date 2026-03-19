@@ -222,6 +222,9 @@ export function ResultsPanel({ results, isDirty }: Props) {
           <p className="mt-3 text-[11px] text-slate-500">
             Preço ideal calculado por canal para atingir sua margem alvo.
           </p>
+          <p className="mt-1 text-[11px] text-cyan-300">
+            Base usada: custo real ajustado.
+          </p>
         </div>
 
         <div

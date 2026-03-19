@@ -156,6 +156,33 @@ export function useCalculator() {
     lastHandledSaveAtRef.current = saveRequestedAt;
 
     void (async () => {
+      const desiredMargin = lastInput.pricing.desiredMargin ?? settings.defaults.desiredMargin;
+      const adjustedCost = lastResults.custoTotalAjustado;
+      const directPrice = lastResults.suggestedPriceDirectCash ?? lastResults.suggestedPriceDirectCard ?? lastResults.suggestedPrice;
+      const riskyChannels: string[] = [];
+      if (lastResults.suggestedPriceShopee < adjustedCost) riskyChannels.push("Shopee");
+      if (lastResults.suggestedPriceML < adjustedCost) riskyChannels.push("Mercado Livre");
+      if (directPrice < adjustedCost) riskyChannels.push("Direto");
+      const marginBelowTarget = lastResults.margemReal < desiredMargin;
+      if (typeof window !== "undefined" && (riskyChannels.length > 0 || marginBelowTarget)) {
+        const reasons: string[] = [];
+        if (riskyChannels.length > 0) {
+          reasons.push(`Preço abaixo do custo real ajustado em: ${riskyChannels.join(", ")}.`);
+        }
+        if (marginBelowTarget) {
+          reasons.push(
+            `Margem real (${lastResults.margemReal.toFixed(1)}%) abaixo da meta (${desiredMargin.toFixed(1)}%).`,
+          );
+        }
+        const ok = window.confirm(
+          `Atenção: esta simulação indica risco de prejuízo.\n\n${reasons.join("\n")}\n\nDeseja salvar mesmo assim?`,
+        );
+        if (!ok) {
+          clearSaveRequested();
+          return;
+        }
+      }
+
       const unitsPerBatch =
         typeof lastInput.time.unitsPerBatch === "number" && lastInput.time.unitsPerBatch > 0
           ? lastInput.time.unitsPerBatch
