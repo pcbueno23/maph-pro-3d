@@ -480,7 +480,7 @@ export default function InsumosPage() {
               })}
             </div>
 
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden md:block w-full min-w-0 overflow-x-auto">
               <table className="min-w-full text-left text-xs">
                 <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-400">
                   <tr>
@@ -837,7 +837,7 @@ export default function InsumosPage() {
                     <p className="py-6 text-center text-xs text-slate-400">Nenhuma movimentação ainda.</p>
                   ) : (
                     <>
-                      <div className="hidden md:block overflow-x-auto">
+                      <div className="hidden md:block w-full min-w-0 overflow-x-auto">
                         <table className="min-w-full text-left text-xs">
                           <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-500">
                             <tr>
