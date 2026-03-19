@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { Printer, Product, ProductAsset } from "@/types";
+import { MARKETPLACES } from "@/lib/constants";
 import { useProductsStore } from "@/store/productsStore";
 import { useAuthStore } from "@/store/authStore";
 import { deleteProduct, upsertProductsForUser } from "@/lib/supabaseProducts";
@@ -71,6 +72,9 @@ export function ProductTable({ products }: Props) {
   const [infoMaterials, setInfoMaterials] = useState<ProductMaterial[]>([]);
   const [infoAssets, setInfoAssets] = useState<ProductAsset[]>([]);
   const [infoUploadBusy, setInfoUploadBusy] = useState(false);
+  const [infoEditOpen, setInfoEditOpen] = useState(false);
+  const [infoDraft, setInfoDraft] = useState<Partial<Product> | null>(null);
+  const [infoSaveBusy, setInfoSaveBusy] = useState(false);
 
   const [productThumbById, setProductThumbById] = useState<Record<string, string>>({});
 
@@ -141,6 +145,8 @@ export function ProductTable({ products }: Props) {
     setInfoMaterials([]);
     setInfoAssets([]);
     setInfoCost(null);
+    setInfoEditOpen(false);
+    setInfoDraft(null);
 
     try {
       const [sups, mats, assets, cost] = await Promise.all([
@@ -189,6 +195,79 @@ export function ProductTable({ products }: Props) {
     setInfoMaterials([]);
     setInfoAssets([]);
     setInfoCost(null);
+    setInfoEditOpen(false);
+    setInfoDraft(null);
+  }
+
+  function startEditInfo() {
+    if (!infoProduct) return;
+    setInfoEditOpen(true);
+    setInfoError(null);
+    setInfoDraft({
+      name: infoProduct.name,
+      sku: infoProduct.sku ?? null,
+      description: infoProduct.description ?? null,
+      weight: infoProduct.weight,
+      price: infoProduct.price,
+      currency: infoProduct.currency,
+      marketplace: infoProduct.marketplace,
+      printTimeMinutes: infoProduct.printTimeMinutes ?? null,
+      defaultPrinterId: infoProduct.defaultPrinterId ?? null,
+    });
+  }
+
+  function cancelEditInfo() {
+    setInfoEditOpen(false);
+    setInfoDraft(null);
+    setInfoError(null);
+  }
+
+  async function saveEditInfo() {
+    if (!user || !infoProduct || !infoDraft) return;
+    const nowIso = new Date().toISOString();
+    const updated: Product = {
+      ...infoProduct,
+      name: String(infoDraft.name ?? infoProduct.name).trim() || infoProduct.name,
+      sku: (infoDraft.sku ?? null) as any,
+      description: (infoDraft.description ?? null) as any,
+      weight: Number(infoDraft.weight ?? infoProduct.weight) || 0,
+      price: Number(infoDraft.price ?? infoProduct.price) || 0,
+      currency: (infoDraft.currency ?? infoProduct.currency) as any,
+      marketplace: (infoDraft.marketplace ?? infoProduct.marketplace) as any,
+      printTimeMinutes:
+        infoDraft.printTimeMinutes == null
+          ? null
+          : Number(infoDraft.printTimeMinutes),
+      defaultPrinterId: (infoDraft.defaultPrinterId ?? null) as any,
+      updatedAt: nowIso,
+    };
+
+    if (!updated.name) {
+      setInfoError("O nome do produto é obrigatório.");
+      return;
+    }
+    if (!Number.isFinite(updated.weight) || updated.weight < 0) {
+      setInfoError("Peso inválido.");
+      return;
+    }
+    if (!Number.isFinite(updated.price) || updated.price < 0) {
+      setInfoError("Preço inválido.");
+      return;
+    }
+
+    setInfoSaveBusy(true);
+    setInfoError(null);
+    try {
+      await upsertProductsForUser(user.id, [updated]);
+      updateProduct(updated);
+      setInfoProduct(updated);
+      setInfoEditOpen(false);
+      setInfoDraft(null);
+    } catch (e: any) {
+      setInfoError(e?.message ?? "Falha ao salvar produto.");
+    } finally {
+      setInfoSaveBusy(false);
+    }
   }
 
   const materialCost = useMemo(() => {
@@ -640,8 +719,8 @@ export function ProductTable({ products }: Props) {
       {infoOpen && infoProduct ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
           <div className="w-full max-w-3xl max-h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/95 shadow-neon-cyan">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-800 px-4 py-3">
-              <div>
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 px-4 py-3">
+              <div className="min-w-[220px]">
                 <p className="text-sm font-semibold text-slate-50">
                   Informações — {infoProduct.name}
                 </p>
@@ -652,13 +731,63 @@ export function ProductTable({ products }: Props) {
                     : "—"}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={closeProductInfo}
-                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
-              >
-                Fechar
-              </button>
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {!infoEditOpen ? (
+                  <button
+                    type="button"
+                    onClick={startEditInfo}
+                    className="rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
+                    disabled={infoLoading || infoSaveBusy}
+                    title="Editar dados do produto"
+                  >
+                    Editar
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={cancelEditInfo}
+                      className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-900 disabled:opacity-60"
+                      disabled={infoSaveBusy}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveEditInfo}
+                      className="rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
+                      disabled={infoSaveBusy}
+                    >
+                      {infoSaveBusy ? "Salvando..." : "Salvar"}
+                    </button>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => openTechnical(infoProduct)}
+                  className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
+                  title="Editar ficha técnica"
+                >
+                  Ficha técnica
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openBom(infoProduct)}
+                  className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
+                  title="Editar materiais (BOM)"
+                >
+                  Materiais
+                </button>
+                <button
+                  type="button"
+                  onClick={closeProductInfo}
+                  className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
@@ -677,6 +806,157 @@ export function ProductTable({ products }: Props) {
                       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                         Preços e custo
                       </p>
+
+                      {infoEditOpen ? (
+                        <div className="mt-3 space-y-3">
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div>
+                              <label className="mb-1 block text-[11px] text-slate-300">Nome</label>
+                              <input
+                                value={String(infoDraft?.name ?? "")}
+                                onChange={(e) => setInfoDraft((d) => ({ ...(d ?? {}), name: e.target.value }))}
+                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                                disabled={infoSaveBusy}
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[11px] text-slate-300">SKU (opcional)</label>
+                              <input
+                                value={String(infoDraft?.sku ?? "")}
+                                onChange={(e) =>
+                                  setInfoDraft((d) => ({
+                                    ...(d ?? {}),
+                                    sku: e.target.value ? e.target.value : null,
+                                  }))
+                                }
+                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                                disabled={infoSaveBusy}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-[11px] text-slate-300">Descrição (opcional)</label>
+                            <textarea
+                              rows={3}
+                              value={String(infoDraft?.description ?? "")}
+                              onChange={(e) =>
+                                setInfoDraft((d) => ({
+                                  ...(d ?? {}),
+                                  description: e.target.value ? e.target.value : null,
+                                }))
+                              }
+                              className="w-full resize-none rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                              disabled={infoSaveBusy}
+                            />
+                          </div>
+
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div>
+                              <label className="mb-1 block text-[11px] text-slate-300">Peso (g)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.1"
+                                value={Number(infoDraft?.weight ?? 0)}
+                                onChange={(e) =>
+                                  setInfoDraft((d) => ({ ...(d ?? {}), weight: Number(e.target.value) }))
+                                }
+                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                                disabled={infoSaveBusy}
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[11px] text-slate-300">Preço (R$)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={Number(infoDraft?.price ?? 0)}
+                                onChange={(e) =>
+                                  setInfoDraft((d) => ({ ...(d ?? {}), price: Number(e.target.value) }))
+                                }
+                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                                disabled={infoSaveBusy}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div>
+                              <label className="mb-1 block text-[11px] text-slate-300">Marketplace</label>
+                              <select
+                                value={String(infoDraft?.marketplace ?? infoProduct.marketplace)}
+                                onChange={(e) =>
+                                  setInfoDraft((d) => ({ ...(d ?? {}), marketplace: e.target.value as any }))
+                                }
+                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                                disabled={infoSaveBusy}
+                              >
+                                {MARKETPLACES.map((m) => (
+                                  <option key={m} value={m}>
+                                    {m}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[11px] text-slate-300">Moeda</label>
+                              <select
+                                value={String(infoDraft?.currency ?? infoProduct.currency)}
+                                onChange={(e) =>
+                                  setInfoDraft((d) => ({ ...(d ?? {}), currency: e.target.value as any }))
+                                }
+                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                                disabled={infoSaveBusy}
+                              >
+                                <option value="BRL">BRL</option>
+                                <option value="USD">USD</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div>
+                              <label className="mb-1 block text-[11px] text-slate-300">Tempo (min, opcional)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                step="1"
+                                value={
+                                  infoDraft?.printTimeMinutes == null ? "" : Number(infoDraft?.printTimeMinutes)
+                                }
+                                onChange={(e) =>
+                                  setInfoDraft((d) => ({
+                                    ...(d ?? {}),
+                                    printTimeMinutes: e.target.value === "" ? null : Number(e.target.value),
+                                  }))
+                                }
+                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                                disabled={infoSaveBusy}
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[11px] text-slate-300">
+                                Impressora padrão (opcional)
+                              </label>
+                              <input
+                                value={String(infoDraft?.defaultPrinterId ?? "")}
+                                onChange={(e) =>
+                                  setInfoDraft((d) => ({
+                                    ...(d ?? {}),
+                                    defaultPrinterId: e.target.value ? e.target.value : null,
+                                  }))
+                                }
+                                placeholder="ID (ou use Ficha técnica)"
+                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                                disabled={infoSaveBusy}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+
                       {(() => {
                         const mainImage = infoAssets.find((a) => a.kind === "image");
                         const url =
