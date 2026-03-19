@@ -17,6 +17,7 @@ import {
   getMLSuggestedPrice,
   getShopeeFeeBreakdown,
   getMLFeeBreakdown,
+  getEffectiveMarketplaceFeePercent,
 } from "@/lib/marketplaceFees";
 import { MARKETPLACES } from "@/lib/constants";
 
@@ -263,38 +264,39 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
     if (totalCost <= 0) return 0;
 
     const shippingAmount = Number(settings?.defaults?.shippingEstimateDefault ?? 0);
-    const taxPercent = 0;
-    const taxMode = settings?.defaults?.taxMode ?? "net_marketplace";
     const freeShipping = settings?.defaults?.shopeeFreeShippingDefault ?? false;
     const classic = settings?.defaults?.mlClassic ?? false;
     const personType = "CPF" as const;
 
-    const computeTaxAmount = (
-      priceForTax: number,
-      commissionRateDecimal: number,
-    ): number => {
-      if (taxPercent <= 0 || priceForTax <= 0) return 0;
-      const rate = taxPercent / 100;
-      if (taxMode === "net_marketplace") {
-        const netBase = priceForTax * (1 - commissionRateDecimal);
-        return netBase * rate;
-      }
-      return priceForTax * rate;
-    };
-
-    const sh = getShopeeFeeBreakdown(pricingFromMargin.shopeeSuggested, personType, freeShipping);
-    const shTax = computeTaxAmount(pricingFromMargin.shopeeSuggested, sh.commissionRateDecimal);
-    const shFeeAmount = sh.commissionAmount + sh.fixedFeeAmount;
+    // Como no motor a taxa (taxPercent) está em 0 no wizard, margem depende só de:
+    // preço sugerido - taxa efetiva - frete - custo.
+    const shFeePercent = getEffectiveMarketplaceFeePercent(
+      "Shopee",
+      personType,
+      pricingFromMargin.shopeeSuggested,
+      { freeShipping },
+    );
+    const shFeeAmount = (pricingFromMargin.shopeeSuggested * shFeePercent) / 100;
     const shNetProfit =
-      pricingFromMargin.shopeeSuggested - shFeeAmount - shippingAmount - shTax - totalCost;
-    const shMargin = pricingFromMargin.shopeeSuggested > 0 ? (shNetProfit / pricingFromMargin.shopeeSuggested) * 100 : 0;
+      pricingFromMargin.shopeeSuggested - shFeeAmount - shippingAmount - totalCost;
+    const shMargin =
+      pricingFromMargin.shopeeSuggested > 0
+        ? (shNetProfit / pricingFromMargin.shopeeSuggested) * 100
+        : 0;
 
-    const ml = getMLFeeBreakdown(pricingFromMargin.mlSuggested, personType, classic);
-    const mlTax = computeTaxAmount(pricingFromMargin.mlSuggested, ml.commissionRateDecimal);
-    const mlFeeAmount = ml.commissionAmount + ml.fixedFeeAmount;
+    const mlFeePercent = getEffectiveMarketplaceFeePercent(
+      "Mercado Livre",
+      personType,
+      pricingFromMargin.mlSuggested,
+      { classicML: classic },
+    );
+    const mlFeeAmount = (pricingFromMargin.mlSuggested * mlFeePercent) / 100;
     const mlNetProfit =
-      pricingFromMargin.mlSuggested - mlFeeAmount - shippingAmount - mlTax - totalCost;
-    const mlMargin = pricingFromMargin.mlSuggested > 0 ? (mlNetProfit / pricingFromMargin.mlSuggested) * 100 : 0;
+      pricingFromMargin.mlSuggested - mlFeeAmount - shippingAmount - totalCost;
+    const mlMargin =
+      pricingFromMargin.mlSuggested > 0
+        ? (mlNetProfit / pricingFromMargin.mlSuggested) * 100
+        : 0;
 
     return Math.min(shMargin, mlMargin);
   }, [pricingFromMargin, totalCost, settings?.defaults]);
