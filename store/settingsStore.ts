@@ -20,7 +20,8 @@ export const defaultSettings: SettingsValues = {
     infrastructureYear: 0,
     yearlyPrintHours: 1000,
     packaging: 3,
-    desiredMargin: 45,
+    // Margem padrão inicial da calculadora; pode ser sobrescrita em /settings.
+    desiredMargin: 30,
     shippingEstimateDefault: 0,
     shopeeFreeShippingDefault: false,
     taxMode: "net_marketplace",
