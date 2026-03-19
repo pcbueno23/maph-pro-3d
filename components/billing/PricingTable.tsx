@@ -38,7 +38,6 @@ const plans: Plan[] = [
       "Para makers que querem organizar e profissionalizar apenas a precificação dos produtos (sem CRM completo).",
     features: [
       "Acesso à calculadora de precificação 3D",
-      "Analisador STL/3MF para estimar peso e tempo automaticamente",
       "Suporte às regras de tarifas Shopee e Mercado Livre",
     ],
   },
@@ -50,7 +49,7 @@ const plans: Plan[] = [
     description:
       "Para quem quer profissionalizar todo o negócio 3D: precificação, estoque, insumos, vendas e relatórios. Cobrado anual em 12x de R$ 19,90.",
     features: [
-      "Tudo do Pro (calculadora + analisador STL/3MF)",
+      "Tudo do Pro",
       "Módulo de estoque e insumos",
       "Registro de vendas e dashboard financeiro",
       "Relatórios de capital empregado e valor em estoque",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Crown, Infinity, Rocket } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
@@ -77,10 +77,6 @@ export function PlansManagement() {
   const isOnTrial = Boolean(status?.isTrialing);
   const plan = status?.plan ?? "free";
 
-  const canUseAnalyzer = useMemo(() => {
-    if (!status) return false;
-    return status.plan !== "free" && status.isTrialing === false;
-  }, [status]);
 
   const trialEnd = useMemo(() => {
     if (!status?.currentPeriodEnd) return null;
@@ -170,7 +166,7 @@ export function PlansManagement() {
                 Plano {plan === "pro" ? "Pro" : plan === "business" ? "Business" : "Free"}
               </p>
               {plan === "free" ? (
-                <p className="text-xs text-slate-400">Acesso básico. Assine para liberar o Analisador STL.</p>
+                <p className="text-xs text-slate-400">Acesso básico.</p>
               ) : isOnTrial ? (
                 <p className="text-xs text-slate-400">
                   Status: Período de teste (trial). {trialEnd ? `Termina em ${trialEnd}.` : ""}
@@ -191,23 +187,6 @@ export function PlansManagement() {
               <li className="flex items-start gap-2">
                 <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
                 <span>Regras de tarifas Shopee e Mercado Livre</span>
-              </li>
-              <li className="flex items-start gap-2">
-                {canUseAnalyzer ? (
-                  <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                ) : (
-                  <span className="mt-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-800 text-[9px] text-slate-400">
-                    OFF
-                  </span>
-                )}
-                <span>
-                  Analisador STL/3MF{" "}
-                  {canUseAnalyzer ? (
-                    <span className="text-slate-400">(ON)</span>
-                  ) : (
-                    <span className="text-slate-400">(OFF no trial)</span>
-                  )}
-                </span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
@@ -292,10 +271,6 @@ export function PlansManagement() {
                 <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
                 <span>Após 7 dias de trial, você assina Pro ou Business</span>
               </li>
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Analisador STL/3MF fica ON após assinatura ativa</span>
-              </li>
             </ul>
           </div>
 
@@ -312,7 +287,7 @@ export function PlansManagement() {
         <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
           <p className="text-xs font-semibold text-slate-200">O que fica ON</p>
           <p className="mt-2 text-xs text-slate-300">
-            Tudo do Pro/Business. O Analisador STL/3MF fica OFF no trial e ON depois que sua assinatura Pro/Business estiver ativa.
+            Tudo do Pro/Business para gestão de operação, custos e vendas.
           </p>
         </div>
       </div>
