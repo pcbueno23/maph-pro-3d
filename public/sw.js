@@ -1,5 +1,5 @@
 // Versão do cache para forçar atualização do PWA em celulares já instalados.
-const CACHE_NAME = "precifica3d-cache-v2";
+const CACHE_NAME = "precifica3d-cache-v3";
 const OFFLINE_URLS = ["/", "/login"];
 
 self.addEventListener("install", (event) => {

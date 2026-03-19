@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Crown, Infinity, Rocket } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
@@ -58,8 +58,9 @@ export function PlansManagement() {
           email: user.email,
         });
         setStatus(data);
-      } catch (e: any) {
-        setError(e?.message ?? "Falha ao carregar seu status.");
+      } catch {
+        // Se a consulta de status falhar (ex.: Stripe ainda não configurado),
+        // não exibimos erro no painel; assumimos fallback em Free.
         setStatus({
           plan: "free",
           subscriptionStatus: null,
