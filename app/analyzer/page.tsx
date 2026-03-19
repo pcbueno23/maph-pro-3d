@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { STLAnalyzer } from "@/components/stl-analyzer/STLAnalyzer";
+import { AnalyzerEntitlementGate } from "@/components/stl-analyzer/AnalyzerEntitlementGate";
 
 export const metadata: Metadata = {
   title: "Analisador STL | MAPH PRO 3D",
@@ -17,7 +17,7 @@ export default function AnalyzerPage() {
           Arraste seu arquivo 3D (.stl) para estimar volume, peso, tempo e custo de impressão.
         </p>
       </div>
-      <STLAnalyzer />
+      <AnalyzerEntitlementGate />
     </div>
   );
 }

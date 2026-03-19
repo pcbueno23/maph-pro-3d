@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
       mode = "subscription";
     } else if (plan === "lifetime") {
       priceId = priceLifetime;
-      mode = "payment";
+      // Business anual (plano anual cobrado em assinatura).
+      mode = "subscription";
     }
 
     if (!priceId) {

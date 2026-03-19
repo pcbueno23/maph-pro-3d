@@ -1,12 +1,8 @@
 "use client";
 
-import { PricingTable } from "@/components/billing/PricingTable";
+import { PlansManagement } from "@/components/billing/PlansManagement";
 
 export default function PricingPage() {
-  return (
-    <div className="space-y-4">
-      <PricingTable />
-    </div>
-  );
+  return <PlansManagement />;
 }
 
