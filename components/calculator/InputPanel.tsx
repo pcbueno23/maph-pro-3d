@@ -73,7 +73,22 @@ export function InputPanel({ form }: Props) {
       setValue("costs.kwhPrice", Number(p.energyRateBrlKwh ?? 0), { shouldDirty: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [printers]);
+  }, [printers, settings.printer?.defaultPrinterId]);
+
+  // Sempre que o usuário trocar a impressora (ou o preset atualizar), aplicar dados dela.
+  useEffect(() => {
+    if (!selectedPrinterId) return;
+    if (printers.length === 0) return;
+    const p = printers.find((x) => x.id === selectedPrinterId);
+    if (!p) return;
+    setValue("time.powerW", Number(p.powerW ?? 0), { shouldDirty: true });
+    setValue("costs.printerCost", Number(p.purchaseValue ?? 0), { shouldDirty: true });
+    setValue("costs.lifetimeHours", Number(p.usefulLifeHours ?? 0) || 1, { shouldDirty: true });
+    if (Number.isFinite(Number(p.energyRateBrlKwh))) {
+      setValue("costs.kwhPrice", Number(p.energyRateBrlKwh ?? 0), { shouldDirty: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPrinterId, printers]);
 
   return (
     <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
