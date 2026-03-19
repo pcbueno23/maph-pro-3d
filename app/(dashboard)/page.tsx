@@ -9,9 +9,10 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import type { Printer as PrinterType, Product, ProductionOrder, Sale } from "@/types";
+import type { Printer as PrinterType, Product, ProductionOrder } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { useSalesStore } from "@/store/salesStore";
+import type { Sale } from "@/store/salesStore";
 import { listPrinters, listProductionOrders } from "@/lib/supabaseProduction";
 import { fetchUserProducts } from "@/lib/supabaseProducts";
 import {
