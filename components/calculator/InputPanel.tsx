@@ -484,102 +484,96 @@ export function InputPanel({ form }: Props) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
-            Ajustes Avançados
-          </p>
-          <span className="text-[11px] text-slate-500" title="Impacta o lucro real (sem quebrar o cálculo teórico).">
-            em tempo real
-          </span>
-        </div>
-
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs text-slate-300">
-              Taxa de falha (%){" "}
-              <span className="text-slate-500" title="Aumenta o custo real: custo/(1 - falha). Ex.: 10% → divide por 0,9.">
-                (?)
-              </span>
-            </label>
-            <input
-              type="number"
-              min={0}
-              max={99}
-              step="0.1"
-              className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-              {...register("advanced.taxaFalha", { valueAsNumber: true })}
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs text-slate-300">
-              Desconto real (%){" "}
-              <span className="text-slate-500" title="Aplica desconto no preço final e recalcula taxas/imposto em cima do preço com desconto.">
-                (?)
-              </span>
-            </label>
-            <input
-              type="number"
-              min={0}
-              max={99}
-              step="0.1"
-              className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-              {...register("advanced.descontoPercentual", { valueAsNumber: true })}
-            />
-          </div>
-        </div>
-
-        <div className="mt-3 grid gap-3 md:grid-cols-3">
-          <div className="md:col-span-1">
-            <label className="mb-1 block text-xs text-slate-300">
-              Mão de obra{" "}
-              <span className="text-slate-500" title="Somado ao custo total antes do ajuste de falha.">
-                (?)
-              </span>
-            </label>
-            <div className="flex gap-2 text-xs">
-              <label className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-slate-200">
-                <input type="radio" value="fixo" {...register("advanced.maoDeObraTipo")} />
-                Fixo/peça
+      <details className="rounded-xl border border-slate-800 bg-slate-950/40">
+        <summary className="cursor-pointer list-none px-3 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+          Ajustes Avançados <span className="ml-2 text-[11px] font-normal text-slate-500">(opcional)</span>
+        </summary>
+        <div className="px-3 pb-3">
+          <div className="mt-1 grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs text-slate-300">
+                Taxa de falha (%){" "}
+                <span className="text-slate-500" title="Aumenta o custo real: custo/(1 - falha).">
+                  (?)
+                </span>
               </label>
-              <label className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-slate-200">
-                <input type="radio" value="hora" {...register("advanced.maoDeObraTipo")} />
-                Por hora
+              <input
+                type="number"
+                min={0}
+                max={99}
+                step="0.1"
+                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                {...register("advanced.taxaFalha", { valueAsNumber: true })}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs text-slate-300">
+                Desconto real (%){" "}
+                <span className="text-slate-500" title="Aplica desconto no preço final e recalcula taxas/imposto.">
+                  (?)
+                </span>
               </label>
+              <input
+                type="number"
+                min={0}
+                max={99}
+                step="0.1"
+                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                {...register("advanced.descontoPercentual", { valueAsNumber: true })}
+              />
             </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs text-slate-300">
-              Valor (R$){/* fixo ou R$/h */}
-            </label>
-            <input
-              type="number"
-              min={0}
-              step="0.1"
-              className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-              {...register("advanced.maoDeObraValor", { valueAsNumber: true })}
-            />
-          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <div className="md:col-span-1">
+              <label className="mb-1 block text-xs text-slate-300">
+                Mão de obra{" "}
+                <span className="text-slate-500" title="Somada ao custo real do produto.">
+                  (?)
+                </span>
+              </label>
+              <div className="flex gap-2 text-xs">
+                <label className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-slate-200">
+                  <input type="radio" value="fixo" {...register("advanced.maoDeObraTipo")} />
+                  Fixo/peça
+                </label>
+                <label className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-slate-200">
+                  <input type="radio" value="hora" {...register("advanced.maoDeObraTipo")} />
+                  Por hora
+                </label>
+              </div>
+            </div>
 
-          <div>
-            <label className="mb-1 block text-xs text-slate-300">
-              Tempo manual (min){" "}
-              <span className="text-slate-500" title="Usado apenas no modo Por hora.">
-                (?)
-              </span>
-            </label>
-            <input
-              type="number"
-              min={0}
-              step="1"
-              className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-              {...register("advanced.tempoManualMin", { valueAsNumber: true })}
-            />
+            <div>
+              <label className="mb-1 block text-xs text-slate-300">Valor (R$)</label>
+              <input
+                type="number"
+                min={0}
+                step="0.1"
+                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                {...register("advanced.maoDeObraValor", { valueAsNumber: true })}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs text-slate-300">
+                Tempo manual (min){" "}
+                <span className="text-slate-500" title="Usado apenas no modo Por hora.">
+                  (?)
+                </span>
+              </label>
+              <input
+                type="number"
+                min={0}
+                step="1"
+                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                {...register("advanced.tempoManualMin", { valueAsNumber: true })}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      </details>
 
       <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2 text-sm">

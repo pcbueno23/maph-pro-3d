@@ -175,221 +175,155 @@ export function ResultsPanel({ results, isDirty }: Props) {
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-950/80 via-slate-950/70 to-slate-900/80 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-            Resultado da simulação
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Por quanto eu vendo?
           </p>
-          <p className="mt-1 text-2xl font-semibold text-slate-50">{fmt(suggestedPrice)}</p>
-          <p className="text-xs text-slate-400">
-            Preços sugeridos por canal para a mesma margem alvo.
-          </p>
-        </div>
-        <div className="rounded-xl bg-emerald-500/10 px-3 py-2 text-right text-xs text-emerald-400">
-          <p className="font-semibold">
-            {profitPositive ? "Lucro líquido (pior canal)" : "Prejuízo"}
-          </p>
-          <p className="text-sm text-slate-50">
-            {fmt(profitPerSale)} ({margin.toFixed(1)}%)
-          </p>
-          <p className="mt-0.5 text-[10px] text-slate-400">
-            {fmt(profitPerHour)}/h
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-xl bg-slate-950/40 p-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Shopee</p>
+              <p className="mt-1 text-lg font-semibold text-slate-50">{fmt(suggestedPriceShopee)}</p>
+            </div>
+            <div className="rounded-xl bg-slate-950/40 p-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Mercado Livre</p>
+              <p className="mt-1 text-lg font-semibold text-slate-50">{fmt(suggestedPriceML)}</p>
+            </div>
+            <div className="rounded-xl bg-slate-950/40 p-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Direto</p>
+              <p className="mt-1 text-lg font-semibold text-slate-50">
+                {fmt(suggestedPriceDirectCash ?? suggestedPriceDirectCard ?? suggestedPrice)}
+              </p>
+              <p className="mt-0.5 text-[10px] text-slate-500" title="PIX e cartão podem variar; aqui mostramos o primeiro disponível.">
+                (?)
+              </p>
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] text-slate-500">
+            Preço ideal calculado por canal para atingir sua margem alvo.
           </p>
         </div>
 
         <div
-          className={`rounded-xl px-3 py-2 text-right text-xs ${
-            realMarginLow ? "bg-rose-500/10 text-rose-300" : "bg-cyan-500/10 text-cyan-300"
+          className={`rounded-2xl border p-4 ${
+            realMarginLow ? "border-rose-500/30 bg-rose-500/5" : "border-cyan-500/30 bg-cyan-500/5"
           }`}
         >
-          <p className="font-semibold">Lucro real (com ajustes)</p>
-          <p className="text-sm text-slate-50">
-            {fmt(lucroLiquidoReal)} ({margemReal.toFixed(1)}%)
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Quanto eu ganho?
           </p>
-          <p className="mt-0.5 text-[10px] text-slate-400">
-            Antes: {fmt(profitPerSale)} · Depois: {fmt(lucroLiquidoReal)}
+          <p className="mt-2 text-3xl font-semibold text-slate-50">{fmt(lucroLiquidoReal)}</p>
+          <p className={realMarginLow ? "mt-1 text-sm text-rose-200" : "mt-1 text-sm text-emerald-200"}>
+            Margem real: <span className="font-semibold">{margemReal.toFixed(1)}%</span>
           </p>
+          {alertaLucroAbaixoDaMeta ? (
+            <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+              Seu lucro real está abaixo da meta devido a falhas, taxas ou descontos.
+            </div>
+          ) : null}
         </div>
-        <div className="rounded-xl bg-slate-950/40 px-3 py-2 text-right text-xs text-slate-300">
-          <p className="font-semibold text-slate-100">Sugestões</p>
-          <p className="mt-0.5">
-            Shopee: <span className="font-semibold text-slate-50">{fmt(suggestedPriceShopee)}</span>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Custo total</p>
+          <p className="mt-1 text-lg font-semibold text-slate-100">{fmt(totalCost)}</p>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Custo real ajustado
           </p>
-          <p className="mt-0.5">
-            ML: <span className="font-semibold text-slate-50">{fmt(suggestedPriceML)}</span>
-          </p>
-          {(suggestedPriceDirectCash != null || suggestedPriceDirectCard != null) && (
-            <div className="mt-1 border-t border-slate-800 pt-1">
-              <p className="mt-0.5">
-                Direto PIX:{" "}
-                <span className="font-semibold text-slate-50">
-                  {fmt(suggestedPriceDirectCash ?? 0)}
-                </span>
-              </p>
-              <p className="mt-0.5">
-                Direto crédito:{" "}
-                <span className="font-semibold text-slate-50">
-                  {fmt(suggestedPriceDirectCard ?? 0)}
-                </span>
+          <p className="mt-1 text-lg font-semibold text-emerald-200">{fmt(custoTotalAjustado)}</p>
+        </div>
+      </div>
+
+      <details className="rounded-xl border border-slate-800 bg-slate-950/40">
+        <summary className="cursor-pointer list-none px-3 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+          Ver detalhes do cálculo
+        </summary>
+        <div className="px-3 pb-3 text-xs">
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Impacto dos Ajustes
+            </p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1 text-slate-300">
+                <p>
+                  Lucro teórico: <span className="text-slate-100">{fmt(profitPerSale)}</span>
+                </p>
+                <p>
+                  Lucro real: <span className="text-slate-100">{fmt(lucroLiquidoReal)}</span>
+                </p>
+              </div>
+              <div className="space-y-1 text-slate-300">
+                <p>
+                  Diferença:{" "}
+                  <span className={lossOver20 ? "text-rose-300" : lossAbs < 0 ? "text-amber-300" : "text-emerald-300"}>
+                    {lossAbs >= 0 ? "+" : "−"} {fmt(Math.abs(lossAbs))} (
+                    {Number.isFinite(lossPct) ? lossPct.toFixed(0) : 0}%)
+                  </span>
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  (falhas, mão de obra, desconto real e taxas recalculadas)
+                </p>
+              </div>
+            </div>
+
+            {taxZero ? (
+              <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+                <p className="font-semibold">ATENÇÃO: Você não está considerando impostos.</p>
+                <p className="mt-0.5">
+                  Seu lucro real pode estar superestimado. Sugestão: MEI 4%–6% · Simples Nacional 6%–12%.
+                </p>
+              </div>
+            ) : null}
+
+            {laborHourTooLow ? (
+              <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+                Sua mão de obra por peça está muito baixa — isso pode comprometer seu lucro real.
+              </div>
+            ) : null}
+
+            {margemReal < 15 ? (
+              <div className="mt-3 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+                <p className="font-semibold">Margem muito baixa.</p>
+                <p className="mt-0.5">Esse produto pode não ser sustentável.</p>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <CascataBlock title="Detalhamento do cálculo (Shopee)" c={cascataShopee} isShopee />
+            <CascataBlock title="Detalhamento do cálculo (ML)" c={cascataML} isShopee={false} />
+          </div>
+
+          {priceToAnnounceForPromo != null && priceToAnnounceForPromo > 0 && (
+            <div className="mt-3 rounded-xl border border-purple-500/30 bg-purple-500/5 p-3">
+              <p className="mb-1 font-semibold text-purple-300">Promoção com lucro preservado</p>
+              <p className="text-slate-300">
+                Anuncie por <strong className="text-slate-100">{fmt(priceToAnnounceForPromo)}</strong> para que, após o desconto, o cliente pague {fmt(suggestedPrice)}.
               </p>
             </div>
           )}
-        </div>
-        {compareAtPriceResult && (
-          <div className="rounded-xl bg-cyan-500/10 px-3 py-2 text-right text-xs text-cyan-400">
-            <p className="font-semibold">Preço desejado</p>
-            <p className="text-sm text-slate-50">
-              {fmt(compareAtPriceResult.sellingPrice)}
-            </p>
-            <p className="mt-0.5 text-slate-300">
-              Shopee:{" "}
-              <span className={compareAtPriceResult.shopee.netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                {fmt(compareAtPriceResult.shopee.netProfit)} ({compareAtPriceResult.shopee.marginPercent.toFixed(1)}%)
-              </span>
-            </p>
-            <p className="mt-0.5 text-slate-300">
-              ML:{" "}
-              <span className={compareAtPriceResult.ml.netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                {fmt(compareAtPriceResult.ml.netProfit)} ({compareAtPriceResult.ml.marginPercent.toFixed(1)}%)
-              </span>
-            </p>
-            <p className="mt-0.5 text-[10px] text-slate-400">
-              Direto PIX:{" "}
-              <span className={compareAtPriceResult.directCash.netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                {fmt(compareAtPriceResult.directCash.netProfit)} ({compareAtPriceResult.directCash.marginPercent.toFixed(1)}%)
-              </span>
-            </p>
-            <p className="mt-0.5 text-[10px] text-slate-400">
-              Direto crédito:{" "}
-              <span className={compareAtPriceResult.directCard.netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                {fmt(compareAtPriceResult.directCard.netProfit)} ({compareAtPriceResult.directCard.marginPercent.toFixed(1)}%)
-              </span>
-            </p>
-            <p className="mt-0.5 text-[10px] text-slate-500">
-              {fmt(
-                Math.min(
-                  compareAtPriceResult.shopee.profitPerHour,
-                  compareAtPriceResult.ml.profitPerHour,
-                  compareAtPriceResult.directCash.profitPerHour,
-                  compareAtPriceResult.directCard.profitPerHour,
-                ),
-              )}
-              /h
-            </p>
-          </div>
-        )}
-      </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3 text-xs">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-          Ajustes avançados (antes vs depois)
-        </p>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-1 text-slate-300">
-            <p>
-              Custo base: <span className="text-slate-100">{fmt(totalCost)}</span>
-            </p>
-            <p>
-              Mão de obra: <span className="text-slate-100">{fmt(maoDeObraCusto)}</span>
-            </p>
-            <p>
-              Taxa de falha: <span className="text-slate-100">{taxaFalhaPercent.toFixed(1)}%</span>
-            </p>
-            <p>
-              Custo real ajustado: <span className="text-emerald-200">{fmt(custoTotalAjustado)}</span>
-            </p>
-          </div>
-          <div className="space-y-1 text-slate-300">
-            <p>
-              Desconto real: <span className="text-slate-100">{descontoPercentualReal.toFixed(1)}%</span>
-            </p>
-            <p>
-              Preço sugerido: <span className="text-slate-100">{fmt(suggestedPrice)}</span>
-            </p>
-            <p>
-              Preço com desconto: <span className="text-slate-100">{fmt(precoComDesconto)}</span>
-            </p>
-            <p>
-              Margem real:{" "}
-              <span className={realMarginLow ? "text-rose-300" : "text-emerald-300"}>
-                {margemReal.toFixed(1)}%
-              </span>
-            </p>
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl bg-slate-950/50 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Preço mínimo
+              </p>
+              <p className="mt-1 text-lg font-semibold text-slate-100">{fmt(minimumPrice)}</p>
+            </div>
+            <div className="rounded-xl bg-slate-950/50 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Distribuição de custos
+              </p>
+              <div className="mt-2">
+                <CostBreakdownChart items={costChartItems} />
+              </div>
+            </div>
           </div>
         </div>
-
-        {alertaLucroAbaixoDaMeta ? (
-          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
-            Seu lucro real está abaixo da meta devido a falhas, taxas ou descontos.
-          </div>
-        ) : null}
-      </div>
-
-      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3 text-xs">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-          Impacto dos Ajustes
-        </p>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-1 text-slate-300">
-            <p>
-              Lucro teórico: <span className="text-slate-100">{fmt(profitPerSale)}</span>
-            </p>
-            <p>
-              Lucro real: <span className="text-slate-100">{fmt(lucroLiquidoReal)}</span>
-            </p>
-          </div>
-          <div className="space-y-1 text-slate-300">
-            <p>
-              Diferença:{" "}
-              <span className={lossOver20 ? "text-rose-300" : lossAbs < 0 ? "text-amber-300" : "text-emerald-300"}>
-                {lossAbs >= 0 ? "+" : "−"} {fmt(Math.abs(lossAbs))} ({Number.isFinite(lossPct) ? lossPct.toFixed(0) : 0}
-                %)
-              </span>
-            </p>
-            <p className="text-[11px] text-slate-500">
-              (falhas, mão de obra, desconto real e taxas recalculadas)
-            </p>
-          </div>
-        </div>
-
-        {taxZero ? (
-          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
-            <p className="font-semibold">ATENÇÃO: Você não está considerando impostos.</p>
-            <p className="mt-0.5">
-              Seu lucro real pode estar superestimado. Sugestão: MEI 4%–6% · Simples Nacional 6%–12%.
-            </p>
-          </div>
-        ) : null}
-
-        {laborHourTooLow ? (
-          <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
-            Sua mão de obra por peça está muito baixa — isso pode comprometer seu lucro real.
-          </div>
-        ) : null}
-
-        {margemReal < 15 ? (
-          <div className="mt-3 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
-            <p className="font-semibold">Margem muito baixa.</p>
-            <p className="mt-0.5">Esse produto pode não ser sustentável.</p>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <CascataBlock title="Detalhamento do cálculo (Shopee)" c={cascataShopee} isShopee />
-        <CascataBlock title="Detalhamento do cálculo (ML)" c={cascataML} isShopee={false} />
-      </div>
-
-      {priceToAnnounceForPromo != null && priceToAnnounceForPromo > 0 && (
-        <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 text-xs">
-          <p className="mb-1 font-semibold text-purple-300">
-            Promoção com lucro preservado
-          </p>
-          <p className="text-slate-300">
-            Anuncie por <strong className="text-slate-100">{fmt(priceToAnnounceForPromo)}</strong> para que, após o desconto, o cliente pague {fmt(suggestedPrice)} e sua margem se mantenha.
-          </p>
-        </div>
-      )}
+      </details>
 
       <div className="grid gap-4 text-xs md:grid-cols-2">
         <div className="space-y-2 rounded-xl bg-slate-950/50 p-3">
@@ -482,35 +416,7 @@ export function ResultsPanel({ results, isDirty }: Props) {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-xs">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-          Detalhamento do custo do produto (produção)
-        </p>
-        <ul className="space-y-1 text-slate-300">
-          <li className="flex justify-between">
-            <span>Energia elétrica</span>
-            <span className="text-slate-100">{fmt(results.energyCost)}</span>
-          </li>
-          <li className="flex justify-between">
-            <span>Filamento</span>
-            <span className="text-slate-100">{fmt(results.filamentCost)}</span>
-          </li>
-          <li className="flex justify-between">
-            <span>Depreciação + fixos</span>
-            <span className="text-slate-100">{fmt(results.depreciationCost)}</span>
-          </li>
-          <li className="flex justify-between">
-            <span>Embalagem</span>
-            <span className="text-slate-100">{fmt(results.packagingCost)}</span>
-          </li>
-          <li className="flex justify-between border-t border-slate-800 pt-2 font-medium text-slate-100">
-            <span>Custo total</span>
-            <span>{fmt(totalCost)}</span>
-          </li>
-        </ul>
-      </div>
-
-      <CostBreakdownChart items={costChartItems} />
+      {/* detalhes técnicos ficam no accordion acima */}
 
       {!isDirty && (
         <p className="text-[11px] text-slate-500">
