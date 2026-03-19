@@ -53,23 +53,27 @@ export function InputPanel({ form }: Props) {
     };
   }, [user?.id]);
 
+  // Quando a lista de impressoras carrega: definir padrão (se não tiver seleção) e sempre
+  // preencher potência, custo, vida útil e tarifa da impressora selecionada para o cálculo.
   useEffect(() => {
+    if (printers.length === 0) return;
     const defaultId = settings.printer?.defaultPrinterId ?? "";
     const current = form.getValues("time.printerId") ?? "";
+    const idToUse = current || defaultId;
+    if (!idToUse) return;
+    const p = printers.find((x) => x.id === idToUse);
+    if (!p) return;
     if (!current && defaultId) {
       setValue("time.printerId", defaultId, { shouldDirty: false });
-      const p = printers.find((x) => x.id === defaultId);
-      if (p) {
-        setValue("time.powerW", Number(p.powerW ?? 0), { shouldDirty: false });
-        setValue("costs.printerCost", Number(p.purchaseValue ?? 0), { shouldDirty: false });
-        setValue("costs.lifetimeHours", Number(p.usefulLifeHours ?? 0) || 1, { shouldDirty: false });
-        if (Number.isFinite(Number(p.energyRateBrlKwh))) {
-          setValue("costs.kwhPrice", Number(p.energyRateBrlKwh ?? 0), { shouldDirty: false });
-        }
-      }
+    }
+    setValue("time.powerW", Number(p.powerW ?? 0), { shouldDirty: false });
+    setValue("costs.printerCost", Number(p.purchaseValue ?? 0), { shouldDirty: false });
+    setValue("costs.lifetimeHours", Number(p.usefulLifeHours ?? 0) || 1, { shouldDirty: false });
+    if (Number.isFinite(Number(p.energyRateBrlKwh))) {
+      setValue("costs.kwhPrice", Number(p.energyRateBrlKwh ?? 0), { shouldDirty: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [printers.length]);
+  }, [printers]);
 
   return (
     <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
