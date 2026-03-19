@@ -229,6 +229,88 @@ export function ResultsPanel({ results, isDirty }: Props) {
           <p className="mt-1 text-[11px] text-cyan-300">
             Base usada: custo real ajustado.
           </p>
+
+          {compareAtPriceResult ? (
+            <div className="mt-3 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Comparar com concorrente
+                  </p>
+                  <p className="mt-1 text-sm text-slate-200">
+                    Preço desejado:{" "}
+                    <span className="font-semibold text-slate-50">
+                      {fmt(compareAtPriceResult.sellingPrice)}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    {
+                      key: "Shopee" as const,
+                      title: "Shopee",
+                      netProfit: compareAtPriceResult.shopee.netProfit,
+                      margin: compareAtPriceResult.shopee.marginPercent,
+                      profitPerHour: compareAtPriceResult.shopee.profitPerHour,
+                    },
+                    {
+                      key: "ML" as const,
+                      title: "Mercado Livre",
+                      netProfit: compareAtPriceResult.ml.netProfit,
+                      margin: compareAtPriceResult.ml.marginPercent,
+                      profitPerHour: compareAtPriceResult.ml.profitPerHour,
+                    },
+                    {
+                      key: "Direto PIX" as const,
+                      title: "Direto (PIX)",
+                      netProfit: compareAtPriceResult.directCash.netProfit,
+                      margin: compareAtPriceResult.directCash.marginPercent,
+                      profitPerHour: compareAtPriceResult.directCash.profitPerHour,
+                    },
+                    {
+                      key: "Direto cartão" as const,
+                      title: "Direto (cartão)",
+                      netProfit: compareAtPriceResult.directCard.netProfit,
+                      margin: compareAtPriceResult.directCard.marginPercent,
+                      profitPerHour: compareAtPriceResult.directCard.profitPerHour,
+                    },
+                  ] as const
+                ).map((c) => {
+                  const isBad = c.margin < 0;
+                  return (
+                    <div
+                      key={c.key}
+                      className={`rounded-lg border px-3 py-2 ${
+                        isBad
+                          ? "border-rose-500/30 bg-rose-500/5"
+                          : "border-emerald-500/25 bg-emerald-500/5"
+                      }`}
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        {c.title}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-50">
+                        {fmt(c.netProfit)}
+                      </p>
+                      <p
+                        className={`mt-0.5 text-[11px] ${
+                          isBad ? "text-rose-200" : "text-emerald-200"
+                        }`}
+                      >
+                        Margem: {c.margin.toFixed(1)}%
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-slate-500">
+                        Lucro/h: {fmt(c.profitPerHour)}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div
