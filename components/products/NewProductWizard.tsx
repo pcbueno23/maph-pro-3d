@@ -364,7 +364,9 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
       description: description.trim() || null,
       weight: materials.reduce((acc, m) => acc + (m.unit === "kg" ? m.qty * 1000 : m.unit === "g" ? m.qty : 0), 0) || 0,
       price,
-      margin: marginFromChannelSuggestedPrices,
+      // A calculadora salva a margem "conservadora" baseada no preço final.
+      // Isso evita divergência quando o preço recomendado é o máximo entre Shopee/ML.
+      margin: computeWorstMarginForPrice(price),
       marketplace,
       currency: "BRL",
       createdAt: nowIso,
@@ -417,8 +419,8 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 p-4">
-      <div className="absolute left-1/2 top-1/2 w-full max-w-2xl max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 min-h-0 flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
+    <div className="fixed inset-0 z-50 bg-slate-950/80">
+      <div className="absolute left-1/2 top-1/2 w-full max-w-2xl max-h-[calc(100dvh-32px)] -translate-x-1/2 -translate-y-1/2 min-h-0 flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
           <h2 className="text-lg font-semibold text-slate-50">Novo Produto</h2>
           <button
