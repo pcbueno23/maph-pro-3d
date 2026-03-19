@@ -1,26 +1,63 @@
 "use client";
 
-import { useEffect } from "react";
-import { useSuppliesStore } from "@/store/suppliesStore";
-import { useInventoryStore } from "@/store/inventoryStore";
+import { useEffect, useState } from "react";
+import { useAuthStore } from "@/store/authStore";
+import type { SupplyCategory, SupplyItem } from "@/types";
+import type { InventoryItem } from "@/store/inventoryStore";
+import { listSupplies } from "@/lib/supabaseProduction";
+import { fetchUserInventory } from "@/lib/supabaseUserData";
+
+const SUPPLY_CATEGORY_LABEL: Record<SupplyCategory, string> = {
+  filament: "Filamento",
+  resin: "Resina",
+  ink: "Tinta",
+  packaging: "Embalagem",
+  tool: "Ferramenta",
+  part: "Peça",
+  other: "Outro",
+};
 
 export default function ReportsPage() {
-  const { supplies, hydrateFromStorage: hydrateSupplies } = useSuppliesStore();
-  const { items, hydrateFromStorage: hydrateInventory } = useInventoryStore();
+  const user = useAuthStore((s) => s.user);
+  const [supplies, setSupplies] = useState<SupplyItem[]>([]);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    hydrateSupplies();
-    hydrateInventory();
-  }, [hydrateSupplies, hydrateInventory]);
+    if (!user?.id) {
+      setSupplies([]);
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    Promise.all([listSupplies(user.id), fetchUserInventory(user.id)])
+      .then(([suppliesData, inventoryData]) => {
+        if (!cancelled) {
+          setSupplies(suppliesData ?? []);
+          setItems(inventoryData ?? []);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Erro ao carregar dados");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
-  const filamentSupplies = supplies.filter((s) => s.kind === "filament");
-
+  const filamentSupplies = supplies.filter((s) => s.category === "filament");
   const totalFilamentGrams = filamentSupplies.reduce((acc, s) => {
     if (s.unit === "kg") return acc + s.stockQty * 1000;
     if (s.unit === "g") return acc + s.stockQty;
     return acc;
   }, 0);
-
   const totalFilamentValue = filamentSupplies.reduce(
     (acc, s) => acc + s.stockQty * s.unitCost,
     0,
@@ -29,8 +66,8 @@ export default function ReportsPage() {
   const totalSuppliesByKind = supplies.reduce(
     (acc, s) => {
       const value = s.stockQty * s.unitCost;
-      if (s.kind === "filament") acc.filament += value;
-      else if (s.kind === "ink") acc.ink += value;
+      if (s.category === "filament") acc.filament += value;
+      else if (s.category === "ink") acc.ink += value;
       else acc.other += value;
       return acc;
     },
@@ -41,30 +78,21 @@ export default function ReportsPage() {
     (acc, i) => acc + (i.productionCost ?? 0) * i.quantity,
     0,
   );
-
   const totalPiecesValueShopee = items.reduce(
     (acc, i) => acc + (i.suggestedPriceShopee ?? i.price) * i.quantity,
     0,
   );
-
   const totalPiecesValueML = items.reduce(
     (acc, i) => acc + (i.suggestedPriceML ?? i.price) * i.quantity,
     0,
   );
 
   const totalSuppliesValue =
-    totalSuppliesByKind.filament +
-    totalSuppliesByKind.ink +
-    totalSuppliesByKind.other;
-
+    totalSuppliesByKind.filament + totalSuppliesByKind.ink + totalSuppliesByKind.other;
   const totalInvested = totalSuppliesValue + totalPiecesCost;
 
   const formatBRL = (value: number) =>
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-  const filamentLabel =
-    (s: { kind: string }) =>
-      s.kind === "filament" ? "Filamentos" : s.kind === "ink" ? "Tintas" : "Outros";
 
   const piecesRows = items.map((i) => {
     const priceShopee = i.suggestedPriceShopee ?? i.price;
@@ -84,6 +112,14 @@ export default function ReportsPage() {
       <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">
         Relatórios
       </h1>
+      {error && (
+        <div className="rounded-xl border border-rose-800 bg-rose-950/60 px-4 py-2 text-sm text-rose-200">
+          {error}
+        </div>
+      )}
+      {loading && (
+        <p className="text-sm text-slate-400">Carregando insumos e peças produzidas...</p>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm">
@@ -256,21 +292,27 @@ export default function ReportsPage() {
                     <th className="px-2 py-2">Unidade</th>
                     <th className="px-2 py-2">Custo/un</th>
                     <th className="px-2 py-2">Estoque</th>
+                    <th className="px-2 py-2">Mínimo</th>
                     <th className="px-2 py-2">Valor</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
                   {supplies.map((s) => {
                     const stockQty = Number(s.stockQty ?? 0);
+                    const minQty = s.minStockQty ?? 0;
                     const stockIsEmpty = stockQty <= 0;
+                    const lowStock = minQty > 0 && stockQty <= minQty;
                     return (
                       <tr key={s.id} className="hover:bg-slate-900/60">
                         <td className="px-2 py-2 text-slate-100">{s.name}</td>
-                        <td className="px-2 py-2 text-slate-300">{filamentLabel(s)}</td>
+                        <td className="px-2 py-2 text-slate-300">{SUPPLY_CATEGORY_LABEL[s.category]}</td>
                         <td className="px-2 py-2 text-slate-300">{s.unit}</td>
                         <td className="px-2 py-2 text-slate-200">{formatBRL(s.unitCost)}</td>
-                        <td className={`px-2 py-2 ${stockIsEmpty ? "text-amber-300" : "text-slate-200"}`}>
+                        <td className={`px-2 py-2 ${lowStock || stockIsEmpty ? "text-amber-300" : "text-slate-200"}`}>
                           {stockQty.toLocaleString("pt-BR")}
+                        </td>
+                        <td className="px-2 py-2 text-slate-300">
+                          {Number(minQty).toLocaleString("pt-BR")}
                         </td>
                         <td className="px-2 py-2 text-slate-200">
                           {formatBRL(stockQty * (s.unitCost ?? 0))}
