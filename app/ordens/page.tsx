@@ -163,7 +163,7 @@ export default function OrdersPage() {
 
     setDraft({
       productId: prod.id,
-      printerId: printerIdParam || prod.defaultPrinterId ?? null,
+      printerId: printerIdParam ? printerIdParam : (prod.defaultPrinterId ?? null),
       quantity: qty,
       dueDate: null,
       status: "new",
