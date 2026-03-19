@@ -9,13 +9,15 @@ const PLAN_PRODUCTS: Record<
 > = {
   pro: {
     name: "Precifica3D Pro",
-    description: "Assinatura mensal – produtos ilimitados, sync nuvem, taxas 2026.",
-    priceCents: 900, // R$ 9,00
+    description:
+      "Assinatura mensal – produtos ilimitados, sync nuvem, taxas 2026 (trial 7 dias via Stripe).",
+    priceCents: 2499, // R$ 24,99
   },
   lifetime: {
-    name: "Precifica3D Lifetime",
-    description: "Acesso vitalício – todas as features, pagamento único.",
-    priceCents: 9900, // R$ 99,00
+    name: "Precifica3D Business anual",
+    description:
+      "Plano anual (cobrança anual em 12x) – precificação completa, estoque, insumos, vendas e relatórios.",
+    priceCents: 23880, // 12x de R$ 19,90 => R$ 238,80/ano
   },
 };
 

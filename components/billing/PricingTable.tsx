@@ -23,18 +23,17 @@ const plans: Plan[] = [
     priceLabel: "R$ 0",
     description: "Ideal para começar a precificar impressões sem fricção.",
     features: [
-      "7 dias para testar",
       "Calculadora básica de custos",
     ],
   },
   {
     id: "pro",
     name: "Pro",
-    priceLabel: "R$ 19,90 / mês",
+    priceLabel: "R$ 24,99 / mês",
     highlight: true,
-    badge: "Para quem precisa precificar",
+    badge: "7 dias grátis + Pro completo",
     description:
-      "Para makers que querem organizar e profissionalizar apenas a precificação dos produtos (sem CRM completo).",
+      "Para makers que querem organizar e profissionalizar apenas a precificação dos produtos. Acesso Pro completo por 7 dias grátis; depois R$ 24,99/mês.",
     features: [
       "Acesso à calculadora de precificação 3D",
       "Analisador STL/3MF para estimar peso e tempo automaticamente",
@@ -44,10 +43,10 @@ const plans: Plan[] = [
   {
     id: "lifetime",
     name: "Business",
-    priceLabel: "R$ 39,90 / mês",
-    badge: "Acesso completo",
+    priceLabel: "12x de R$ 19,90 / ano",
+    badge: "Plano anual",
     description:
-      "Para quem quer profissionalizar todo o negócio 3D: precificação, estoque, insumos, vendas e relatórios.",
+      "Para quem quer profissionalizar todo o negócio 3D: precificação, estoque, insumos, vendas e relatórios. Cobrado anual em 12x de R$ 19,90.",
     features: [
       "Tudo do Pro (calculadora + analisador STL/3MF)",
       "Módulo de estoque e insumos",
