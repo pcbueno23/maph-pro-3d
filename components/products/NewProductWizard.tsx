@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useProductsStore } from "@/store/productsStore";
@@ -11,15 +11,19 @@ import { upsertProductsForUser } from "@/lib/supabaseProducts";
 import {
   calcEnergyCostFromPrinter,
   calcDepreciationFromPrinter,
-  calcSuggestedPrice,
-  calcMarginPercentage,
 } from "@/lib/calculations";
+import {
+  getShopeeSuggestedPrice,
+  getMLSuggestedPrice,
+  getShopeeFeeBreakdown,
+  getMLFeeBreakdown,
+} from "@/lib/marketplaceFees";
 import { MARKETPLACES } from "@/lib/constants";
 
 const STEPS = [
   { id: 1, label: "Informações" },
-  { id: 2, label: "Uploads" },
-  { id: 3, label: "Materiais" },
+  { id: 2, label: "Materiais" },
+  { id: 3, label: "Uploads" },
   { id: 4, label: "Preço" },
 ] as const;
 
@@ -64,7 +68,6 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
   const [materials, setMaterials] = useState<BomLine[]>([]);
   const [addSupplyId, setAddSupplyId] = useState("");
   const [addQty, setAddQty] = useState<number | "">("");
-  const [otherCosts, setOtherCosts] = useState<number | "">(0);
   const defaultMargin = Number(settings?.defaults?.desiredMargin ?? 45);
   const [marginPercent, setMarginPercent] = useState<number | "">(defaultMargin);
   const [price, setPrice] = useState<number>(0);
@@ -113,11 +116,15 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
   const { energyCost, depreciationCost, packagingCost, totalCost } = useMemo(() => {
     const def = settings?.defaults;
     const packaging = Number(def?.packaging ?? 3);
-    const other = typeof otherCosts === "number" && Number.isFinite(otherCosts) ? otherCosts : 0;
 
     if (!selectedPrinter || printTimeHours <= 0) {
-      const total = materialCost + packaging + other;
-      return { energyCost: 0, depreciationCost: 0, packagingCost: packaging, totalCost: total };
+      const total = materialCost + packaging;
+      return {
+        energyCost: 0,
+        depreciationCost: 0,
+        packagingCost: packaging,
+        totalCost: total,
+      };
     }
 
     const energyCost = calcEnergyCostFromPrinter({
@@ -132,23 +139,51 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
       infrastructureYear: def?.infrastructureYear ?? 0,
       yearlyPrintHours: def?.yearlyPrintHours ?? 1000,
     });
-    const totalCost = materialCost + energyCost + depreciationCost + packaging + other;
+    const totalCost = materialCost + energyCost + depreciationCost + packaging;
     return { energyCost, depreciationCost, packagingCost: packaging, totalCost };
-  }, [selectedPrinter, printTimeHours, materialCost, otherCosts, settings?.defaults]);
+  }, [selectedPrinter, printTimeHours, materialCost, settings?.defaults]);
 
-  const suggestedPriceFromMargin = useMemo(() => {
+  const lastEditedByRef = useRef<"margin" | "price" | null>(null);
+
+  const pricingFromMargin = useMemo(() => {
     const margin = typeof marginPercent === "number" && Number.isFinite(marginPercent) ? marginPercent : 0;
-    const fee = Number(settings?.defaults?.shopeeBaseCommission ?? 14);
-    return calcSuggestedPrice({
+    const shippingAmount = Number(settings?.defaults?.shippingEstimateDefault ?? 0);
+    const taxPercent = 0;
+    const freeShipping = settings?.defaults?.shopeeFreeShippingDefault ?? false;
+    const classic = settings?.defaults?.mlClassic ?? false;
+    const personType = "CPF" as const;
+
+    const shopeeSuggested = getShopeeSuggestedPrice({
       totalCost,
-      marketplaceFeePercent: fee,
+      shippingAmount,
+      taxPercent,
       desiredMarginPercent: margin,
+      freeShipping,
+      personType,
     });
-  }, [totalCost, marginPercent, settings?.defaults?.shopeeBaseCommission]);
+
+    const mlSuggested = getMLSuggestedPrice({
+      totalCost,
+      shippingAmount,
+      taxPercent,
+      desiredMarginPercent: margin,
+      personType,
+      classic,
+    });
+
+    return {
+      shopeeSuggested,
+      mlSuggested,
+      worstSuggested: Math.max(shopeeSuggested, mlSuggested),
+    };
+  }, [totalCost, marginPercent, settings?.defaults]);
 
   useEffect(() => {
-    setPrice(suggestedPriceFromMargin);
-  }, [suggestedPriceFromMargin]);
+    if (step !== 4) return;
+    if (totalCost <= 0) return;
+    if (lastEditedByRef.current === "price") return;
+    setPrice(pricingFromMargin.worstSuggested);
+  }, [pricingFromMargin.worstSuggested, step, totalCost]);
 
   useEffect(() => {
     if (step === 4 && totalCost > 0 && (marginPercent === "" || marginPercent === 0)) {
@@ -156,10 +191,71 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
     }
   }, [step, totalCost, marginPercent, defaultMargin]);
 
-  const marginFromPrice = useMemo(() => {
-    if (totalCost <= 0 || price <= 0) return 0;
-    return calcMarginPercentage(price, totalCost);
-  }, [price, totalCost]);
+  const computeWorstMarginForPrice = (sellingPrice: number): number => {
+    if (sellingPrice <= 0 || totalCost <= 0) return 0;
+
+    const shippingAmount = Number(settings?.defaults?.shippingEstimateDefault ?? 0);
+    const taxPercent = 0;
+    const taxMode = settings?.defaults?.taxMode ?? "net_marketplace";
+    const freeShipping = settings?.defaults?.shopeeFreeShippingDefault ?? false;
+    const classic = settings?.defaults?.mlClassic ?? false;
+    const personType = "CPF" as const;
+
+    const computeTaxAmount = (priceForTax: number, commissionRateDecimal: number): number => {
+      if (taxPercent <= 0 || priceForTax <= 0) return 0;
+      const rate = taxPercent / 100;
+      if (taxMode === "net_marketplace") {
+        const netBase = priceForTax * (1 - commissionRateDecimal);
+        return netBase * rate;
+      }
+      return priceForTax * rate;
+    };
+
+    const sh = getShopeeFeeBreakdown(sellingPrice, personType, freeShipping);
+    const shTax = computeTaxAmount(sellingPrice, sh.commissionRateDecimal);
+    const shFeeAmount = sh.commissionAmount + sh.fixedFeeAmount;
+    const shNetProfit = sellingPrice - shFeeAmount - shippingAmount - shTax - totalCost;
+    const shMargin = (shNetProfit / sellingPrice) * 100;
+
+    const ml = getMLFeeBreakdown(sellingPrice, personType, classic);
+    const mlTax = computeTaxAmount(sellingPrice, ml.commissionRateDecimal);
+    const mlFeeAmount = ml.commissionAmount + ml.fixedFeeAmount;
+    const mlNetProfit = sellingPrice - mlFeeAmount - shippingAmount - mlTax - totalCost;
+    const mlMargin = (mlNetProfit / sellingPrice) * 100;
+
+    return Math.min(shMargin, mlMargin);
+  };
+
+  const outrosCustosFromPrice = useMemo(() => {
+    if (price <= 0) return 0;
+
+    const shippingAmount = Number(settings?.defaults?.shippingEstimateDefault ?? 0);
+    const taxPercent = 0;
+    const taxMode = settings?.defaults?.taxMode ?? "net_marketplace";
+    const freeShipping = settings?.defaults?.shopeeFreeShippingDefault ?? false;
+    const classic = settings?.defaults?.mlClassic ?? false;
+    const personType = "CPF" as const;
+
+    const computeTaxAmount = (priceForTax: number, commissionRateDecimal: number): number => {
+      if (taxPercent <= 0 || priceForTax <= 0) return 0;
+      const rate = taxPercent / 100;
+      if (taxMode === "net_marketplace") {
+        const netBase = priceForTax * (1 - commissionRateDecimal);
+        return netBase * rate;
+      }
+      return priceForTax * rate;
+    };
+
+    const sh = getShopeeFeeBreakdown(price, personType, freeShipping);
+    const shTax = computeTaxAmount(price, sh.commissionRateDecimal);
+    const shOther = (sh.commissionAmount + sh.fixedFeeAmount) + shippingAmount + shTax;
+
+    const ml = getMLFeeBreakdown(price, personType, classic);
+    const mlTax = computeTaxAmount(price, ml.commissionRateDecimal);
+    const mlOther = (ml.commissionAmount + ml.fixedFeeAmount) + shippingAmount + mlTax;
+
+    return Math.max(shOther, mlOther);
+  }, [price, settings?.defaults]);
 
   function handleAddMaterial() {
     const supply = supplies.find((s) => s.id === addSupplyId);
@@ -192,22 +288,14 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
   }
 
   function handleMarginChange(value: number | "") {
+    lastEditedByRef.current = "margin";
     setMarginPercent(value);
-    if (typeof value === "number" && Number.isFinite(value)) {
-      const p = calcSuggestedPrice({
-        totalCost,
-        marketplaceFeePercent: Number(settings?.defaults?.shopeeBaseCommission ?? 14),
-        desiredMarginPercent: value,
-      });
-      setPrice(p);
-    }
   }
 
   function handlePriceChange(value: number) {
+    lastEditedByRef.current = "price";
     setPrice(value);
-    if (totalCost > 0 && value > 0) {
-      setMarginPercent(calcMarginPercentage(value, totalCost));
-    }
+    setMarginPercent(computeWorstMarginForPrice(value));
   }
 
   async function handleCreate() {
@@ -238,8 +326,8 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
       createdAt: nowIso,
       updatedAt: nowIso,
       totalCost,
-      suggestedPriceShopee: price,
-      suggestedPriceML: price,
+      suggestedPriceShopee: pricingFromMargin.shopeeSuggested,
+      suggestedPriceML: pricingFromMargin.mlSuggested,
       printTimeMinutes: Math.round(printTimeHours * 60) || null,
       defaultPrinterId: defaultPrinterId ?? null,
     };
@@ -278,7 +366,6 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
     setPrintMinutes(0);
     setDefaultPrinterId(null);
     setMaterials([]);
-    setOtherCosts(0);
     setMarginPercent(0);
     setPrice(0);
   }
@@ -287,7 +374,7 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
+      <div className="flex w-full max-h-[calc(100vh-2rem)] max-w-2xl min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
           <h2 className="text-lg font-semibold text-slate-50">Novo Produto</h2>
           <button
@@ -328,7 +415,7 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4">
           {error && (
             <div className="mb-4 rounded-xl border border-rose-800 bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
               {error}
@@ -426,7 +513,7 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
             </div>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-700 bg-slate-900/40 px-3 py-2.5 text-sm text-slate-300">
                 <p className="font-semibold text-slate-200">Opcional</p>
@@ -462,7 +549,7 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 2 && (
             <div className="space-y-4">
               <p className="text-sm text-slate-300">
                 Adicione os materiais (insumos) necessários para produzir este produto.
@@ -553,21 +640,14 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
 
           {step === 4 && (
             <div className="space-y-4">
-              <div>
-                <label className="mb-1 block text-xs text-slate-400">Outros custos (R$)</label>
-                <p className="mb-1 text-[10px] text-slate-500">
-                  Taxas de marketplaces, impostos, despesas etc.
+              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3">
+                <p className="text-xs text-slate-400">Outros custos (calculados)</p>
+                <p className="mt-1 text-base font-semibold text-slate-50">
+                  {formatBRL(outrosCustosFromPrice)}
                 </p>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={otherCosts}
-                  onChange={(e) =>
-                    setOtherCosts(e.target.value === "" ? "" : Number(e.target.value))
-                  }
-                  className="w-full max-w-[140px] rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
-                />
+                <p className="mt-0.5 text-[10px] text-slate-500">
+                  Taxas de marketplace + frete + impostos (conforme configurações).
+                </p>
               </div>
               <div className="rounded-xl border border-amber-600/40 bg-slate-900/60 p-3">
                 <p className="text-xs text-slate-400">Resumo de custos</p>
@@ -576,9 +656,7 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
                   <li>Custo de Energia: {formatBRL(energyCost)}</li>
                   <li>Custo de Depreciação: {formatBRL(depreciationCost)}</li>
                   <li>Embalagem: {formatBRL(packagingCost)}</li>
-                  {typeof otherCosts === "number" && otherCosts > 0 && (
-                    <li>Outros custos: {formatBRL(otherCosts)}</li>
-                  )}
+                  <li>Outros custos: {formatBRL(outrosCustosFromPrice)}</li>
                   <li>
                     Custo Total de Produção: <strong>{formatBRL(totalCost)}</strong>
                   </li>
