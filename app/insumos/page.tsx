@@ -738,7 +738,7 @@ export default function InsumosPage() {
 
               <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Histórico</p>
-                <div className="mt-3 max-h-[360px] overflow-y-auto">
+                <div className="mt-3 max-h-[360px] overflow-y-auto overflow-x-auto">
                   {movementsLoading ? (
                     <p className="py-6 text-center text-xs text-slate-400">Carregando...</p>
                   ) : movements.length === 0 ? (

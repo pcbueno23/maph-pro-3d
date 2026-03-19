@@ -21,8 +21,10 @@ const plans: Plan[] = [
     id: "free",
     name: "Free",
     priceLabel: "R$ 0",
-    description: "Ideal para começar a precificar impressões sem fricção.",
+    description:
+      "7 dias grátis com acesso Pro completo. Depois, acesso Free com calculadora básica.",
     features: [
+      "7 dias grátis (acesso Pro completo)",
       "Calculadora básica de custos",
     ],
   },
