@@ -270,17 +270,10 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
   const taxPercent = input.pricing.taxPercent ?? 0;
   const taxMode = input.pricing.taxMode ?? "net_marketplace";
 
-  const computeTaxAmount = (
-    price: number,
-    commissionRateDecimal: number,
-  ): number => {
+  const computeTaxAmount = (price: number): number => {
     const rate = (taxPercent ?? 0) / 100;
     if (rate <= 0 || price <= 0) return 0;
-    if (taxMode === "net_marketplace") {
-      const netBase = price * (1 - commissionRateDecimal);
-      return netBase * rate;
-    }
-    // modo bruto (legado)
+    // REGRA DEFINITIVA: imposto sempre sobre o BRUTO da venda.
     return price * rate;
   };
 
@@ -325,10 +318,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     input.pricing.personType,
     input.pricing.freeShipping ?? false,
   );
-  const taxAmountShopee = computeTaxAmount(
-    suggestedPriceShopee,
-    shopeeBreakdown.commissionRateDecimal,
-  );
+  const taxAmountShopee = computeTaxAmount(suggestedPriceShopee);
   const cascataShopee = buildCascata({
     sellingPrice: suggestedPriceShopee,
     feePercent: feePercentShopee,
@@ -357,10 +347,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     input.pricing.personType,
     input.pricing.mlClassic ?? false,
   );
-  const taxAmountML = computeTaxAmount(
-    suggestedPriceML,
-    mlBreakdown.commissionRateDecimal,
-  );
+  const taxAmountML = computeTaxAmount(suggestedPriceML);
   const cascataML = buildCascata({
     sellingPrice: suggestedPriceML,
     feePercent: feePercentML,
@@ -455,9 +442,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
       profitPerHour: number;
     } => {
       const feeAmount = (comparePrice * feePercent) / 100;
-      const taxAmt = taxMode === "net_marketplace"
-        ? computeTaxAmount(comparePrice, commissionRateDecimal)
-        : (comparePrice * taxPercent) / 100;
+      const taxAmt = computeTaxAmount(comparePrice);
       const net =
         comparePrice - feeAmount - shippingAmount - taxAmt - totalCost;
       const marginPct = comparePrice > 0 ? (net / comparePrice) * 100 : 0;
@@ -550,10 +535,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
       input.pricing.personType,
       input.pricing.freeShipping ?? false,
     );
-    const kitTaxAmountShopee = computeTaxAmount(
-      kitSuggestedPriceShopee,
-      kitShopeeBreakdown.commissionRateDecimal,
-    );
+    const kitTaxAmountShopee = computeTaxAmount(kitSuggestedPriceShopee);
     const kitMarketplaceFeeAmountShopee =
       (kitSuggestedPriceShopee * kitFeePercentShopee) / 100;
     const kitNetProfitShopee =
@@ -578,10 +560,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
       input.pricing.personType,
       input.pricing.mlClassic ?? false,
     );
-    const kitTaxAmountML = computeTaxAmount(
-      kitSuggestedPriceML,
-      kitMLBreakdown.commissionRateDecimal,
-    );
+    const kitTaxAmountML = computeTaxAmount(kitSuggestedPriceML);
     const kitMarketplaceFeeAmountML =
       (kitSuggestedPriceML * kitFeePercentML) / 100;
     const kitNetProfitML =
@@ -596,10 +575,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
         : 0;
 
     // Direto PIX (sem marketplace)
-    const kitTaxAmountDirectCash = computeTaxAmount(
-      kitSuggestedPriceDirectCash,
-      0,
-    );
+    const kitTaxAmountDirectCash = computeTaxAmount(kitSuggestedPriceDirectCash);
     const kitNetProfitDirectCash =
       kitSuggestedPriceDirectCash -
       shippingAmount -
@@ -614,10 +590,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     const kitFeeAmountDirectCard =
       (kitSuggestedPriceDirectCard * cardFeePercent) / 100;
     // Imposto também sobre o preço cheio (igual PIX e igual calculadora HTML)
-    const kitTaxAmountDirectCard = computeTaxAmount(
-      kitSuggestedPriceDirectCard,
-      0,
-    );
+    const kitTaxAmountDirectCard = computeTaxAmount(kitSuggestedPriceDirectCard);
     const kitNetProfitDirectCard =
       kitSuggestedPriceDirectCard -
       kitFeeAmountDirectCard -

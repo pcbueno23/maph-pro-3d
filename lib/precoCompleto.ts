@@ -134,17 +134,12 @@ export function calcularTaxas(params: {
 export function calcularImpostos(params: {
   input: CalculatorFormValues;
   sellingPrice: number;
-  commissionRateDecimal: number;
 }) {
-  const { input, sellingPrice, commissionRateDecimal } = params;
+  const { input, sellingPrice } = params;
   const taxPercent = input.pricing.taxPercent ?? 0;
-  const taxMode = input.pricing.taxMode ?? "net_marketplace";
   const rate = (taxPercent ?? 0) / 100;
   if (rate <= 0 || sellingPrice <= 0) return 0;
-  if (taxMode === "net_marketplace") {
-    const netBase = sellingPrice * (1 - commissionRateDecimal);
-    return netBase * rate;
-  }
+  // REGRA DEFINITIVA: imposto sempre sobre o BRUTO da venda.
   return sellingPrice * rate;
 }
 
@@ -193,12 +188,10 @@ export function calcularPrecoCompleto(input: CalculatorFormValues) {
   const impostoShopee = calcularImpostos({
     input,
     sellingPrice: precoShopeeComDesconto,
-    commissionRateDecimal: taxasShopee.breakdown.commissionRateDecimal,
   });
   const impostoML = calcularImpostos({
     input,
     sellingPrice: precoMLComDesconto,
-    commissionRateDecimal: taxasML.breakdown.commissionRateDecimal,
   });
 
   // 8) lucro real
