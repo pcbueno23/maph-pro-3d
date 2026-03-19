@@ -4,6 +4,7 @@ import { Sidebar } from "./layout/Sidebar";
 import { Header } from "./layout/Header";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 
 export const metadata: Metadata = {
   title: "Maph Pro 3D",
@@ -36,6 +37,7 @@ export default function RootLayout({
               </main>
             </div>
           </div>
+          <PwaInstallPrompt />
           <ServiceWorkerRegister />
         </AuthGuard>
       </body>
