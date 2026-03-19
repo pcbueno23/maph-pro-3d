@@ -19,11 +19,30 @@ export function InputPanel({ form }: Props) {
     formState: { errors },
   } = form;
   const selectedFilamentId = form.watch("material.supplyId") ?? "";
+  const currentFilamentPerKg = Number(form.watch("material.pricePerKg") ?? 0);
 
   const { settings } = useSettingsStore();
   const user = useAuthStore((s) => s.user);
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [filaments, setFilaments] = useState<SupplyItem[]>([]);
+
+  const selectedFilament = selectedFilamentId
+    ? filaments.find((s) => s.id === selectedFilamentId) ?? null
+    : null;
+  const presetFilamentPerKg = (() => {
+    if (!selectedFilament) return null;
+    const unit = (selectedFilament.unit ?? "").toLowerCase();
+    const perKg =
+      unit === "g"
+        ? (selectedFilament.unitCost ?? 0) * 1000
+        : (selectedFilament.unitCost ?? 0);
+    return Number(perKg);
+  })();
+  const filamentPresetMismatch =
+    presetFilamentPerKg != null &&
+    Number.isFinite(presetFilamentPerKg) &&
+    Number.isFinite(currentFilamentPerKg) &&
+    Math.abs(presetFilamentPerKg - currentFilamentPerKg) > 0.01;
 
   const selectedPrinterId = form.watch("time.printerId") ?? "";
   const [cep, setCep] = useState("");
@@ -159,6 +178,35 @@ export function InputPanel({ form }: Props) {
                   </option>
                 ))}
               </select>
+              {selectedFilament ? (
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                  <span className="text-slate-500">
+                    Preset:{" "}
+                    <span className="font-medium text-slate-200">
+                      {(presetFilamentPerKg ?? 0).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                      /kg
+                    </span>
+                  </span>
+                  <span className="text-slate-500">
+                    Usando no cálculo:{" "}
+                    <span className={filamentPresetMismatch ? "font-semibold text-amber-200" : "font-medium text-slate-200"}>
+                      {(Number.isFinite(currentFilamentPerKg) ? currentFilamentPerKg : 0).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                      /kg
+                    </span>
+                  </span>
+                  {filamentPresetMismatch ? (
+                    <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-amber-200">
+                      Divergente
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
               {errors.material?.supplyId && (
                 <p className="mt-1 text-xs text-rose-400">
                   {errors.material.supplyId.message}

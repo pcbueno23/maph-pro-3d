@@ -113,6 +113,11 @@ export function ResultsPanel({ results, isDirty }: Props) {
     // se mão de obra existe e ficou muito baixa, alerta
     maoDeObraCusto > 0 && maoDeObraCusto < 2;
 
+  const shopeeBelowAdjustedCost = suggestedPriceShopee < custoTotalAjustado;
+  const mlBelowAdjustedCost = suggestedPriceML < custoTotalAjustado;
+  const directPriceShown = suggestedPriceDirectCash ?? suggestedPriceDirectCard ?? suggestedPrice;
+  const directBelowAdjustedCost = directPriceShown < custoTotalAjustado;
+
   const CascataBlock = ({
     title,
     c,
@@ -184,19 +189,34 @@ export function ResultsPanel({ results, isDirty }: Props) {
             <div className="rounded-xl bg-slate-950/40 p-3">
               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Shopee</p>
               <p className="mt-1 text-lg font-semibold text-slate-50">{fmt(suggestedPriceShopee)}</p>
+              {shopeeBelowAdjustedCost ? (
+                <p className="mt-1 text-[11px] font-medium text-rose-300">
+                  Abaixo do custo real ajustado
+                </p>
+              ) : null}
             </div>
             <div className="rounded-xl bg-slate-950/40 p-3">
               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Mercado Livre</p>
               <p className="mt-1 text-lg font-semibold text-slate-50">{fmt(suggestedPriceML)}</p>
+              {mlBelowAdjustedCost ? (
+                <p className="mt-1 text-[11px] font-medium text-rose-300">
+                  Abaixo do custo real ajustado
+                </p>
+              ) : null}
             </div>
             <div className="rounded-xl bg-slate-950/40 p-3">
               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Direto</p>
               <p className="mt-1 text-lg font-semibold text-slate-50">
-                {fmt(suggestedPriceDirectCash ?? suggestedPriceDirectCard ?? suggestedPrice)}
+                {fmt(directPriceShown)}
               </p>
               <p className="mt-0.5 text-[10px] text-slate-500" title="PIX e cartão podem variar; aqui mostramos o primeiro disponível.">
                 (?)
               </p>
+              {directBelowAdjustedCost ? (
+                <p className="mt-1 text-[11px] font-medium text-rose-300">
+                  Abaixo do custo real ajustado
+                </p>
+              ) : null}
             </div>
           </div>
           <p className="mt-3 text-[11px] text-slate-500">
