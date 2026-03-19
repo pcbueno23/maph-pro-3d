@@ -257,6 +257,48 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
     return Math.max(shOther, mlOther);
   }, [price, settings?.defaults]);
 
+  const marginFromChannelSuggestedPrices = useMemo(() => {
+    // Replica a forma do motor: margem final = min(margem Shopee, margem ML),
+    // usando os preços sugeridos de cada canal (não o preço "máximo").
+    if (totalCost <= 0) return 0;
+
+    const shippingAmount = Number(settings?.defaults?.shippingEstimateDefault ?? 0);
+    const taxPercent = 0;
+    const taxMode = settings?.defaults?.taxMode ?? "net_marketplace";
+    const freeShipping = settings?.defaults?.shopeeFreeShippingDefault ?? false;
+    const classic = settings?.defaults?.mlClassic ?? false;
+    const personType = "CPF" as const;
+
+    const computeTaxAmount = (
+      priceForTax: number,
+      commissionRateDecimal: number,
+    ): number => {
+      if (taxPercent <= 0 || priceForTax <= 0) return 0;
+      const rate = taxPercent / 100;
+      if (taxMode === "net_marketplace") {
+        const netBase = priceForTax * (1 - commissionRateDecimal);
+        return netBase * rate;
+      }
+      return priceForTax * rate;
+    };
+
+    const sh = getShopeeFeeBreakdown(pricingFromMargin.shopeeSuggested, personType, freeShipping);
+    const shTax = computeTaxAmount(pricingFromMargin.shopeeSuggested, sh.commissionRateDecimal);
+    const shFeeAmount = sh.commissionAmount + sh.fixedFeeAmount;
+    const shNetProfit =
+      pricingFromMargin.shopeeSuggested - shFeeAmount - shippingAmount - shTax - totalCost;
+    const shMargin = pricingFromMargin.shopeeSuggested > 0 ? (shNetProfit / pricingFromMargin.shopeeSuggested) * 100 : 0;
+
+    const ml = getMLFeeBreakdown(pricingFromMargin.mlSuggested, personType, classic);
+    const mlTax = computeTaxAmount(pricingFromMargin.mlSuggested, ml.commissionRateDecimal);
+    const mlFeeAmount = ml.commissionAmount + ml.fixedFeeAmount;
+    const mlNetProfit =
+      pricingFromMargin.mlSuggested - mlFeeAmount - shippingAmount - mlTax - totalCost;
+    const mlMargin = pricingFromMargin.mlSuggested > 0 ? (mlNetProfit / pricingFromMargin.mlSuggested) * 100 : 0;
+
+    return Math.min(shMargin, mlMargin);
+  }, [pricingFromMargin, totalCost, settings?.defaults]);
+
   function handleAddMaterial() {
     const supply = supplies.find((s) => s.id === addSupplyId);
     if (!supply || addQty === "" || Number(addQty) <= 0) return;
@@ -320,7 +362,7 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
       description: description.trim() || null,
       weight: materials.reduce((acc, m) => acc + (m.unit === "kg" ? m.qty * 1000 : m.unit === "g" ? m.qty : 0), 0) || 0,
       price,
-      margin: typeof marginPercent === "number" ? marginPercent : null,
+      margin: marginFromChannelSuggestedPrices,
       marketplace,
       currency: "BRL",
       createdAt: nowIso,
@@ -373,8 +415,8 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-      <div className="flex w-full max-h-[calc(100vh-2rem)] max-w-2xl min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
+    <div className="fixed inset-0 z-50 bg-slate-950/80 p-4">
+      <div className="absolute left-1/2 top-1/2 w-full max-w-2xl max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 min-h-0 flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
           <h2 className="text-lg font-semibold text-slate-50">Novo Produto</h2>
           <button
