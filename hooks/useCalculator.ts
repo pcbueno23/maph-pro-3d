@@ -316,6 +316,7 @@ export function useCalculator() {
       },
       pricing: {
         ...form.getValues("pricing"),
+        desiredMargin: settings.defaults.desiredMargin,
         shippingEstimate: settings.defaults.shippingEstimateDefault ?? 0,
         taxMode: settings.defaults.taxMode ?? "net_marketplace",
         mlClassic: settings.defaults.mlClassic ?? false,
