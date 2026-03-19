@@ -1,11 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Printer, Product } from "@/types";
 import { useProductsStore } from "@/store/productsStore";
-import { useCalculatorStore } from "@/store/calculatorStore";
 import { useAuthStore } from "@/store/authStore";
 import { deleteProduct, upsertProductsForUser } from "@/lib/supabaseProducts";
 import { useInventoryStore } from "@/store/inventoryStore";
@@ -17,6 +15,11 @@ import {
   listSupplies,
   upsertProductMaterial,
 } from "@/lib/supabaseProduction";
+import { computeProductUnitCost } from "@/lib/productionCost";
+
+function formatBRL(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 interface Props {
   products: Product[];
@@ -29,10 +32,8 @@ function newId(prefix: string) {
 }
 
 export function ProductTable({ products }: Props) {
-  const router = useRouter();
   const removeProduct = useProductsStore((s) => s.removeProduct);
   const updateProduct = useProductsStore((s) => s.updateProduct);
-  const setProductToLoad = useCalculatorStore((s) => s.setProductToLoad);
   const { user } = useAuthStore();
   const { upsertFromProduct } = useInventoryStore();
   const { consumeFilamentGrams } = useSuppliesStore();
@@ -54,9 +55,64 @@ export function ProductTable({ products }: Props) {
   const [techTimeMinutes, setTechTimeMinutes] = useState<number | null>(null);
   const [techDefaultPrinterId, setTechDefaultPrinterId] = useState<string>("");
 
-  function handleLoadInCalculator(product: Product) {
-    setProductToLoad(product);
-    router.push("/calculator");
+  // Modal "Abrir" com todas as informações do produto (sem ir para /calculator)
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [infoProduct, setInfoProduct] = useState<Product | null>(null);
+  const [infoLoading, setInfoLoading] = useState(false);
+  const [infoError, setInfoError] = useState<string | null>(null);
+  const [infoSupplies, setInfoSupplies] = useState<SupplyItem[]>([]);
+  const [infoMaterials, setInfoMaterials] = useState<ProductMaterial[]>([]);
+  const [
+    infoCost,
+    setInfoCost,
+  ] = useState<{
+    totalCost: number;
+    materialCost: number;
+    energyCost: number;
+    depreciationCost: number;
+    packagingCost: number;
+  } | null>(null);
+
+  async function openProductInfo(product: Product) {
+    if (!user) {
+      if (typeof window !== "undefined") {
+        window.alert("Faça login para abrir as informações do produto.");
+      }
+      return;
+    }
+
+    setInfoOpen(true);
+    setInfoProduct(product);
+    setInfoLoading(true);
+    setInfoError(null);
+    setInfoSupplies([]);
+    setInfoMaterials([]);
+    setInfoCost(null);
+
+    try {
+      const [sups, mats, cost] = await Promise.all([
+        listSupplies(user.id),
+        listProductMaterials(user.id, product.id),
+        computeProductUnitCost(user.id, product),
+      ]);
+      setInfoSupplies(sups);
+      setInfoMaterials(mats);
+      setInfoCost(cost);
+    } catch (e: any) {
+      setInfoError(e?.message ?? "Falha ao carregar informações do produto.");
+    } finally {
+      setInfoLoading(false);
+    }
+  }
+
+  function closeProductInfo() {
+    setInfoOpen(false);
+    setInfoProduct(null);
+    setInfoLoading(false);
+    setInfoError(null);
+    setInfoSupplies([]);
+    setInfoMaterials([]);
+    setInfoCost(null);
   }
 
   const materialCost = useMemo(() => {
@@ -251,7 +307,7 @@ export function ProductTable({ products }: Props) {
       <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {products.map((product) => {
-            const marginClass = (product.margin ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400";
+            const unitCost = product.totalCost ?? 0;
             return (
               <div
                 key={product.id}
@@ -296,18 +352,20 @@ export function ProductTable({ products }: Props) {
                       })}
                     </span>
                   </p>
-                  <p className={marginClass}>
-                    Margem:{" "}
-                    <span className="text-slate-100">{(product.margin ?? 0).toFixed(1)}%</span>
+                  <p className="text-slate-300">
+                    Custo:{" "}
+                    <span className="text-slate-100">
+                      {formatBRL(unitCost)}
+                    </span>
                   </p>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => handleLoadInCalculator(product)}
+                    onClick={() => openProductInfo(product)}
                     className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-3 py-2 text-[11px] font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
-                    title="Abrir na calculadora para editar"
+                    title="Abrir informações do produto"
                   >
                     Abrir
                   </button>
@@ -493,6 +551,145 @@ export function ProductTable({ products }: Props) {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {infoOpen && infoProduct ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+          <div className="w-full max-w-3xl max-h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/95 shadow-neon-cyan">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-800 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-50">
+                  Informações — {infoProduct.name}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  SKU: {infoProduct.sku ?? "—"} · Tempo:{" "}
+                  {infoProduct.printTimeMinutes != null && Number.isFinite(infoProduct.printTimeMinutes)
+                    ? `${infoProduct.printTimeMinutes} min`
+                    : "—"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeProductInfo}
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {infoError ? (
+                <div className="mb-4 rounded-xl border border-rose-600/30 bg-rose-500/10 p-3 text-sm text-rose-200">
+                  {infoError}
+                </div>
+              ) : null}
+
+              {infoLoading ? (
+                <p className="text-sm text-slate-400">Carregando...</p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        Preços e custo
+                      </p>
+                      <div className="mt-2 space-y-1.5 text-sm">
+                        <p className="text-slate-300">
+                          Preço de venda:{" "}
+                          <span className="text-slate-50">
+                            {formatBRL(infoProduct.price)}
+                          </span>
+                        </p>
+                        <p className="text-slate-300">
+                          Preço de custo:{" "}
+                          <span className="text-emerald-200">
+                            {formatBRL(infoCost?.totalCost ?? infoProduct.totalCost ?? 0)}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        Quebra do custo (por peça)
+                      </p>
+                      <div className="mt-2 space-y-1.5 text-sm text-slate-300">
+                        <p>
+                          Materiais:{" "}
+                          <span className="text-slate-50">
+                            {formatBRL(infoCost?.materialCost ?? 0)}
+                          </span>
+                        </p>
+                        <p>
+                          Energia:{" "}
+                          <span className="text-slate-50">
+                            {formatBRL(infoCost?.energyCost ?? 0)}
+                          </span>
+                        </p>
+                        <p>
+                          Depreciação:{" "}
+                          <span className="text-slate-50">
+                            {formatBRL(infoCost?.depreciationCost ?? 0)}
+                          </span>
+                        </p>
+                        <p>
+                          Embalagem:{" "}
+                          <span className="text-slate-50">
+                            {formatBRL(infoCost?.packagingCost ?? 0)}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Materiais necessários (BOM)
+                    </p>
+
+                    {infoMaterials.length === 0 ? (
+                      <p className="mt-2 text-sm text-slate-400">
+                        Nenhum material cadastrado para este produto.
+                      </p>
+                    ) : (
+                      <div className="mt-3 overflow-x-auto">
+                        <table className="min-w-full text-left text-xs">
+                          <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                            <tr>
+                              <th className="px-2 py-2">Insumo</th>
+                              <th className="px-2 py-2">Qtd</th>
+                              <th className="px-2 py-2">Custo</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800">
+                            {infoMaterials.map((m) => {
+                              const s = infoSupplies.find((x) => x.id === m.supplyId);
+                              const lineCost = (m.qty ?? 0) * (s?.unitCost ?? 0);
+                              return (
+                                <tr key={m.id} className="hover:bg-slate-900/60">
+                                  <td className="px-2 py-2 text-slate-100">
+                                    {s?.name ?? m.supplyId}
+                                  </td>
+                                  <td className="px-2 py-2 text-slate-300">
+                                    {Number(m.qty ?? 0).toLocaleString("pt-BR")}
+                                    {s?.unit ? ` ${s.unit}` : ""}
+                                  </td>
+                                  <td className="px-2 py-2 text-emerald-200">
+                                    {formatBRL(lineCost)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

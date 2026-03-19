@@ -366,7 +366,7 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
       price,
       // A calculadora salva a margem "conservadora" baseada no preço final.
       // Isso evita divergência quando o preço recomendado é o máximo entre Shopee/ML.
-      margin: computeWorstMarginForPrice(price),
+      margin: null,
       marketplace,
       currency: "BRL",
       createdAt: nowIso,
@@ -419,8 +419,8 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80">
-      <div className="absolute left-1/2 top-1/2 w-full max-w-2xl max-h-[calc(100dvh-32px)] -translate-x-1/2 -translate-y-1/2 min-h-0 flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
+    <div className="fixed inset-0 z-50 bg-slate-950/80 p-4 flex items-center justify-center">
+      <div className="w-full max-w-2xl max-h-[calc(100dvh-2rem)] min-h-0 flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
           <h2 className="text-lg font-semibold text-slate-50">Novo Produto</h2>
           <button
@@ -708,48 +708,25 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
                   </li>
                 </ul>
               </div>
-              <div>
-                <p className="mb-1 text-xs text-slate-400">
-                  Edite a margem de lucro ou o preço de venda. Um atualiza o outro automaticamente.
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  <div>
-                    <label className="mb-1 block text-[10px] text-slate-500">Margem de Lucro (%)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.1}
-                      value={marginPercent}
-                      onChange={(e) =>
-                        handleMarginChange(
-                          e.target.value === "" ? "" : Number(e.target.value),
-                        )
-                      }
-                      className="w-24 rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-2 text-sm text-slate-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-[10px] text-slate-500">Preço de Venda (R$)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      value={price}
-                      onChange={(e) => handlePriceChange(Number(e.target.value) || 0)}
-                      className="w-28 rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-2 text-sm text-slate-100"
-                    />
-                  </div>
+              <div className="space-y-2">
+                <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3">
+                  <p className="text-xs text-slate-400">Preço de custo (produção)</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-50">
+                    {formatBRL(totalCost)}
+                  </p>
                 </div>
-                <div className="mt-2 rounded-lg border border-emerald-600/40 bg-emerald-950/20 px-3 py-2 text-sm font-semibold text-emerald-200">
-                  Preço de Venda: {formatBRL(price)}
+                <div className="rounded-xl border border-emerald-600/40 bg-emerald-950/20 p-3">
+                  <p className="text-xs text-slate-400">Preço sugerido de venda</p>
+                  <p className="mt-1 text-lg font-semibold text-emerald-200">
+                    {formatBRL(price)}
+                  </p>
                 </div>
               </div>
               <div className="rounded-xl border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
                 <p className="font-semibold text-slate-300">Como funciona</p>
                 <p>
-                  Edite a margem de lucro para calcular o preço, ou edite o preço para calcular a
-                  margem. Sem equipamento selecionado, os custos de energia e depreciação ficam
-                  zerados.
+                  O preço é calculado automaticamente a partir do custo (materiais + energia + depreciação + embalagem) usando as
+                  fórmulas da calculadora e as configurações do seu app. Se não houver equipamento, energia e depreciação ficam zerados.
                 </p>
               </div>
             </div>
