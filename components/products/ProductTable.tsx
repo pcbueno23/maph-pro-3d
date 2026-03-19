@@ -2,6 +2,8 @@
 
 import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import type { Printer, Product } from "@/types";
 import { useProductsStore } from "@/store/productsStore";
 import { useAuthStore } from "@/store/authStore";
@@ -33,11 +35,12 @@ function newId(prefix: string) {
 }
 
 export function ProductTable({ products }: Props) {
+  const router = useRouter();
   const removeProduct = useProductsStore((s) => s.removeProduct);
   const updateProduct = useProductsStore((s) => s.updateProduct);
   const { user } = useAuthStore();
-  const { upsertFromProduct } = useInventoryStore();
-  const { consumeFilamentGrams } = useSuppliesStore();
+  useInventoryStore();
+  useSuppliesStore();
 
   const [bomOpen, setBomOpen] = useState(false);
   const [bomProduct, setBomProduct] = useState<Product | null>(null);
@@ -323,7 +326,14 @@ export function ProductTable({ products }: Props) {
                   <div className="flex items-start gap-3">
                     <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 shadow-neon-cyan/30">
                       <div className="absolute inset-0 grid place-items-center">
-                        <span className="text-xs font-bold text-slate-100">3D</span>
+                        <Image
+                          src="/icons/model-3d.svg"
+                          alt="Modelo 3D"
+                          width={28}
+                          height={28}
+                          className="opacity-90"
+                        />
+                        <span className="sr-only">3D</span>
                       </div>
                     </div>
                     <div>
@@ -397,28 +407,17 @@ export function ProductTable({ products }: Props) {
                   <button
                     type="button"
                     onClick={() => {
-                      const qtyStr =
-                        typeof window !== "undefined"
-                          ? window.prompt("Quantidade produzida para estoque:", "1")
-                          : null;
-                      if (!qtyStr) return;
-                      const qty = Number(qtyStr);
-                      if (!Number.isFinite(qty) || qty <= 0) return;
-                      const sku =
-                        typeof window !== "undefined"
-                          ? window.prompt("SKU da peça (opcional):", "")
-                          : "";
-                      upsertFromProduct(product, qty, sku ?? undefined);
-                      // baixa filamento do estoque (aproxima usando o peso do produto)
-                      if (product.weight > 0) {
-                        const grams = product.weight * qty;
-                        consumeFilamentGrams(grams);
-                      }
+                      const params = new URLSearchParams();
+                      params.set("create", "1");
+                      params.set("productId", product.id);
+                      if (product.defaultPrinterId) params.set("printerId", product.defaultPrinterId);
+                      params.set("qty", "1");
+                      router.push(`/ordens?${params.toString()}`);
                     }}
                     className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/15"
-                    title="Adicionar no estoque e reduzir insumos"
+                    title="Criar uma ordem de produção a partir deste produto"
                   >
-                    Produzida
+                    Ordem de produção
                   </button>
 
                   <button

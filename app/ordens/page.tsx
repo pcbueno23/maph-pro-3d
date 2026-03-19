@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProductionOrder, Product, Printer } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { supabase } from "@/lib/supabaseClient";
 import { useInventoryStore } from "@/store/inventoryStore";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   listProductionOrders,
   upsertProductionOrder,
@@ -62,6 +62,7 @@ export default function OrdersPage() {
   const { user } = useAuthStore();
   const { settings } = useSettingsStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const upsertFromProduct = useInventoryStore((s) => s.upsertFromProduct);
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -135,6 +136,43 @@ export default function OrdersPage() {
       ),
     [products, productsWithBom],
   );
+
+  const handledPrefillRef = useRef(false);
+  useEffect(() => {
+    if (handledPrefillRef.current) return;
+    if (!user) return;
+    if (!eligibleProducts.length) return;
+
+    const shouldCreate = searchParams?.get("create") === "1";
+    const productId = searchParams?.get("productId") ?? "";
+    if (!shouldCreate || !productId) return;
+
+    const qtyRaw = searchParams?.get("qty") ?? "1";
+    const qty = Math.max(1, Number(qtyRaw) || 1);
+    const printerIdParam = searchParams?.get("printerId") ?? "";
+
+    const prod = eligibleProducts.find((p) => p.id === productId);
+    if (!prod) {
+      handledPrefillRef.current = true;
+      setError(
+        "Esse produto ainda não está pronto para ordens. Preencha ficha técnica (tempo + impressora padrão) e materiais (BOM).",
+      );
+      router.replace("/ordens");
+      return;
+    }
+
+    setDraft({
+      productId: prod.id,
+      printerId: printerIdParam || prod.defaultPrinterId ?? null,
+      quantity: qty,
+      dueDate: null,
+      status: "new",
+      notes: null,
+    });
+    setModalOpen(true);
+    handledPrefillRef.current = true;
+    router.replace("/ordens");
+  }, [eligibleProducts, router, searchParams, user]);
 
   const [costs, setCosts] = useState<Record<string, number>>({});
 

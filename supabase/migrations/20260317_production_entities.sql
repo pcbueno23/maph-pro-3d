@@ -26,8 +26,15 @@ CREATE INDEX IF NOT EXISTS idx_equipments_user_id ON equipments(user_id);
 CREATE INDEX IF NOT EXISTS idx_equipments_status ON equipments(status);
 
 ALTER TABLE equipments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "equipments_own" ON equipments
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'equipments' AND policyname = 'equipments_own'
+  ) THEN
+    EXECUTE 'CREATE POLICY "equipments_own" ON equipments FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)';
+  END IF;
+END $$;
 
 -- =========================
 -- Insumos (estoque e custo unitário)
@@ -51,8 +58,15 @@ CREATE INDEX IF NOT EXISTS idx_supplies_user_id ON supplies(user_id);
 CREATE INDEX IF NOT EXISTS idx_supplies_category ON supplies(category);
 
 ALTER TABLE supplies ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "supplies_own" ON supplies
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'supplies' AND policyname = 'supplies_own'
+  ) THEN
+    EXECUTE 'CREATE POLICY "supplies_own" ON supplies FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)';
+  END IF;
+END $$;
 
 -- Movimentações de estoque (entradas/saídas) para auditoria
 CREATE TABLE IF NOT EXISTS supply_movements (
@@ -69,8 +83,15 @@ CREATE INDEX IF NOT EXISTS idx_supply_movements_user_id ON supply_movements(user
 CREATE INDEX IF NOT EXISTS idx_supply_movements_supply_id ON supply_movements(supply_id);
 
 ALTER TABLE supply_movements ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "supply_movements_own" ON supply_movements
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'supply_movements' AND policyname = 'supply_movements_own'
+  ) THEN
+    EXECUTE 'CREATE POLICY "supply_movements_own" ON supply_movements FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)';
+  END IF;
+END $$;
 
 -- =========================
 -- Produtos (extensão da tabela existente) + BOM (materiais)
@@ -124,8 +145,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_product_materials_unique
   ON product_materials(user_id, product_id, supply_id);
 
 ALTER TABLE product_materials ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "product_materials_own" ON product_materials
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'product_materials' AND policyname = 'product_materials_own'
+  ) THEN
+    EXECUTE 'CREATE POLICY "product_materials_own" ON product_materials FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)';
+  END IF;
+END $$;
 
 -- =========================
 -- Ordens de Produção
@@ -148,8 +176,15 @@ CREATE INDEX IF NOT EXISTS idx_production_orders_status ON production_orders(sta
 CREATE INDEX IF NOT EXISTS idx_production_orders_due_date ON production_orders(due_date);
 
 ALTER TABLE production_orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "production_orders_own" ON production_orders
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'production_orders' AND policyname = 'production_orders_own'
+  ) THEN
+    EXECUTE 'CREATE POLICY "production_orders_own" ON production_orders FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)';
+  END IF;
+END $$;
 
 -- =========================
 -- Orçamentos
@@ -175,8 +210,15 @@ CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
 CREATE INDEX IF NOT EXISTS idx_quotes_quote_date ON quotes(quote_date);
 
 ALTER TABLE quotes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "quotes_own" ON quotes
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'quotes' AND policyname = 'quotes_own'
+  ) THEN
+    EXECUTE 'CREATE POLICY "quotes_own" ON quotes FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)';
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS quote_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -193,6 +235,13 @@ CREATE TABLE IF NOT EXISTS quote_items (
 CREATE INDEX IF NOT EXISTS idx_quote_items_quote_id ON quote_items(quote_id);
 
 ALTER TABLE quote_items ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "quote_items_own" ON quote_items
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'quote_items' AND policyname = 'quote_items_own'
+  ) THEN
+    EXECUTE 'CREATE POLICY "quote_items_own" ON quote_items FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)';
+  END IF;
+END $$;
 

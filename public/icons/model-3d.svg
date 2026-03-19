@@ -1,0 +1,9 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Modelo 3D</title>
+  <g opacity="0.95">
+    <path d="M32 7L52 18.5V45.5L32 57L12 45.5V18.5L32 7Z" stroke="white" stroke-opacity="0.9" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M32 7V32.2M52 18.5L32 32.2L12 18.5" stroke="white" stroke-opacity="0.75" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M32 32.2V57" stroke="white" stroke-opacity="0.35" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>
+

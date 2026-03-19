@@ -35,14 +35,34 @@ ALTER TABLE user_inventory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_supplies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_sales ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "user_settings_own" ON user_settings
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+-- Policies (idempotentes): evita erro quando a policy já existe
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'user_settings' AND policyname = 'user_settings_own'
+  ) THEN
+    EXECUTE 'CREATE POLICY "user_settings_own" ON user_settings FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)';
+  END IF;
 
-CREATE POLICY "user_inventory_own" ON user_inventory
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'user_inventory' AND policyname = 'user_inventory_own'
+  ) THEN
+    EXECUTE 'CREATE POLICY "user_inventory_own" ON user_inventory FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)';
+  END IF;
 
-CREATE POLICY "user_supplies_own" ON user_supplies
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'user_supplies' AND policyname = 'user_supplies_own'
+  ) THEN
+    EXECUTE 'CREATE POLICY "user_supplies_own" ON user_supplies FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)';
+  END IF;
 
-CREATE POLICY "user_sales_own" ON user_sales
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'user_sales' AND policyname = 'user_sales_own'
+  ) THEN
+    EXECUTE 'CREATE POLICY "user_sales_own" ON user_sales FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)';
+  END IF;
+END $$;
