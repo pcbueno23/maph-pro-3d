@@ -18,6 +18,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useDebounce } from "./useDebounce";
 import { upsertProductsForUser } from "@/lib/supabaseProducts";
 import { listSupplies, upsertProductMaterial } from "@/lib/supabaseProduction";
+import { useRouter } from "next/navigation";
 
 function generateUuid() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -79,6 +80,7 @@ function getDefaultValues(
 }
 
 export function useCalculator() {
+  const router = useRouter();
   const { settings } = useSettingsStore();
   const { user } = useAuthStore();
   const {
@@ -239,6 +241,8 @@ export function useCalculator() {
         }
       }
 
+      // Após salvar, levar para a aba Produtos.
+      router.push("/products");
       clearSaveRequested();
     })();
   }, [
@@ -252,6 +256,7 @@ export function useCalculator() {
     settings,
     form,
     printerSettings,
+    router,
   ]);
 
   const lastNewSimulationAtRef = useRef<number | null>(null);
