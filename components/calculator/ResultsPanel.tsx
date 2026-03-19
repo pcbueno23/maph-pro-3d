@@ -112,6 +112,10 @@ export function ResultsPanel({ results, isDirty }: Props) {
   const laborHourTooLow =
     // se mão de obra existe e ficou muito baixa, alerta
     maoDeObraCusto > 0 && maoDeObraCusto < 2;
+  const hasAdvancedAdjustments =
+    Math.abs((taxaFalhaPercent ?? 10) - 10) > 0.0001 ||
+    (maoDeObraCusto ?? 0) > 0 ||
+    (descontoPercentualReal ?? 0) > 0;
 
   const shopeeBelowAdjustedCost = suggestedPriceShopee < custoTotalAjustado;
   const mlBelowAdjustedCost = suggestedPriceML < custoTotalAjustado;
@@ -247,11 +251,13 @@ export function ResultsPanel({ results, isDirty }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Custo total</p>
-          <p className="mt-1 text-lg font-semibold text-slate-100">{fmt(totalCost)}</p>
-        </div>
+      <div className={`grid gap-3 ${hasAdvancedAdjustments ? "md:grid-cols-1" : "md:grid-cols-2"}`}>
+        {!hasAdvancedAdjustments ? (
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Custo total</p>
+            <p className="mt-1 text-lg font-semibold text-slate-100">{fmt(totalCost)}</p>
+          </div>
+        ) : null}
         <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
             Custo real ajustado
@@ -348,13 +354,15 @@ export function ResultsPanel({ results, isDirty }: Props) {
         </div>
       </details>
 
-      <div className="grid gap-4 text-xs md:grid-cols-2">
-        <div className="space-y-2 rounded-xl bg-slate-950/50 p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-            Custo total (por peça)
-          </p>
-          <p className="text-lg font-semibold text-slate-100">{fmt(totalCost)}</p>
-        </div>
+      <div className={`grid gap-4 text-xs ${hasAdvancedAdjustments ? "md:grid-cols-1" : "md:grid-cols-2"}`}>
+        {!hasAdvancedAdjustments ? (
+          <div className="space-y-2 rounded-xl bg-slate-950/50 p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Custo total (por peça)
+            </p>
+            <p className="text-lg font-semibold text-slate-100">{fmt(totalCost)}</p>
+          </div>
+        ) : null}
         <div className="space-y-2 rounded-xl bg-slate-950/50 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
             Preço mínimo
