@@ -35,6 +35,7 @@ export const defaultSettings: SettingsValues = {
   printer: {
     presetId: "",
     customName: "",
+    defaultPrinterId: "",
     customPowerW: undefined,
     customPrinterCost: undefined,
     customLifetimeHours: undefined,

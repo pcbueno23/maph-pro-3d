@@ -28,6 +28,8 @@ export const calculatorSchema = z
   time: z.object({
     hours: z.number().min(0, "Tempo de impressão inválido"),
     powerW: z.number().min(10, "Potência inválida"),
+    /** Impressora selecionada na calculadora (opcional). */
+    printerId: z.string().optional(),
     unitsPerBatch: z
       .union([z.number(), z.nan()])
       .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 1))
@@ -288,6 +290,8 @@ export const settingsSchema = z.object({
   printer: z.object({
     presetId: z.string().optional(),
     customName: z.string().optional(),
+    /** Impressora padrão (entidade /impressoras) para pré-preencher a calculadora. */
+    defaultPrinterId: z.string().optional(),
     customPowerW: z
       .union([z.number(), z.nan(), z.undefined()])
       .transform((n) =>

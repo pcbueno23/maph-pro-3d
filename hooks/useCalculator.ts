@@ -45,7 +45,12 @@ function getDefaultValues(
   return {
     productName: "",
     material: { weight: 50, pricePerKg: 120, type: "PLA" as const, supplyId: undefined },
-    time: { hours: 3, powerW, unitsPerBatch: 1 },
+    time: {
+      hours: 3,
+      powerW,
+      printerId: settings.printer?.defaultPrinterId || undefined,
+      unitsPerBatch: 1,
+    },
     costs: {
       kwhPrice: settings.defaults.kwhPrice,
       printerCost: settings.defaults.printerCost,
@@ -184,6 +189,12 @@ export function useCalculator() {
         // Preenche automaticamente parte da ficha técnica:
         // tempo estimado em minutos baseado no tempo da simulação.
         printTimeMinutes: minutesFromHours,
+        // Preenche impressora padrão do produto (para ordens) com a impressora selecionada na calculadora
+        // ou, se não houver, com o padrão salvo em Impressoras.
+        defaultPrinterId:
+          (lastInput.time as any)?.printerId ||
+          settings.printer?.defaultPrinterId ||
+          null,
       };
 
       addProduct(product);

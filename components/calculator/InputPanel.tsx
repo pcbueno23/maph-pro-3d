@@ -25,7 +25,7 @@ export function InputPanel({ form }: Props) {
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [filaments, setFilaments] = useState<SupplyItem[]>([]);
 
-  const [selectedPrinterId, setSelectedPrinterId] = useState<string>("");
+  const selectedPrinterId = form.watch("time.printerId") ?? "";
   const [cep, setCep] = useState("");
   const [isFetchingCep, setIsFetchingCep] = useState(false);
 
@@ -52,6 +52,24 @@ export function InputPanel({ form }: Props) {
       alive = false;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    const defaultId = settings.printer?.defaultPrinterId ?? "";
+    const current = form.getValues("time.printerId") ?? "";
+    if (!current && defaultId) {
+      setValue("time.printerId", defaultId, { shouldDirty: false });
+      const p = printers.find((x) => x.id === defaultId);
+      if (p) {
+        setValue("time.powerW", Number(p.powerW ?? 0), { shouldDirty: false });
+        setValue("costs.printerCost", Number(p.purchaseValue ?? 0), { shouldDirty: false });
+        setValue("costs.lifetimeHours", Number(p.usefulLifeHours ?? 0) || 1, { shouldDirty: false });
+        if (Number.isFinite(Number(p.energyRateBrlKwh))) {
+          setValue("costs.kwhPrice", Number(p.energyRateBrlKwh ?? 0), { shouldDirty: false });
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printers.length]);
 
   return (
     <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
@@ -266,7 +284,7 @@ export function InputPanel({ form }: Props) {
                 value={selectedPrinterId}
                 onChange={(e) => {
                   const value = e.target.value;
-                  setSelectedPrinterId(value);
+                  setValue("time.printerId", value || undefined, { shouldDirty: true });
                   if (value === "") return;
                   const p = printers.find((x) => x.id === value);
                   if (!p) return;

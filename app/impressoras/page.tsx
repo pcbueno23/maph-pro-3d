@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import type { Printer, PrinterStatus } from "@/types";
 import { deletePrinter, listPrinters, upsertPrinter } from "@/lib/supabaseProduction";
+import { useSettingsStore } from "@/store/settingsStore";
 
 type DraftPrinter = {
   id?: string;
@@ -58,6 +59,7 @@ function toDraft(p?: Printer | null): DraftPrinter {
 
 export default function ImpressorasPage() {
   const user = useAuthStore((s) => s.user);
+  const { settings, updateSettings } = useSettingsStore();
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -212,6 +214,7 @@ export default function ImpressorasPage() {
             <table className="min-w-full text-left text-xs">
               <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-400">
                 <tr>
+                  <th className="px-2 py-2">Padrão</th>
                   <th className="px-2 py-2">Nome</th>
                   <th className="px-2 py-2">Modelo</th>
                   <th className="px-2 py-2">Status</th>
@@ -225,6 +228,23 @@ export default function ImpressorasPage() {
               <tbody className="divide-y divide-slate-800">
                 {printers.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-900/60">
+                    <td className="px-2 py-2">
+                      <input
+                        type="radio"
+                        name="defaultCalculatorPrinter"
+                        checked={(settings.printer?.defaultPrinterId ?? "") === p.id}
+                        onChange={() => {
+                          updateSettings({
+                            ...settings,
+                            printer: {
+                              ...settings.printer,
+                              defaultPrinterId: p.id,
+                            },
+                          });
+                        }}
+                        title="Usar como padrão na calculadora"
+                      />
+                    </td>
                     <td className="px-2 py-2 text-slate-100">{p.name}</td>
                     <td className="px-2 py-2 text-slate-300">{p.model ?? "-"}</td>
                     <td className="px-2 py-2 text-slate-300">{statusLabels[p.status]}</td>
