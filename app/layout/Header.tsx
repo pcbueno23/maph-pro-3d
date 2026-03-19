@@ -39,7 +39,7 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
-  const requestSave = useCalculatorStore((s) => s.requestSave);
+  const requestNewSimulation = useCalculatorStore((s) => s.requestNewSimulation);
   const isCalculator = pathname === "/calculator";
    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -103,10 +103,10 @@ export function Header() {
           {isCalculator ? (
             <button
               type="button"
-              onClick={() => requestSave()}
+              onClick={() => requestNewSimulation()}
               className="inline-flex rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-1.5 text-xs font-medium text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
             >
-              Salvar e nova simulação
+              Nova simulação
             </button>
           ) : (
             <Link

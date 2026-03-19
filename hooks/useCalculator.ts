@@ -86,6 +86,8 @@ export function useCalculator() {
     saveRequested,
     saveRequestedAt,
     clearSaveRequested,
+    newSimulationRequestedAt,
+    clearNewSimulationRequested,
     lastInput,
     lastResults,
     productToLoad,
@@ -237,7 +239,6 @@ export function useCalculator() {
         }
       }
 
-      form.reset(getDefaultValues(settings, printerSettings));
       clearSaveRequested();
     })();
   }, [
@@ -252,6 +253,18 @@ export function useCalculator() {
     form,
     printerSettings,
   ]);
+
+  const lastNewSimulationAtRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!newSimulationRequestedAt) return;
+    if (lastNewSimulationAtRef.current === newSimulationRequestedAt) {
+      clearNewSimulationRequested();
+      return;
+    }
+    lastNewSimulationAtRef.current = newSimulationRequestedAt;
+    form.reset(getDefaultValues(settings, printerSettings));
+    clearNewSimulationRequested();
+  }, [newSimulationRequestedAt, form, settings, printerSettings, clearNewSimulationRequested]);
 
   useEffect(() => {
     const customPresets = printerSettings.customPresets ?? [];

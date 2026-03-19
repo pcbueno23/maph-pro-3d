@@ -8,6 +8,8 @@ interface CalculatorState {
   saveRequested: boolean;
   /** Timestamp (ms) da última vez que o usuário pediu para salvar. */
   saveRequestedAt: number | null;
+  /** Timestamp (ms) da última vez que o usuário pediu para nova simulação (zerar formulário). */
+  newSimulationRequestedAt: number | null;
   productToLoad: Product | null;
   stlPreset: { weightGrams: number; estimatedMinutes: number } | null;
   setLastCalculation: (
@@ -16,6 +18,8 @@ interface CalculatorState {
   ) => void;
   requestSave: () => void;
   clearSaveRequested: () => void;
+  requestNewSimulation: () => void;
+  clearNewSimulationRequested: () => void;
   setProductToLoad: (product: Product | null) => void;
   setStlPreset: (data: { weightGrams: number; estimatedMinutes: number } | null) => void;
   /** Zera estado da calculadora (última conta, produto para carregar, preset STL). Usado no logout. */
@@ -27,6 +31,7 @@ export const useCalculatorStore = create<CalculatorState>((set) => ({
   lastResults: null,
   saveRequested: false,
   saveRequestedAt: null,
+  newSimulationRequestedAt: null as number | null,
   productToLoad: null,
   stlPreset: null,
   clearOnLogout: () =>
@@ -49,6 +54,14 @@ export const useCalculatorStore = create<CalculatorState>((set) => ({
   clearSaveRequested: () =>
     set({
       saveRequested: false,
+    }),
+  requestNewSimulation: () =>
+    set({
+      newSimulationRequestedAt: Date.now(),
+    }),
+  clearNewSimulationRequested: () =>
+    set({
+      newSimulationRequestedAt: null,
     }),
   setProductToLoad: (product) => set({ productToLoad: product }),
   setStlPreset: (data) => set({ stlPreset: data }),
