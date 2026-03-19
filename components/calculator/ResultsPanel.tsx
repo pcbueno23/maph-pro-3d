@@ -104,6 +104,14 @@ export function ResultsPanel({ results, isDirty }: Props) {
 
   const profitPositive = profitPerSale >= 0;
   const realMarginLow = margemReal < 20;
+  const lossAbs = lucroLiquidoReal - profitPerSale;
+  const lossPct = profitPerSale !== 0 ? (lossAbs / Math.abs(profitPerSale)) * 100 : 0;
+  const lossOver20 = lossAbs < 0 && Math.abs(lossPct) > 20;
+  const taxZero = (cascataShopee.taxPercent ?? 0) === 0;
+  const laborTypeHora = true; // não temos o tipo no results; usamos heurísticas abaixo
+  const laborHourTooLow =
+    // se mão de obra existe e ficou muito baixa, alerta
+    maoDeObraCusto > 0 && maoDeObraCusto < 2;
 
   const CascataBlock = ({
     title,
@@ -313,6 +321,56 @@ export function ResultsPanel({ results, isDirty }: Props) {
         {alertaLucroAbaixoDaMeta ? (
           <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
             Seu lucro real está abaixo da meta devido a falhas, taxas ou descontos.
+          </div>
+        ) : null}
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3 text-xs">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          Impacto dos Ajustes
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1 text-slate-300">
+            <p>
+              Lucro teórico: <span className="text-slate-100">{fmt(profitPerSale)}</span>
+            </p>
+            <p>
+              Lucro real: <span className="text-slate-100">{fmt(lucroLiquidoReal)}</span>
+            </p>
+          </div>
+          <div className="space-y-1 text-slate-300">
+            <p>
+              Diferença:{" "}
+              <span className={lossOver20 ? "text-rose-300" : lossAbs < 0 ? "text-amber-300" : "text-emerald-300"}>
+                {lossAbs >= 0 ? "+" : "−"} {fmt(Math.abs(lossAbs))} ({Number.isFinite(lossPct) ? lossPct.toFixed(0) : 0}
+                %)
+              </span>
+            </p>
+            <p className="text-[11px] text-slate-500">
+              (falhas, mão de obra, desconto real e taxas recalculadas)
+            </p>
+          </div>
+        </div>
+
+        {taxZero ? (
+          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+            <p className="font-semibold">ATENÇÃO: Você não está considerando impostos.</p>
+            <p className="mt-0.5">
+              Seu lucro real pode estar superestimado. Sugestão: MEI 4%–6% · Simples Nacional 6%–12%.
+            </p>
+          </div>
+        ) : null}
+
+        {laborHourTooLow ? (
+          <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+            Sua mão de obra por peça está muito baixa — isso pode comprometer seu lucro real.
+          </div>
+        ) : null}
+
+        {margemReal < 15 ? (
+          <div className="mt-3 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+            <p className="font-semibold">Margem muito baixa.</p>
+            <p className="mt-0.5">Esse produto pode não ser sustentável.</p>
           </div>
         ) : null}
       </div>

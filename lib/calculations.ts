@@ -13,10 +13,9 @@ import {
 } from "./marketplaceFees";
 import {
   aplicarDesconto,
-  calcularCustoAjustado,
   calcularLucroReal,
-  calcularMaoDeObra,
 } from "@/lib/advancedCalculations";
+import { calcularPrecoCompleto } from "@/lib/precoCompleto";
 
 export function calcFilamentCost(weight: number, pricePerKg: number): number {
   return (weight / 1000) * pricePerKg;
@@ -267,18 +266,6 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     packagingCost,
   });
 
-  const taxaFalhaPercent = input.advanced?.taxaFalha ?? 10;
-  const maoDeObraCusto = calcularMaoDeObra({
-    maoDeObraTipo: input.advanced?.maoDeObraTipo ?? "fixo",
-    maoDeObraValor: input.advanced?.maoDeObraValor ?? 0,
-    tempoManualMin: input.advanced?.tempoManualMin ?? 0,
-  });
-  const custoTotalAjustado = calcularCustoAjustado({
-    custoBase: totalCost + maoDeObraCusto,
-    taxaFalhaPercent,
-  });
-  const descontoPercentualReal = input.advanced?.descontoPercentual ?? 0;
-
   const shippingAmount = input.pricing.shippingEstimate ?? 0;
   const taxPercent = input.pricing.taxPercent ?? 0;
   const taxMode = input.pricing.taxMode ?? "net_marketplace";
@@ -315,74 +302,15 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     classic: input.pricing.mlClassic ?? false,
   });
   const suggestedPrice = Math.max(suggestedPriceShopee, suggestedPriceML);
-
-  // ===== Lucro líquido real (aplica desconto real e recalcula taxas/imposto) =====
-  const precoShopeeComDesconto = aplicarDesconto({
-    preco: suggestedPriceShopee,
-    descontoPercentual: descontoPercentualReal,
-  });
-  const precoMLComDesconto = aplicarDesconto({
-    preco: suggestedPriceML,
-    descontoPercentual: descontoPercentualReal,
-  });
-
-  const feePercentShopeeReal = getEffectiveMarketplaceFeePercent(
-    "Shopee",
-    input.pricing.personType,
-    precoShopeeComDesconto,
-    { freeShipping: input.pricing.freeShipping ?? false },
-  );
-  const shopeeBreakdownReal = getShopeeFeeBreakdown(
-    precoShopeeComDesconto,
-    input.pricing.personType,
-    input.pricing.freeShipping ?? false,
-  );
-  const taxAmountShopeeReal = computeTaxAmount(
-    precoShopeeComDesconto,
-    shopeeBreakdownReal.commissionRateDecimal,
-  );
-  const marketplaceFeeAmountShopeeReal = (precoShopeeComDesconto * feePercentShopeeReal) / 100;
-  const lucroShopeeReal = calcularLucroReal({
-    precoComDesconto: precoShopeeComDesconto,
-    taxasMarketplace: marketplaceFeeAmountShopeeReal,
-    imposto: taxAmountShopeeReal,
-    custoTotalAjustado: custoTotalAjustado + shippingAmount,
-  });
-
-  const feePercentMLReal = getEffectiveMarketplaceFeePercent(
-    "Mercado Livre",
-    input.pricing.personType,
-    precoMLComDesconto,
-    { classicML: input.pricing.mlClassic ?? false },
-  );
-  const mlBreakdownReal = getMLFeeBreakdown(
-    precoMLComDesconto,
-    input.pricing.personType,
-    input.pricing.mlClassic ?? false,
-  );
-  const taxAmountMLReal = computeTaxAmount(
-    precoMLComDesconto,
-    mlBreakdownReal.commissionRateDecimal,
-  );
-  const marketplaceFeeAmountMLReal = (precoMLComDesconto * feePercentMLReal) / 100;
-  const lucroMLReal = calcularLucroReal({
-    precoComDesconto: precoMLComDesconto,
-    taxasMarketplace: marketplaceFeeAmountMLReal,
-    imposto: taxAmountMLReal,
-    custoTotalAjustado: custoTotalAjustado + shippingAmount,
-  });
-
-  const worstReal =
-    lucroShopeeReal.lucroLiquidoReal <= lucroMLReal.lucroLiquidoReal
-      ? { lucro: lucroShopeeReal, preco: precoShopeeComDesconto }
-      : { lucro: lucroMLReal, preco: precoMLComDesconto };
-
-  const precoComDesconto = aplicarDesconto({
-    preco: suggestedPrice,
-    descontoPercentual: descontoPercentualReal,
-  });
-  const lucroLiquidoReal = worstReal.lucro.lucroLiquidoReal;
-  const margemReal = worstReal.lucro.margemReal;
+  // ===== Lucro líquido real (cadeia completa/consistente) =====
+  const full = calcularPrecoCompleto(input);
+  const taxaFalhaPercent = full.taxaFalhaPercent;
+  const maoDeObraCusto = full.maoDeObra.custo;
+  const custoTotalAjustado = full.custoTotalAjustado;
+  const descontoPercentualReal = full.descontoPercentual;
+  const precoComDesconto = full.precoComDesconto;
+  const lucroLiquidoReal = full.lucroLiquidoReal;
+  const margemReal = full.margemReal;
   const alertaLucroAbaixoDaMeta = margemReal < (input.pricing.desiredMargin ?? 0);
 
   // Shopee no preço sugerido dela
