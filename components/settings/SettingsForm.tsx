@@ -24,7 +24,10 @@ export function SettingsForm() {
     updateSettings(normalized);
     form.reset(normalized);
     if (user) {
-      saveUserSettings(user.id, normalized).catch(() => {});
+      // Importante: SettingsForm não edita o bloco "printer".
+      // Precisamos persistir a configuração completa (inclui impressora padrão da calculadora).
+      const merged = useSettingsStore.getState().settings;
+      saveUserSettings(user.id, merged).catch(() => {});
     }
   };
 

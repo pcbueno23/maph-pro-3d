@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/authStore";
 import type { Printer, PrinterStatus } from "@/types";
 import { deletePrinter, listPrinters, upsertPrinter } from "@/lib/supabaseProduction";
 import { useSettingsStore } from "@/store/settingsStore";
+import { saveUserSettings } from "@/lib/supabaseUserData";
 
 type DraftPrinter = {
   id?: string;
@@ -234,13 +235,17 @@ export default function ImpressorasPage() {
                         name="defaultCalculatorPrinter"
                         checked={(settings.printer?.defaultPrinterId ?? "") === p.id}
                         onChange={() => {
-                          updateSettings({
+                          const merged = {
                             ...settings,
                             printer: {
                               ...settings.printer,
                               defaultPrinterId: p.id,
                             },
-                          });
+                          } as any;
+                          updateSettings(merged);
+                          if (user) {
+                            saveUserSettings(user.id, merged).catch(() => {});
+                          }
                         }}
                         title="Usar como padrão na calculadora"
                       />
