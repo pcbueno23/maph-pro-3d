@@ -80,6 +80,7 @@ export function InputPanel({ form }: Props) {
       <h2 className="text-sm font-semibold text-slate-100">
         Parâmetros da impressão
       </h2>
+      <input type="hidden" {...register("time.printerId")} />
 
       <div>
         <label className="mb-1 block text-xs text-slate-300">

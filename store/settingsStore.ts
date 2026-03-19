@@ -71,9 +71,23 @@ export const useSettingsStore = create<SettingsState>((set) => ({
           }
         })(),
   updateSettings: (next) => {
-    set({ settings: next });
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    }
+    set((state) => {
+      const merged: SettingsValues = {
+        ...state.settings,
+        ...next,
+        defaults: {
+          ...state.settings.defaults,
+          ...(next.defaults ?? {}),
+        },
+        printer: {
+          ...state.settings.printer,
+          ...(next.printer ?? {}),
+        },
+      };
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      }
+      return { settings: merged };
+    });
   },
 }));
