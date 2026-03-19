@@ -717,8 +717,8 @@ export function ProductTable({ products }: Props) {
       ) : null}
 
       {infoOpen && infoProduct ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-          <div className="w-full max-w-3xl max-h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/95 shadow-neon-cyan">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4">
+          <div className="flex h-[min(90dvh,860px)] w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/95 shadow-neon-cyan">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 px-4 py-3">
               <div className="min-w-[220px]">
                 <p className="text-sm font-semibold text-slate-50">
@@ -790,7 +790,7 @@ export function ProductTable({ products }: Props) {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
               {infoError ? (
                 <div className="mb-4 rounded-xl border border-rose-600/30 bg-rose-500/10 p-3 text-sm text-rose-200">
                   {infoError}

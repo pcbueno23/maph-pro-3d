@@ -137,6 +137,12 @@ export default function OrdersPage() {
     [products, productsWithBom],
   );
 
+  const isEligibleProductId = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of eligibleProducts) set.add(p.id);
+    return set;
+  }, [eligibleProducts]);
+
   const handledPrefillRef = useRef(false);
   useEffect(() => {
     if (handledPrefillRef.current) return;
@@ -151,12 +157,10 @@ export default function OrdersPage() {
     const qty = Math.max(1, Number(qtyRaw) || 1);
     const printerIdParam = searchParams?.get("printerId") ?? "";
 
-    const prod = eligibleProducts.find((p) => p.id === productId);
+    const prod = products.find((p) => p.id === productId) ?? null;
     if (!prod) {
       handledPrefillRef.current = true;
-      setError(
-        "Esse produto ainda não está pronto para ordens. Preencha ficha técnica (tempo + impressora padrão) e materiais (BOM).",
-      );
+      setError("Produto não encontrado.");
       router.replace("/ordens");
       return;
     }
@@ -170,9 +174,14 @@ export default function OrdersPage() {
       notes: null,
     });
     setModalOpen(true);
+    if (!isEligibleProductId.has(prod.id)) {
+      setError(
+        "Esse produto ainda não está pronto para ordens. Preencha ficha técnica (tempo + impressora padrão) e materiais (BOM) e tente novamente.",
+      );
+    }
     handledPrefillRef.current = true;
     router.replace("/ordens");
-  }, [eligibleProducts, router, searchParams, user]);
+  }, [eligibleProducts.length, isEligibleProductId, products, router, searchParams, user]);
 
   const [costs, setCosts] = useState<Record<string, number>>({});
 
@@ -688,11 +697,15 @@ export default function OrdersPage() {
                   }
                   disabled={loading}
                 >
-                  {eligibleProducts.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
+                  {products.map((p) => {
+                    const ok = isEligibleProductId.has(p.id);
+                    return (
+                      <option key={p.id} value={p.id} disabled={!ok}>
+                        {p.name}
+                        {!ok ? " (incompleto)" : ""}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
