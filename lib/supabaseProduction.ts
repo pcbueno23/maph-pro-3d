@@ -275,6 +275,41 @@ export async function listProductAssets(userId: string, productId: string): Prom
   return data.map(mapProductAssetRow);
 }
 
+export async function listProductAssetsByProductIds(params: {
+  userId: string;
+  productIds: string[];
+  kind?: "image" | "file";
+}): Promise<ProductAsset[]> {
+  const client = mustHaveClient();
+  const { userId, productIds, kind } = params;
+  if (!productIds.length) return [];
+
+  let q = client
+    .from("product_assets")
+    .select("*")
+    .eq("user_id", userId)
+    .in("product_id", productIds);
+
+  if (kind) q = q.eq("kind", kind);
+
+  const { data, error } = await q.order("created_at", { ascending: false });
+  if (error || !data) throw error ?? new Error("Falha ao listar anexos do produto");
+  return data.map(mapProductAssetRow);
+}
+
+export async function getProductAssetViewUrl(
+  asset: ProductAsset,
+  expiresInSeconds = 60 * 60,
+): Promise<string | null> {
+  const client = mustHaveClient();
+  if (asset.publicUrl) return asset.publicUrl;
+  const { data, error } = await client.storage
+    .from(asset.storageBucket)
+    .createSignedUrl(asset.storagePath, expiresInSeconds);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
 export async function createProductAsset(
   userId: string,
   input: Omit<ProductAsset, "userId" | "id" | "createdAt"> & { id?: string; createdAt?: string },

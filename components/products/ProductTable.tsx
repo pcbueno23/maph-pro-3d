@@ -4,7 +4,7 @@ import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import type { Printer, Product } from "@/types";
+import type { Printer, Product, ProductAsset } from "@/types";
 import { useProductsStore } from "@/store/productsStore";
 import { useAuthStore } from "@/store/authStore";
 import { deleteProduct, upsertProductsForUser } from "@/lib/supabaseProducts";
@@ -15,6 +15,9 @@ import {
   deleteProductMaterial,
   listProductMaterials,
   listProductAssets,
+  listProductAssetsByProductIds,
+  getProductAssetViewUrl,
+  uploadProductFile,
   listSupplies,
   upsertProductMaterial,
 } from "@/lib/supabaseProduction";
@@ -66,7 +69,51 @@ export function ProductTable({ products }: Props) {
   const [infoError, setInfoError] = useState<string | null>(null);
   const [infoSupplies, setInfoSupplies] = useState<SupplyItem[]>([]);
   const [infoMaterials, setInfoMaterials] = useState<ProductMaterial[]>([]);
-  const [infoAssets, setInfoAssets] = useState<any[]>([]);
+  const [infoAssets, setInfoAssets] = useState<ProductAsset[]>([]);
+  const [infoUploadBusy, setInfoUploadBusy] = useState(false);
+
+  const [productThumbById, setProductThumbById] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const userId = user?.id as string | undefined;
+    if (!userId) return;
+    let alive = true;
+
+    async function loadThumbs() {
+      try {
+        const ids = products.map((p) => p.id);
+        if (!ids.length) {
+          if (alive) setProductThumbById({});
+          return;
+        }
+        const assets = await listProductAssetsByProductIds({
+          userId: userId!,
+          productIds: ids,
+          kind: "image",
+        });
+
+        const firstByProduct = new Map<string, ProductAsset>();
+        for (const a of assets) {
+          if (!firstByProduct.has(a.productId)) firstByProduct.set(a.productId, a);
+        }
+
+        const entries: Array<[string, string]> = [];
+        for (const [productId, asset] of firstByProduct.entries()) {
+          const url = await getProductAssetViewUrl(asset);
+          if (url) entries.push([productId, url]);
+        }
+        if (!alive) return;
+        setProductThumbById((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+      } catch {
+        // ignora
+      }
+    }
+
+    loadThumbs();
+    return () => {
+      alive = false;
+    };
+  }, [products, user?.id]);
   const [
     infoCost,
     setInfoCost,
@@ -110,6 +157,26 @@ export function ProductTable({ products }: Props) {
       setInfoError(e?.message ?? "Falha ao carregar informações do produto.");
     } finally {
       setInfoLoading(false);
+    }
+  }
+
+  async function uploadMainImageForInfo(file: File) {
+    if (!user || !infoProduct) return;
+    setInfoUploadBusy(true);
+    setInfoError(null);
+    try {
+      await uploadProductFile({ userId: user.id, productId: infoProduct.id, kind: "image", file });
+      const assets = await listProductAssets(user.id, infoProduct.id);
+      setInfoAssets(assets);
+      const newest = assets.find((a) => a.kind === "image") ?? null;
+      if (newest) {
+        const url = await getProductAssetViewUrl(newest);
+        if (url) setProductThumbById((prev) => ({ ...prev, [infoProduct.id]: url }));
+      }
+    } catch (e: any) {
+      setInfoError(e?.message ?? "Falha ao enviar imagem do produto.");
+    } finally {
+      setInfoUploadBusy(false);
     }
   }
 
@@ -325,16 +392,25 @@ export function ProductTable({ products }: Props) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 shadow-neon-cyan/30">
-                      <div className="absolute inset-0 grid place-items-center">
-                        <Image
-                          src="/icons/model-3d.svg"
-                          alt="Modelo 3D"
-                          width={28}
-                          height={28}
-                          className="opacity-90"
+                      {productThumbById[product.id] ? (
+                        <img
+                          src={productThumbById[product.id]}
+                          alt={`Imagem de ${product.name}`}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
                         />
-                        <span className="sr-only">3D</span>
-                      </div>
+                      ) : (
+                        <div className="absolute inset-0 grid place-items-center">
+                          <Image
+                            src="/icons/model-3d.svg"
+                            alt="Modelo 3D"
+                            width={28}
+                            height={28}
+                            className="opacity-90"
+                          />
+                          <span className="sr-only">3D</span>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-slate-50">{product.name}</p>
@@ -602,11 +678,13 @@ export function ProductTable({ products }: Props) {
                         Preços e custo
                       </p>
                       {(() => {
-                        const mainImage = infoAssets.find((a: any) => a.kind === "image" && a.publicUrl);
-                        return mainImage ? (
+                        const mainImage = infoAssets.find((a) => a.kind === "image");
+                        const url =
+                          (infoProduct?.id && productThumbById[infoProduct.id]) || mainImage?.publicUrl || null;
+                        return url ? (
                           <div className="mt-3 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/50">
                             <img
-                              src={mainImage.publicUrl}
+                              src={url}
                               alt={`Imagem de ${infoProduct.name}`}
                               className="h-44 w-full object-cover"
                               loading="lazy"
@@ -614,6 +692,26 @@ export function ProductTable({ products }: Props) {
                           </div>
                         ) : null;
                       })()}
+                      <div className="mt-3">
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-900">
+                          {infoUploadBusy ? "Enviando..." : "Trocar imagem do produto"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={infoUploadBusy}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0] ?? null;
+                              e.currentTarget.value = "";
+                              if (!f) return;
+                              uploadMainImageForInfo(f);
+                            }}
+                          />
+                        </label>
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          A imagem mais recente vira a principal no card.
+                        </p>
+                      </div>
                       <div className="mt-2 space-y-1.5 text-sm">
                         <p className="text-slate-300">
                           Preço de venda:{" "}
@@ -667,13 +765,13 @@ export function ProductTable({ products }: Props) {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                       Arquivos anexos
                     </p>
-                    {infoAssets.filter((a: any) => a.kind === "file").length === 0 ? (
+                    {infoAssets.filter((a) => a.kind === "file").length === 0 ? (
                       <p className="mt-2 text-sm text-slate-400">Nenhum arquivo anexado.</p>
                     ) : (
                       <ul className="mt-2 space-y-1 text-sm">
                         {infoAssets
-                          .filter((a: any) => a.kind === "file")
-                          .map((a: any) => (
+                          .filter((a) => a.kind === "file")
+                          .map((a) => (
                             <li key={a.id} className="flex items-center justify-between gap-2">
                               <span className="truncate text-slate-200">{a.fileName}</span>
                               {a.publicUrl ? (
