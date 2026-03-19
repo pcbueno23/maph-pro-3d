@@ -419,8 +419,9 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 p-4 flex items-center justify-center">
-      <div className="w-full max-w-2xl max-h-[calc(100dvh-2rem)] min-h-0 flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80">
+      <div className="flex min-h-[100dvh] p-4">
+        <div className="m-auto w-full max-w-2xl max-h-[calc(100dvh-2rem)] min-h-0 flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
           <h2 className="text-lg font-semibold text-slate-50">Novo Produto</h2>
           <button
@@ -774,6 +775,7 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
