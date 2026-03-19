@@ -290,6 +290,10 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
   const margemReal = full.margemReal;
   const alertaLucroAbaixoDaMeta = margemReal < (input.pricing.desiredMargin ?? 0);
 
+  // Para evitar divergência entre "detalhamentos" e "lucro real",
+  // os detalhamentos por canal devem usar o mesmo custo-base dos ajustes avançados.
+  const totalCostForBreakdowns = custoTotalAjustado;
+
   // Preço sugerido por canal (mesma margem alvo, preços podem ser diferentes)
   const suggestedPriceShopee = full.suggested.suggestedPriceShopee;
   const suggestedPriceML = full.suggested.suggestedPriceML;
@@ -318,7 +322,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     filamentCost,
     depreciationCost,
     packagingCost,
-    totalCost,
+    totalCost: totalCostForBreakdowns,
     commissionRateDecimal: shopeeBreakdown.commissionRateDecimal,
     commissionAmount: shopeeBreakdown.commissionAmount,
     fixedFeeAmount: shopeeBreakdown.fixedFeeAmount,
@@ -347,7 +351,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     filamentCost,
     depreciationCost,
     packagingCost,
-    totalCost,
+    totalCost: totalCostForBreakdowns,
     commissionRateDecimal: mlBreakdown.commissionRateDecimal,
     commissionAmount: mlBreakdown.commissionAmount,
     fixedFeeAmount: mlBreakdown.fixedFeeAmount,
@@ -433,7 +437,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
       const feeAmount = (comparePrice * feePercent) / 100;
       const taxAmt = computeTaxAmount(comparePrice);
       const net =
-        comparePrice - feeAmount - shippingAmount - taxAmt - totalCost;
+        comparePrice - feeAmount - shippingAmount - taxAmt - totalCostForBreakdowns;
       const marginPct = comparePrice > 0 ? (net / comparePrice) * 100 : 0;
       const perHour =
         effectiveHoursPerUnit > 0 ? net / effectiveHoursPerUnit : 0;
