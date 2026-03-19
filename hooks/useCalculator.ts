@@ -268,6 +268,7 @@ export function useCalculator() {
 
   useEffect(() => {
     const customPresets = printerSettings.customPresets ?? [];
+    const selectedPrinterId = form.getValues("time.printerId") ?? "";
     const resolvedPowerW = (() => {
       if (printerSettings.customPowerW) return printerSettings.customPowerW;
       if (
@@ -285,9 +286,11 @@ export function useCalculator() {
       ...form.getValues(),
       costs: {
         ...form.getValues("costs"),
-        kwhPrice: settings.defaults.kwhPrice,
-        printerCost: settings.defaults.printerCost,
-        lifetimeHours: settings.defaults.lifetimeHours,
+        // Se houver impressora selecionada, os custos dela são preenchidos pelo InputPanel.
+        // Aqui só aplicamos defaults quando não há impressora selecionada.
+        kwhPrice: selectedPrinterId ? form.getValues("costs.kwhPrice") : settings.defaults.kwhPrice,
+        printerCost: selectedPrinterId ? form.getValues("costs.printerCost") : settings.defaults.printerCost,
+        lifetimeHours: selectedPrinterId ? form.getValues("costs.lifetimeHours") : settings.defaults.lifetimeHours,
         residualValue: settings.defaults.residualValue ?? 0,
         annualMaintenance: settings.defaults.annualMaintenance ?? 0,
         infrastructureYear: settings.defaults.infrastructureYear ?? 0,
@@ -296,7 +299,8 @@ export function useCalculator() {
       },
       time: {
         ...form.getValues("time"),
-        powerW: resolvedPowerW,
+        // powerW também pode vir da impressora selecionada.
+        powerW: selectedPrinterId ? form.getValues("time.powerW") : resolvedPowerW,
       },
       pricing: {
         ...form.getValues("pricing"),
