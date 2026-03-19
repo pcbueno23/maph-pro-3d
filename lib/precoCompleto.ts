@@ -149,7 +149,11 @@ export function calcularPrecoCompleto(input: CalculatorFormValues) {
 
   // 2) taxa de falha
   const taxaFalha = input.advanced?.taxaFalha ?? 10;
-  const custoComFalha = aplicarTaxaFalha(base.totalCost, taxaFalha);
+  // Importante: a taxa de falha deve incidir apenas sobre
+  // filamento + energia + depreciação, NÃO sobre embalagem.
+  const mioloSemEmbalagem = base.filamentCost + base.energyCost + base.depreciationCost;
+  const mioloComFalha = aplicarTaxaFalha(mioloSemEmbalagem, taxaFalha);
+  const custoComFalha = mioloComFalha + base.packagingCost;
 
   // 3) mão de obra (somada depois da falha, conforme especificação)
   const maoDeObraTipo = input.advanced?.maoDeObraTipo ?? "fixo";
