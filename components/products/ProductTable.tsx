@@ -12,6 +12,7 @@ import type { ProductMaterial, SupplyItem } from "@/types";
 import {
   deleteProductMaterial,
   listProductMaterials,
+  listProductAssets,
   listSupplies,
   upsertProductMaterial,
 } from "@/lib/supabaseProduction";
@@ -62,6 +63,7 @@ export function ProductTable({ products }: Props) {
   const [infoError, setInfoError] = useState<string | null>(null);
   const [infoSupplies, setInfoSupplies] = useState<SupplyItem[]>([]);
   const [infoMaterials, setInfoMaterials] = useState<ProductMaterial[]>([]);
+  const [infoAssets, setInfoAssets] = useState<any[]>([]);
   const [
     infoCost,
     setInfoCost,
@@ -87,16 +89,19 @@ export function ProductTable({ products }: Props) {
     setInfoError(null);
     setInfoSupplies([]);
     setInfoMaterials([]);
+    setInfoAssets([]);
     setInfoCost(null);
 
     try {
-      const [sups, mats, cost] = await Promise.all([
+      const [sups, mats, assets, cost] = await Promise.all([
         listSupplies(user.id),
         listProductMaterials(user.id, product.id),
+        listProductAssets(user.id, product.id),
         computeProductUnitCost(user.id, product),
       ]);
       setInfoSupplies(sups);
       setInfoMaterials(mats);
+      setInfoAssets(assets);
       setInfoCost(cost);
     } catch (e: any) {
       setInfoError(e?.message ?? "Falha ao carregar informações do produto.");
@@ -112,6 +117,7 @@ export function ProductTable({ products }: Props) {
     setInfoError(null);
     setInfoSupplies([]);
     setInfoMaterials([]);
+    setInfoAssets([]);
     setInfoCost(null);
   }
 
@@ -596,6 +602,19 @@ export function ProductTable({ products }: Props) {
                       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                         Preços e custo
                       </p>
+                      {(() => {
+                        const mainImage = infoAssets.find((a: any) => a.kind === "image" && a.publicUrl);
+                        return mainImage ? (
+                          <div className="mt-3 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/50">
+                            <img
+                              src={mainImage.publicUrl}
+                              alt={`Imagem de ${infoProduct.name}`}
+                              className="h-44 w-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                        ) : null;
+                      })()}
                       <div className="mt-2 space-y-1.5 text-sm">
                         <p className="text-slate-300">
                           Preço de venda:{" "}
@@ -643,6 +662,37 @@ export function ProductTable({ products }: Props) {
                         </p>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Arquivos anexos
+                    </p>
+                    {infoAssets.filter((a: any) => a.kind === "file").length === 0 ? (
+                      <p className="mt-2 text-sm text-slate-400">Nenhum arquivo anexado.</p>
+                    ) : (
+                      <ul className="mt-2 space-y-1 text-sm">
+                        {infoAssets
+                          .filter((a: any) => a.kind === "file")
+                          .map((a: any) => (
+                            <li key={a.id} className="flex items-center justify-between gap-2">
+                              <span className="truncate text-slate-200">{a.fileName}</span>
+                              {a.publicUrl ? (
+                                <a
+                                  href={a.publicUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs text-cyan-300 hover:text-cyan-200"
+                                >
+                                  Baixar
+                                </a>
+                              ) : (
+                                <span className="text-xs text-slate-500">—</span>
+                              )}
+                            </li>
+                          ))}
+                      </ul>
+                    )}
                   </div>
 
                   <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">

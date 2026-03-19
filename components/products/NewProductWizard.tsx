@@ -7,7 +7,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { useProductsStore } from "@/store/productsStore";
 import type { Printer, Product, SupplyItem } from "@/types";
 import type { Marketplace } from "@/types";
-import { listPrinters, listSupplies, upsertProductMaterial } from "@/lib/supabaseProduction";
+import { listPrinters, listSupplies, uploadProductFile, upsertProductMaterial } from "@/lib/supabaseProduction";
 import { upsertProductsForUser } from "@/lib/supabaseProducts";
 import {
   calcEnergyCostFromPrinter,
@@ -71,6 +71,8 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
   const [materials, setMaterials] = useState<BomLine[]>([]);
   const [addSupplyId, setAddSupplyId] = useState("");
   const [addQty, setAddQty] = useState<number | "">("");
+  const [mainImage, setMainImage] = useState<File | null>(null);
+  const [extraFiles, setExtraFiles] = useState<File[]>([]);
   const defaultMargin = Number(settings?.defaults?.desiredMargin ?? 45);
   const [marginPercent, setMarginPercent] = useState<number | "">(defaultMargin);
   const [price, setPrice] = useState<number>(0);
@@ -401,6 +403,32 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
             updatedAt: nowIso,
           });
         }
+
+        // Uploads (imagem principal + arquivos)
+        const uploads: Array<Promise<any>> = [];
+        if (mainImage) {
+          uploads.push(
+            uploadProductFile({
+              userId: user.id,
+              productId,
+              kind: "image",
+              file: mainImage,
+            }),
+          );
+        }
+        for (const f of extraFiles) {
+          uploads.push(
+            uploadProductFile({
+              userId: user.id,
+              productId,
+              kind: "file",
+              file: f,
+            }),
+          );
+        }
+        if (uploads.length > 0) {
+          await Promise.all(uploads);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erro ao salvar.");
         setSaving(false);
@@ -418,6 +446,8 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
     setPrintMinutes(0);
     setDefaultPrinterId(null);
     setMaterials([]);
+    setMainImage(null);
+    setExtraFiles([]);
     setMarginPercent(0);
     setPrice(0);
   }
@@ -577,26 +607,64 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
               <div>
                 <label className="mb-1 block text-xs text-slate-400">Imagem principal</label>
                 <div className="flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-900/40 text-slate-500">
-                  Clique em &quot;Selecionar Imagem&quot; para adicionar (em breve)
+                  {mainImage ? mainImage.name : 'Clique em "Selecionar Imagem" para adicionar'}
                 </div>
-                <button
-                  type="button"
-                  className="mt-2 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
-                >
+                <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">
                   Selecionar Imagem
-                </button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      setMainImage(f);
+                    }}
+                  />
+                </label>
+                {mainImage ? (
+                  <button
+                    type="button"
+                    onClick={() => setMainImage(null)}
+                    className="ml-2 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+                  >
+                    Remover
+                  </button>
+                ) : null}
               </div>
               <div>
                 <label className="mb-1 block text-xs text-slate-400">
                   Arquivos adicionais (3MF, STL, GCODE, PDF, etc.)
                 </label>
-                <button
-                  type="button"
-                  className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
-                >
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">
                   Adicionar Arquivos
-                </button>
-                <p className="mt-1 text-xs text-slate-500">Nenhum arquivo adicionado</p>
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files ?? []);
+                      if (files.length > 0) setExtraFiles((prev) => [...prev, ...files]);
+                    }}
+                  />
+                </label>
+                {extraFiles.length === 0 ? (
+                  <p className="mt-1 text-xs text-slate-500">Nenhum arquivo adicionado</p>
+                ) : (
+                  <ul className="mt-2 space-y-1 text-xs text-slate-300">
+                    {extraFiles.map((f, idx) => (
+                      <li key={`${f.name}-${idx}`} className="flex items-center justify-between gap-2">
+                        <span className="truncate">{f.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setExtraFiles((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-rose-400 hover:text-rose-300"
+                        >
+                          Remover
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           )}

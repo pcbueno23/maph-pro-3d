@@ -406,6 +406,22 @@ export interface ProductMaterial {
   updatedAt: string;
 }
 
+export type ProductAssetKind = "image" | "file";
+
+export interface ProductAsset {
+  id: string;
+  userId: string;
+  productId: string;
+  kind: ProductAssetKind;
+  fileName: string;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  storageBucket: string;
+  storagePath: string;
+  publicUrl?: string | null;
+  createdAt: string;
+}
+
 export type ProductionOrderStatus =
   | "new"
   | "preparing"

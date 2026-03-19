@@ -4,6 +4,7 @@ import type {
   SupplyItem,
   SupplyMovement,
   ProductMaterial,
+  ProductAsset,
   ProductionOrder,
   Quote,
   QuoteItem,
@@ -255,6 +256,99 @@ function mapProductMaterialRow(row: any): ProductMaterial {
     unit: row.unit,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+// =========================
+// Assets (uploads) por produto
+// =========================
+
+export async function listProductAssets(userId: string, productId: string): Promise<ProductAsset[]> {
+  const client = mustHaveClient();
+  const { data, error } = await client
+    .from("product_assets")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("product_id", productId)
+    .order("created_at", { ascending: false });
+  if (error || !data) throw error ?? new Error("Falha ao listar anexos do produto");
+  return data.map(mapProductAssetRow);
+}
+
+export async function createProductAsset(
+  userId: string,
+  input: Omit<ProductAsset, "userId" | "id" | "createdAt"> & { id?: string; createdAt?: string },
+): Promise<ProductAsset> {
+  const client = mustHaveClient();
+  const payload: any = {
+    user_id: userId,
+    product_id: input.productId,
+    kind: input.kind,
+    file_name: input.fileName,
+    mime_type: input.mimeType ?? null,
+    size_bytes: input.sizeBytes ?? null,
+    storage_bucket: input.storageBucket,
+    storage_path: input.storagePath,
+    public_url: input.publicUrl ?? null,
+    created_at: input.createdAt ?? new Date().toISOString(),
+  };
+  if (input.id) payload.id = input.id;
+  const { data, error } = await client
+    .from("product_assets")
+    .insert(payload)
+    .select("*")
+    .single();
+  if (error || !data) throw error ?? new Error("Falha ao salvar anexo do produto");
+  return mapProductAssetRow(data);
+}
+
+export async function uploadProductFile(params: {
+  userId: string;
+  productId: string;
+  kind: "image" | "file";
+  file: File;
+}): Promise<ProductAsset> {
+  const client = mustHaveClient();
+  const { userId, productId, kind, file } = params;
+
+  const safeName = (file.name ?? "arquivo").replace(/[^\w.\-() ]+/g, "_");
+  const id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `asset_${Date.now()}`;
+  const path = `${userId}/${productId}/${id}_${safeName}`;
+
+  const { error: upErr } = await client.storage
+    .from("product-assets")
+    .upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (upErr) throw upErr;
+
+  const { data } = client.storage.from("product-assets").getPublicUrl(path);
+  const publicUrl = data?.publicUrl ?? null;
+
+  return await createProductAsset(userId, {
+    id,
+    productId,
+    kind,
+    fileName: file.name ?? safeName,
+    mimeType: file.type ?? null,
+    sizeBytes: Number.isFinite(file.size) ? file.size : null,
+    storageBucket: "product-assets",
+    storagePath: path,
+    publicUrl,
+  });
+}
+
+function mapProductAssetRow(row: any): ProductAsset {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    productId: row.product_id,
+    kind: row.kind,
+    fileName: row.file_name,
+    mimeType: row.mime_type,
+    sizeBytes: row.size_bytes == null ? null : Number(row.size_bytes),
+    storageBucket: row.storage_bucket,
+    storagePath: row.storage_path,
+    publicUrl: row.public_url,
+    createdAt: row.created_at,
   };
 }
 
