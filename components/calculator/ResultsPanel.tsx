@@ -46,6 +46,14 @@ export function ResultsPanel({ results, isDirty }: Props) {
     kitMarginML,
     kitMarginDirectCash,
     kitMarginDirectCard,
+    taxaFalhaPercent,
+    maoDeObraCusto,
+    custoTotalAjustado,
+    descontoPercentualReal,
+    precoComDesconto,
+    lucroLiquidoReal,
+    margemReal,
+    alertaLucroAbaixoDaMeta,
   } = results;
 
   const worstChannel =
@@ -95,6 +103,7 @@ export function ResultsPanel({ results, isDirty }: Props) {
   ];
 
   const profitPositive = profitPerSale >= 0;
+  const realMarginLow = margemReal < 20;
 
   const CascataBlock = ({
     title,
@@ -179,6 +188,20 @@ export function ResultsPanel({ results, isDirty }: Props) {
             {fmt(profitPerHour)}/h
           </p>
         </div>
+
+        <div
+          className={`rounded-xl px-3 py-2 text-right text-xs ${
+            realMarginLow ? "bg-rose-500/10 text-rose-300" : "bg-cyan-500/10 text-cyan-300"
+          }`}
+        >
+          <p className="font-semibold">Lucro real (com ajustes)</p>
+          <p className="text-sm text-slate-50">
+            {fmt(lucroLiquidoReal)} ({margemReal.toFixed(1)}%)
+          </p>
+          <p className="mt-0.5 text-[10px] text-slate-400">
+            Antes: {fmt(profitPerSale)} · Depois: {fmt(lucroLiquidoReal)}
+          </p>
+        </div>
         <div className="rounded-xl bg-slate-950/40 px-3 py-2 text-right text-xs text-slate-300">
           <p className="font-semibold text-slate-100">Sugestões</p>
           <p className="mt-0.5">
@@ -247,6 +270,51 @@ export function ResultsPanel({ results, isDirty }: Props) {
             </p>
           </div>
         )}
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3 text-xs">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          Ajustes avançados (antes vs depois)
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1 text-slate-300">
+            <p>
+              Custo base: <span className="text-slate-100">{fmt(totalCost)}</span>
+            </p>
+            <p>
+              Mão de obra: <span className="text-slate-100">{fmt(maoDeObraCusto)}</span>
+            </p>
+            <p>
+              Taxa de falha: <span className="text-slate-100">{taxaFalhaPercent.toFixed(1)}%</span>
+            </p>
+            <p>
+              Custo real ajustado: <span className="text-emerald-200">{fmt(custoTotalAjustado)}</span>
+            </p>
+          </div>
+          <div className="space-y-1 text-slate-300">
+            <p>
+              Desconto real: <span className="text-slate-100">{descontoPercentualReal.toFixed(1)}%</span>
+            </p>
+            <p>
+              Preço sugerido: <span className="text-slate-100">{fmt(suggestedPrice)}</span>
+            </p>
+            <p>
+              Preço com desconto: <span className="text-slate-100">{fmt(precoComDesconto)}</span>
+            </p>
+            <p>
+              Margem real:{" "}
+              <span className={realMarginLow ? "text-rose-300" : "text-emerald-300"}>
+                {margemReal.toFixed(1)}%
+              </span>
+            </p>
+          </div>
+        </div>
+
+        {alertaLucroAbaixoDaMeta ? (
+          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+            Seu lucro real está abaixo da meta devido a falhas, taxas ou descontos.
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

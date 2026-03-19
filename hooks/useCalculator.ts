@@ -76,6 +76,13 @@ function getDefaultValues(
       comparePrice: undefined as number | undefined,
       cardFeePercent: settings.defaults.cardFeePercent ?? 0,
     },
+    advanced: {
+      taxaFalha: 10,
+      maoDeObraTipo: "fixo" as const,
+      maoDeObraValor: 0,
+      tempoManualMin: 0,
+      descontoPercentual: 0,
+    },
   };
 }
 

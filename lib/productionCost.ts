@@ -105,6 +105,13 @@ export async function computeProductUnitCost(userId: string, product: Product): 
       cardFeePercent: settings.defaults.cardFeePercent ?? 0,
       comparePrice: undefined,
     },
+    advanced: {
+      taxaFalha: 0,
+      maoDeObraTipo: "fixo" as const,
+      maoDeObraValor: 0,
+      tempoManualMin: 0,
+      descontoPercentual: 0,
+    },
   } satisfies any;
 
   // Custo de materiais via BOM

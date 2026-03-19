@@ -80,6 +80,37 @@ export const calculatorSchema = z
       .optional()
       .transform((n) => (typeof n === "number" && !Number.isNaN(n) && n > 0 ? n : undefined)),
   }),
+  advanced: z
+    .object({
+      taxaFalha: z
+        .union([z.number(), z.nan()])
+        .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 10))
+        .pipe(z.number().min(0).max(99.9))
+        .default(10),
+      maoDeObraTipo: z.enum(["fixo", "hora"]).default("fixo"),
+      maoDeObraValor: z
+        .union([z.number(), z.nan()])
+        .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
+        .pipe(z.number().min(0))
+        .default(0),
+      tempoManualMin: z
+        .union([z.number(), z.nan()])
+        .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
+        .pipe(z.number().min(0))
+        .default(0),
+      descontoPercentual: z
+        .union([z.number(), z.nan()])
+        .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
+        .pipe(z.number().min(0).max(99))
+        .default(0),
+    })
+    .default({
+      taxaFalha: 10,
+      maoDeObraTipo: "fixo",
+      maoDeObraValor: 0,
+      tempoManualMin: 0,
+      descontoPercentual: 0,
+    }),
 })
   .superRefine((data, ctx) => {
     if (data.time.unitsPerBatch <= 1 && data.material.weight < 1) {
@@ -199,6 +230,17 @@ export interface CalculatorResults {
       profitPerHour: number;
     };
   } | null;
+
+  /** Ajustes avançados */
+  taxaFalhaPercent: number;
+  maoDeObraCusto: number;
+  custoTotalAjustado: number;
+  descontoPercentualReal: number;
+  precoComDesconto: number;
+  lucroLiquidoReal: number;
+  margemReal: number;
+  /** Sugestão/alerta quando lucro real fica abaixo da meta. */
+  alertaLucroAbaixoDaMeta: boolean;
 }
 
 export interface Product {
