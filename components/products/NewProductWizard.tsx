@@ -419,10 +419,10 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80">
-      <div className="flex min-h-[100dvh] items-start justify-center px-4 py-8">
-        <div className="w-full max-w-2xl max-h-[calc(100dvh-4rem)] min-h-0 flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 p-4">
+      <div className="flex min-h-[calc(100dvh-2rem)] items-center justify-center">
+        <div className="flex h-[min(90dvh,820px)] w-full max-w-2xl min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
+          <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
           <h2 className="text-lg font-semibold text-slate-50">Novo Produto</h2>
           <button
             type="button"
@@ -432,9 +432,9 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
           >
             <span className="text-xl leading-none">×</span>
           </button>
-        </div>
+          </div>
 
-        <div className="flex gap-1 border-b border-slate-800 px-4 py-2">
+          <div className="flex gap-1 border-b border-slate-800 px-4 py-2">
           {STEPS.map((s) => (
             <div
               key={s.id}
@@ -460,9 +460,9 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
               {s.label}
             </div>
           ))}
-        </div>
+          </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto p-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4">
           {error && (
             <div className="mb-4 rounded-xl border border-rose-800 bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
               {error}
@@ -732,9 +732,9 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
               </div>
             </div>
           )}
-        </div>
+          </div>
 
-        <div className="flex justify-between gap-2 border-t border-slate-800 px-4 py-3">
+          <div className="flex justify-between gap-2 border-t border-slate-800 px-4 py-3">
           <div>
             {step > 1 && (
               <button
@@ -774,8 +774,8 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
               </button>
             )}
           </div>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );
