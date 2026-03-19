@@ -33,9 +33,9 @@ const plans: Plan[] = [
     name: "Pro",
     priceLabel: "R$ 24,99 / mês",
     highlight: true,
-    badge: "7 dias grátis + Pro completo",
+    badge: "Para quem precisa precificar",
     description:
-      "Para makers que querem organizar e profissionalizar apenas a precificação dos produtos. Acesso Pro completo por 7 dias grátis; depois R$ 24,99/mês.",
+      "Para makers que querem organizar e profissionalizar apenas a precificação dos produtos (sem CRM completo).",
     features: [
       "Acesso à calculadora de precificação 3D",
       "Analisador STL/3MF para estimar peso e tempo automaticamente",

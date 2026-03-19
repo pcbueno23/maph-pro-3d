@@ -392,90 +392,182 @@ export default function InsumosPage() {
         ) : supplies.length === 0 ? (
           <p className="text-slate-400">Nenhum insumo cadastrado ainda.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-xs">
-              <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                <tr>
-                  <th className="px-2 py-2">Nome</th>
-                  <th className="px-2 py-2">Categoria</th>
-                  <th className="px-2 py-2">Unidade</th>
-                  <th className="px-2 py-2">Custo/un</th>
-                  <th className="px-2 py-2">Estoque</th>
-                  <th className="px-2 py-2">Mínimo</th>
-                  <th className="px-2 py-2">Compra</th>
-                  <th className="px-2 py-2 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {supplies.map((s) => {
-                  const low = (s.minStockQty ?? 0) > 0 && (s.stockQty ?? 0) <= (s.minStockQty ?? 0);
-                  return (
-                    <tr key={s.id} className="hover:bg-slate-900/60">
-                      <td className="px-2 py-2">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full border border-slate-700"
-                            style={{ backgroundColor: s.color ?? "transparent" }}
-                            title={s.color ?? ""}
-                          />
-                          <span className="text-slate-100">{s.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-2 py-2 text-slate-300">{categoryLabel[s.category]}</td>
-                      <td className="px-2 py-2 text-slate-300">{s.unit}</td>
-                      <td className="px-2 py-2 text-slate-100">{formatBRL(Number(s.unitCost ?? 0))}</td>
-                      <td className={`px-2 py-2 ${low ? "text-amber-300" : "text-slate-100"}`}>
-                        {Number(s.stockQty ?? 0).toLocaleString("pt-BR")}
-                      </td>
-                      <td className="px-2 py-2 text-slate-300">
-                        {Number(s.minStockQty ?? 0).toLocaleString("pt-BR")}
-                      </td>
-                      <td className="px-2 py-2">
-                        {s.purchaseLink ? (
-                          <a
-                            href={s.purchaseLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-cyan-400 hover:text-cyan-300"
+          <>
+            <div className="md:hidden space-y-3 px-1">
+              {supplies.map((s) => {
+                const low =
+                  (s.minStockQty ?? 0) > 0 && (s.stockQty ?? 0) <= (s.minStockQty ?? 0);
+                return (
+                  <div
+                    key={s.id}
+                    className={`rounded-xl border border-slate-800 bg-slate-950/40 p-3 text-xs ${
+                      low ? "border-amber-500/30" : ""
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-slate-100">{s.name}</p>
+                        <p className="mt-0.5 text-[11px] text-slate-400">
+                          {categoryLabel[s.category]} • {s.unit}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-[11px] font-semibold ${low ? "text-amber-300" : "text-slate-200"}`}>
+                          Estoque: {Number(s.stockQty ?? 0).toLocaleString("pt-BR")}
+                        </p>
+                        {low ? (
+                          <p className="mt-0.5 text-[10px] text-amber-200">Abaixo do mínimo</p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 space-y-1 text-[11px] text-slate-300">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Custo/un</span>
+                        <span className="text-slate-100">{formatBRL(Number(s.unitCost ?? 0))}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Mínimo</span>
+                        <span className="text-slate-100">{Number(s.minStockQty ?? 0).toLocaleString("pt-BR")}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Compra</span>
+                        <span className="text-right">
+                          {s.purchaseLink ? (
+                            <a
+                              href={s.purchaseLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-cyan-400 hover:text-cyan-300"
+                            >
+                              Link
+                            </a>
+                          ) : (
+                            <span className="text-slate-500">-</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openMovements(s)}
+                        className="rounded-lg bg-slate-900/60 px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-900 disabled:opacity-60"
+                        disabled={loading}
+                      >
+                        Movimentar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEdit(s)}
+                        className="rounded-lg border border-slate-800 bg-slate-900/60 px-2 py-1 text-[11px] text-cyan-300 hover:bg-slate-900 disabled:opacity-60"
+                        disabled={loading}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeSupply(s)}
+                        className="rounded-lg border border-slate-800 bg-slate-900/60 px-2 py-1 text-[11px] text-rose-300 hover:bg-slate-900 disabled:opacity-60"
+                        disabled={loading}
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                  <tr>
+                    <th className="px-2 py-2">Nome</th>
+                    <th className="px-2 py-2">Categoria</th>
+                    <th className="px-2 py-2">Unidade</th>
+                    <th className="px-2 py-2">Custo/un</th>
+                    <th className="px-2 py-2">Estoque</th>
+                    <th className="px-2 py-2">Mínimo</th>
+                    <th className="px-2 py-2">Compra</th>
+                    <th className="px-2 py-2 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {supplies.map((s) => {
+                    const low =
+                      (s.minStockQty ?? 0) > 0 && (s.stockQty ?? 0) <= (s.minStockQty ?? 0);
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-900/60">
+                        <td className="px-2 py-2">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-2.5 w-2.5 rounded-full border border-slate-700"
+                              style={{ backgroundColor: s.color ?? "transparent" }}
+                              title={s.color ?? ""}
+                            />
+                            <span className="text-slate-100">{s.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-2 py-2 text-slate-300">{categoryLabel[s.category]}</td>
+                        <td className="px-2 py-2 text-slate-300">{s.unit}</td>
+                        <td className="px-2 py-2 text-slate-100">{formatBRL(Number(s.unitCost ?? 0))}</td>
+                        <td
+                          className={`px-2 py-2 ${low ? "text-amber-300" : "text-slate-100"}`}
+                        >
+                          {Number(s.stockQty ?? 0).toLocaleString("pt-BR")}
+                        </td>
+                        <td className="px-2 py-2 text-slate-300">
+                          {Number(s.minStockQty ?? 0).toLocaleString("pt-BR")}
+                        </td>
+                        <td className="px-2 py-2">
+                          {s.purchaseLink ? (
+                            <a
+                              href={s.purchaseLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-cyan-400 hover:text-cyan-300"
+                            >
+                              Link
+                            </a>
+                          ) : (
+                            <span className="text-slate-500">-</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => openMovements(s)}
+                            className="mr-3 text-xs text-slate-200 hover:text-slate-50"
+                            disabled={loading}
                           >
-                            Link
-                          </a>
-                        ) : (
-                          <span className="text-slate-500">-</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        <button
-                          type="button"
-                          onClick={() => openMovements(s)}
-                          className="mr-3 text-xs text-slate-200 hover:text-slate-50"
-                          disabled={loading}
-                        >
-                          Movimentar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openEdit(s)}
-                          className="mr-3 text-xs text-cyan-400 hover:text-cyan-300"
-                          disabled={loading}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeSupply(s)}
-                          className="text-xs text-rose-400 hover:text-rose-300 disabled:opacity-60"
-                          disabled={loading}
-                        >
-                          Remover
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            Movimentar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(s)}
+                            className="mr-3 text-xs text-cyan-400 hover:text-cyan-300"
+                            disabled={loading}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeSupply(s)}
+                            className="text-xs text-rose-400 hover:text-rose-300 disabled:opacity-60"
+                            disabled={loading}
+                          >
+                            Remover
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -738,38 +830,66 @@ export default function InsumosPage() {
 
               <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Histórico</p>
-                <div className="mt-3 max-h-[360px] overflow-y-auto overflow-x-auto">
+                <div className="mt-3 max-h-[360px] overflow-y-auto">
                   {movementsLoading ? (
                     <p className="py-6 text-center text-xs text-slate-400">Carregando...</p>
                   ) : movements.length === 0 ? (
                     <p className="py-6 text-center text-xs text-slate-400">Nenhuma movimentação ainda.</p>
                   ) : (
-                    <table className="min-w-full text-left text-xs">
-                      <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                        <tr>
-                          <th className="px-2 py-2">Data</th>
-                          <th className="px-2 py-2">Tipo</th>
-                          <th className="px-2 py-2">Qtd</th>
-                          <th className="px-2 py-2">Obs.</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {movements.map((m) => (
-                          <tr key={m.id} className="hover:bg-slate-900/60">
-                            <td className="px-2 py-2 text-slate-400">
-                              {new Date(m.createdAt).toLocaleString("pt-BR")}
-                            </td>
-                            <td className="px-2 py-2 text-slate-300">
-                              {m.kind === "in" ? "Entrada" : m.kind === "out" ? "Saída" : "Ajuste"}
-                            </td>
-                            <td className="px-2 py-2 text-slate-100">
-                              {Number(m.qty ?? 0).toLocaleString("pt-BR")}
-                            </td>
-                            <td className="px-2 py-2 text-slate-300">{m.note ?? "-"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <>
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="min-w-full text-left text-xs">
+                          <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                            <tr>
+                              <th className="px-2 py-2">Data</th>
+                              <th className="px-2 py-2">Tipo</th>
+                              <th className="px-2 py-2">Qtd</th>
+                              <th className="px-2 py-2">Obs.</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800">
+                            {movements.map((m) => (
+                              <tr key={m.id} className="hover:bg-slate-900/60">
+                                <td className="px-2 py-2 text-slate-400">
+                                  {new Date(m.createdAt).toLocaleString("pt-BR")}
+                                </td>
+                                <td className="px-2 py-2 text-slate-300">
+                                  {m.kind === "in" ? "Entrada" : m.kind === "out" ? "Saída" : "Ajuste"}
+                                </td>
+                                <td className="px-2 py-2 text-slate-100">
+                                  {Number(m.qty ?? 0).toLocaleString("pt-BR")}
+                                </td>
+                                <td className="px-2 py-2 text-slate-300">{m.note ?? "-"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="md:hidden space-y-2 px-1">
+                        {movements.map((m) => {
+                          const kindLabel =
+                            m.kind === "in" ? "Entrada" : m.kind === "out" ? "Saída" : "Ajuste";
+                          return (
+                            <div
+                              key={m.id}
+                              className="rounded-xl border border-slate-800 bg-slate-950/40 p-3 text-xs"
+                            >
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                {new Date(m.createdAt).toLocaleDateString("pt-BR")}
+                              </p>
+                              <p className="mt-1 font-medium text-slate-100">{kindLabel}</p>
+                              <p className="mt-0.5 text-slate-300">
+                                Qtd:{" "}
+                                <span className="font-semibold text-slate-100">
+                                  {Number(m.qty ?? 0).toLocaleString("pt-BR")}
+                                </span>
+                              </p>
+                              <p className="mt-0.5 text-slate-500">Obs: {m.note ?? "-"}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
