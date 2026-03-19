@@ -16,9 +16,14 @@ import { useSettingsStore } from "@/store/settingsStore";
 
 const SHOPEE_COMMISSION_CAP = 100;
 
-// Shopee: taxa fixa sempre R$ 4 (configuração do app).
-function getShopeeFixedFee(): number {
-  return 4;
+// Shopee: taxa fixa (CPF vs CNPJ).
+// Regras usadas aqui:
+// - CPF: R$ 7 (padrão)
+// - CNPJ: R$ 4 (padrão)
+// - Itens < R$ 10: taxa proporcional (até metade do valor) = preço/2
+function getShopeeFixedFee(personType: PersonType, price: number): number {
+  if (price > 0 && price < 10) return price / 2;
+  return personType === "CPF" ? 7 : 4;
 }
 
 function getShopeeCommissionPercent(freeShipping: boolean): number {
@@ -36,7 +41,7 @@ export function getShopeeEffectiveFeePercent(
 ): number {
   if (price <= 0) return 20;
   const commissionPct = getShopeeCommissionPercent(freeShipping);
-  const fixedFee = getShopeeFixedFee();
+  const fixedFee = getShopeeFixedFee(personType, price);
   const commissionAmount = Math.min(
     (price * commissionPct) / 100,
     SHOPEE_COMMISSION_CAP
@@ -111,7 +116,7 @@ export function getShopeeFeeBreakdown(
     (price * commissionPct) / 100,
     SHOPEE_COMMISSION_CAP
   );
-  const fixedFeeAmount = getShopeeFixedFee();
+  const fixedFeeAmount = getShopeeFixedFee(personType, price);
   return {
     commissionRateDecimal: commissionPct / 100,
     commissionAmount,
@@ -162,8 +167,16 @@ export function getShopeeSuggestedPrice(params: {
   const divisor = 1 - fee - tax - margin;
   if (divisor <= 0) return totalCost + shippingAmount;
 
-  const fixedFee = getShopeeFixedFee();
-  return (totalCost + shippingAmount + fixedFee) / divisor;
+  // Taxa fixa depende do tipo de pessoa e, para tickets baixos (<10),
+  // depende do próprio preço; fazemos iteração simples para convergir.
+  let price = (totalCost + shippingAmount + (personType === "CPF" ? 7 : 4)) / divisor;
+  for (let i = 0; i < 6; i++) {
+    const fixedFee = getShopeeFixedFee(personType, price);
+    const next = (totalCost + shippingAmount + fixedFee) / divisor;
+    if (Math.abs(next - price) < 0.01) break;
+    price = next;
+  }
+  return price;
 }
 
 /** Preço sugerido ML para atingir margem desejada (itera para convergir taxa efetiva). */
