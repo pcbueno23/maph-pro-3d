@@ -277,25 +277,9 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     return price * rate;
   };
 
-  // Preço sugerido por canal (mesma margem alvo, preços podem ser diferentes)
-  const suggestedPriceShopee = getShopeeSuggestedPrice({
-    totalCost,
-    shippingAmount,
-    taxPercent,
-    desiredMarginPercent: input.pricing.desiredMargin,
-    freeShipping: input.pricing.freeShipping ?? false,
-    personType: input.pricing.personType,
-  });
-  const suggestedPriceML = getMLSuggestedPrice({
-    totalCost,
-    shippingAmount,
-    taxPercent,
-    desiredMarginPercent: input.pricing.desiredMargin,
-    personType: input.pricing.personType,
-    classic: input.pricing.mlClassic ?? false,
-  });
-  const suggestedPrice = Math.max(suggestedPriceShopee, suggestedPriceML);
   // ===== Lucro líquido real (cadeia completa/consistente) =====
+  // Importante: usamos o custo real ajustado como base das sugestões
+  // para garantir que a margem desejada seja atingida mesmo com falha/mão de obra.
   const full = calcularPrecoCompleto(input);
   const taxaFalhaPercent = full.taxaFalhaPercent;
   const maoDeObraCusto = full.maoDeObra.custo;
@@ -305,6 +289,11 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
   const lucroLiquidoReal = full.lucroLiquidoReal;
   const margemReal = full.margemReal;
   const alertaLucroAbaixoDaMeta = margemReal < (input.pricing.desiredMargin ?? 0);
+
+  // Preço sugerido por canal (mesma margem alvo, preços podem ser diferentes)
+  const suggestedPriceShopee = full.suggested.suggestedPriceShopee;
+  const suggestedPriceML = full.suggested.suggestedPriceML;
+  const suggestedPrice = full.suggested.suggestedPrice;
 
   // Shopee no preço sugerido dela
   const feePercentShopee = getEffectiveMarketplaceFeePercent(
@@ -383,14 +372,14 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
   // Sugestões adicionais para venda direta
   const cardFeePercent = input.pricing.cardFeePercent ?? 0;
   const suggestedPriceDirectCash = calcSuggestedPrice({
-    totalCost,
+    totalCost: custoTotalAjustado,
     marketplaceFeePercent: 0,
     desiredMarginPercent: input.pricing.desiredMargin,
     shippingAmount,
     taxPercent,
   });
   const suggestedPriceDirectCard = calcSuggestedPrice({
-    totalCost,
+    totalCost: custoTotalAjustado,
     marketplaceFeePercent: cardFeePercent,
     desiredMarginPercent: input.pricing.desiredMargin,
     shippingAmount,
@@ -399,7 +388,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
 
   // Preço mínimo (lucro zero) por canal, usando o mesmo motor das sugestões
   const minimumPriceShopee = getShopeeSuggestedPrice({
-    totalCost,
+    totalCost: custoTotalAjustado,
     shippingAmount,
     taxPercent,
     desiredMarginPercent: 0,
@@ -407,7 +396,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     personType: input.pricing.personType,
   });
   const minimumPriceML = getMLSuggestedPrice({
-    totalCost,
+    totalCost: custoTotalAjustado,
     shippingAmount,
     taxPercent,
     desiredMarginPercent: 0,
