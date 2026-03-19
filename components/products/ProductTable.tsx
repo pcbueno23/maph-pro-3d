@@ -954,6 +954,30 @@ export function ProductTable({ products }: Props) {
                               />
                             </div>
                           </div>
+
+                          <div>
+                            <label className="mb-1 block text-[11px] text-slate-300">
+                              Foto do produto
+                            </label>
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-900">
+                              {infoUploadBusy ? "Enviando..." : "Selecionar / trocar imagem"}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={infoUploadBusy || infoSaveBusy}
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0] ?? null;
+                                  e.currentTarget.value = "";
+                                  if (!f) return;
+                                  uploadMainImageForInfo(f);
+                                }}
+                              />
+                            </label>
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              A imagem enviada já atualiza o card do produto.
+                            </p>
+                          </div>
                         </div>
                       ) : null}
 
@@ -972,26 +996,28 @@ export function ProductTable({ products }: Props) {
                           </div>
                         ) : null;
                       })()}
-                      <div className="mt-3">
-                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-900">
-                          {infoUploadBusy ? "Enviando..." : "Trocar imagem do produto"}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            disabled={infoUploadBusy}
-                            onChange={(e) => {
-                              const f = e.target.files?.[0] ?? null;
-                              e.currentTarget.value = "";
-                              if (!f) return;
-                              uploadMainImageForInfo(f);
-                            }}
-                          />
-                        </label>
-                        <p className="mt-1 text-[11px] text-slate-500">
-                          A imagem mais recente vira a principal no card.
-                        </p>
-                      </div>
+                      {!infoEditOpen ? (
+                        <div className="mt-3">
+                          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-900">
+                            {infoUploadBusy ? "Enviando..." : "Trocar imagem do produto"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={infoUploadBusy}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0] ?? null;
+                                e.currentTarget.value = "";
+                                if (!f) return;
+                                uploadMainImageForInfo(f);
+                              }}
+                            />
+                          </label>
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            A imagem mais recente vira a principal no card.
+                          </p>
+                        </div>
+                      ) : null}
                       <div className="mt-2 space-y-1.5 text-sm">
                         <p className="text-slate-300">
                           Preço de venda:{" "}
