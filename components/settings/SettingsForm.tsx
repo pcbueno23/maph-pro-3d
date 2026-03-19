@@ -44,101 +44,6 @@ export function SettingsForm() {
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs text-slate-300">
-                Custo do kWh (R$)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...form.register("defaults.kwhPrice", { valueAsNumber: true })}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">
-                Custo da impressora (R$)
-              </label>
-              <input
-                type="number"
-                step="10"
-                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...form.register("defaults.printerCost", {
-                  valueAsNumber: true,
-                })}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">
-                Valor residual (R$)
-              </label>
-              <input
-                type="number"
-                step="10"
-                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...form.register("defaults.residualValue", {
-                  valueAsNumber: true,
-                })}
-              />
-              <p className="mt-0.5 text-[11px] text-slate-500">
-                Valor estimado de revenda ao fim da vida útil.
-              </p>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">
-                Vida útil da impressora (h)
-              </label>
-              <input
-                type="number"
-                step="10"
-                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...form.register("defaults.lifetimeHours", {
-                  valueAsNumber: true,
-                })}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">
-                Infraestrutura anual (R$/ano)
-              </label>
-              <input
-                type="number"
-                step="10"
-                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...form.register("defaults.infrastructureYear", {
-                  valueAsNumber: true,
-                })}
-              />
-              <p className="mt-0.5 text-[11px] text-slate-500">
-                Ex.: aluguel, internet, ferramentas, etc.
-              </p>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">
-                Manutenção anual (R$/ano)
-              </label>
-              <input
-                type="number"
-                step="10"
-                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...form.register("defaults.annualMaintenance", {
-                  valueAsNumber: true,
-                })}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">
-                Horas impressas/ano (h/ano)
-              </label>
-              <input
-                type="number"
-                step="10"
-                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...form.register("defaults.yearlyPrintHours", {
-                  valueAsNumber: true,
-                })}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">
                 Embalagem padrão (R$)
               </label>
               <input
@@ -303,25 +208,6 @@ export function SettingsForm() {
                   valueAsNumber: true,
                 })}
               />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">
-                Base de imposto
-              </label>
-              <select
-                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...form.register("defaults.taxMode")}
-              >
-                <option value="gross">Receita bruta (preço cheio)</option>
-                <option value="net_marketplace">
-                  Receita líquida marketplace (preço - comissão)
-                </option>
-              </select>
-              <p className="mt-0.5 text-[11px] text-slate-500">
-                Em “líquida”, o imposto é calculado sobre preço menos comissão do
-                marketplace.
-              </p>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
