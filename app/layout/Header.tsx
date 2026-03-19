@@ -17,6 +17,7 @@ const titles: Record<string, string> = {
   "/printer": "Impressora",
   "/fornecedores": "Fornecedores",
   "/promocoes": "Promoções",
+  "/tutorial": "Tutorial",
   "/conta": "Conta",
   "/settings": "Configurações",
 };
@@ -35,6 +36,7 @@ const mobileLinks = [
   { href: "/promocoes", label: "Promoções" },
   { href: "/alertas", label: "Alertas" },
   { href: "/reports", label: "Relatórios" },
+  { href: "/tutorial", label: "Tutorial" },
   { href: "/pricing", label: "Planos" },
   { href: "/conta", label: "Conta" },
   { href: "/settings", label: "Configurações" },

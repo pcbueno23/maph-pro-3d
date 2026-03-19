@@ -15,6 +15,7 @@ import {
   FileText,
   Bell,
   User,
+  GraduationCap,
 } from "lucide-react";
 
 const links = [
@@ -31,6 +32,7 @@ const links = [
   { href: "/promocoes", label: "Promoções", icon: Percent },
   { href: "/alertas", label: "Alertas", icon: Bell },
   { href: "/reports", label: "Relatórios", icon: LineChart },
+  { href: "/tutorial", label: "Tutorial", icon: GraduationCap },
   { href: "/pricing", label: "Planos", icon: CreditCard },
   { href: "/conta", label: "Conta", icon: User },
   { href: "/settings", label: "Configurações", icon: Settings },
