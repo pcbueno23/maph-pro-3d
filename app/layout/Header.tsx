@@ -17,6 +17,7 @@ const titles: Record<string, string> = {
   "/printer": "Impressora",
   "/fornecedores": "Fornecedores",
   "/promocoes": "Promoções",
+  "/conta": "Conta",
   "/settings": "Configurações",
 };
 
@@ -35,6 +36,7 @@ const mobileLinks = [
   { href: "/alertas", label: "Alertas" },
   { href: "/reports", label: "Relatórios" },
   { href: "/pricing", label: "Planos" },
+  { href: "/conta", label: "Conta" },
   { href: "/settings", label: "Configurações" },
 ];
 
@@ -47,7 +49,9 @@ export function Header() {
    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const title =
-    Object.entries(titles).find(([path]) => pathname.startsWith(path))?.[1] ??
+    Object.entries(titles)
+      .sort((a, b) => b[0].length - a[0].length)
+      .find(([path]) => (path === "/" ? pathname === "/" : pathname.startsWith(path)))?.[1] ??
     "MAPH PRO 3D";
 
   if (pathname === "/login") {
