@@ -973,12 +973,9 @@ export function ProductTable({ products }: Props) {
                           </div>
                         ) : null;
                       })()}
-                      <div className="mt-3">
-                        <label className="mb-1 block text-[11px] text-slate-300">
-                          Foto do produto
-                        </label>
-                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-900">
-                          {infoUploadBusy ? "Enviando..." : "Selecionar / trocar imagem"}
+                      <div className="mt-3 space-y-2">
+                        <p className="text-[11px] text-slate-300">Foto do produto</p>
+                        <label className="flex min-h-[150px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-700 bg-slate-900/40 text-center transition hover:border-cyan-500 hover:bg-slate-900/70">
                           <input
                             type="file"
                             accept="image/*"
@@ -991,10 +988,32 @@ export function ProductTable({ products }: Props) {
                               uploadMainImageForInfo(f);
                             }}
                           />
+                          {(() => {
+                            const mainImage = infoAssets.find((a) => a.kind === "image");
+                            const url =
+                              (infoProduct?.id && productThumbById[infoProduct.id]) || mainImage?.publicUrl || null;
+                            if (url) {
+                              return (
+                                <img
+                                  src={url}
+                                  alt={`Imagem de ${infoProduct?.name ?? "produto"}`}
+                                  className="h-[150px] w-full object-cover"
+                                  loading="lazy"
+                                />
+                              );
+                            }
+                            return (
+                              <div className="px-4 py-5">
+                                <p className="text-sm font-semibold text-slate-200">
+                                  {infoUploadBusy ? "Enviando..." : "Clique para adicionar foto"}
+                                </p>
+                                <p className="mt-1 text-[11px] text-slate-500">
+                                  PNG/JPG/WEBP. A imagem enviada vira a principal do produto.
+                                </p>
+                              </div>
+                            );
+                          })()}
                         </label>
-                        <p className="mt-1 text-[11px] text-slate-500">
-                          A imagem enviada atualiza a miniatura do card.
-                        </p>
                       </div>
                       <div className="mt-2 space-y-1.5 text-sm">
                         <p className="text-slate-300">
