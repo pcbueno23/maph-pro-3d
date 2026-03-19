@@ -26,7 +26,6 @@ const links = [
   { href: "/alertas", label: "Alertas", icon: Bell },
   { href: "/sales", label: "Vendas", icon: Package },
   { href: "/reports", label: "Relatórios", icon: LineChart },
-  { href: "/analyzer", label: "Analisador STL", icon: LineChart },
   { href: "/insumos", label: "Insumos", icon: Package },
   { href: "/impressoras", label: "Impressoras", icon: Printer },
   { href: "/fornecedores", label: "Fornecedores", icon: Store },

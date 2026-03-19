@@ -27,7 +27,6 @@ const mobileLinks = [
   { href: "/inventory", label: "Estoque" },
   { href: "/sales", label: "Vendas" },
   { href: "/reports", label: "Relatórios" },
-  { href: "/analyzer", label: "Analisador STL" },
   { href: "/printer", label: "Impressora" },
   { href: "/fornecedores", label: "Fornecedores" },
   { href: "/promocoes", label: "Promoções" },
