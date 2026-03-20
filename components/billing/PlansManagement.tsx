@@ -255,30 +255,41 @@ export function PlansManagement() {
             ) : null}
           </div>
 
-          {plan === "free" || isOnTrial ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={loadingAction}
-                onClick={() => void handleCheckout("pro")}
-                className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan hover:from-cyan-400 hover:to-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                Assinar Pro
-              </button>
-              <button
-                type="button"
-                disabled={loadingAction}
-                onClick={() => void handleCheckout("lifetime")}
-                className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                Assinar Business anual
-              </button>
-            </div>
-          ) : null}
         </div>
       </div>
 
       <div className="space-y-4">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
+            Plano Pro mensal
+          </p>
+          <p className="mt-2 text-sm font-medium text-slate-100">
+            Ideal para começar. Todas as funções do app com cobrança mensal.
+          </p>
+          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/30 p-3">
+            <ul className="space-y-2 text-xs text-slate-200">
+              <li className="flex items-start gap-2">
+                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
+                <span>Acesso completo ao app</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
+                <span>Pagamento mensal</span>
+              </li>
+            </ul>
+          </div>
+          <button
+            type="button"
+            disabled={loadingAction || (plan === "pro" && !isOnTrial)}
+            onClick={() => void handleCheckout("pro")}
+            className="mt-4 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan hover:from-cyan-400 hover:to-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {plan === "pro" && !isOnTrial
+              ? "Você já está no Pro"
+              : "Assinar Pro"}
+          </button>
+        </div>
+
         <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
@@ -308,35 +319,14 @@ export function PlansManagement() {
 
           <button
             type="button"
-            disabled={loadingAction}
+            disabled={loadingAction || (plan === "business" && !isOnTrial)}
             onClick={() => void handleCheckout("lifetime")}
             className="mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan hover:from-emerald-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            Assinar Plano Anual (Business)
+            {plan === "business" && !isOnTrial
+              ? "Você já está no Business"
+              : "Assinar Plano Anual (Business)"}
           </button>
-        </div>
-
-        <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-b from-emerald-500/10 to-slate-950/40 p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
-            Plano anual Business
-          </p>
-          <p className="mt-2 text-sm font-medium text-slate-100">
-            Pague menos que o Pro mensal e mantenha todas as funções — operação, custos e vendas.
-          </p>
-          {plan === "business" && !isOnTrial ? (
-            <p className="mt-3 text-xs text-slate-400">
-              Você já está no plano anual Business.
-            </p>
-          ) : (
-            <button
-              type="button"
-              disabled={loadingAction}
-              onClick={() => void handleCheckout("lifetime")}
-              className="mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.25)] transition hover:from-emerald-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {loadingAction ? "Abrindo checkout…" : "Assinar plano anual (Business)"}
-            </button>
-          )}
         </div>
       </div>
     </section>
