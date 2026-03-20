@@ -6,6 +6,50 @@ import { Eye, EyeOff, Lock, Mail, Phone, User, Building2, IdCard, Camera } from 
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
 
+/** Redimensiona e exporta JPEG para caber no user_metadata do Supabase e no PDF. */
+function fileToCompressedJpegDataUrl(
+  file: File,
+  maxSide = 512,
+  quality = 0.88,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result ?? "");
+      const img = new window.Image();
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth;
+          const h = img.naturalHeight;
+          if (!w || !h) {
+            reject(new Error("Imagem inválida."));
+            return;
+          }
+          const scale = Math.min(1, maxSide / Math.max(w, h));
+          const cw = Math.max(1, Math.round(w * scale));
+          const ch = Math.max(1, Math.round(h * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = cw;
+          canvas.height = ch;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            reject(new Error("Não foi possível processar a imagem."));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, cw, ch);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        } catch {
+          reject(new Error("Não foi possível processar a imagem."));
+        }
+      };
+      img.onerror = () => reject(new Error("Não foi possível carregar a imagem."));
+      img.src = dataUrl;
+    };
+    reader.onerror = () => reject(new Error("Não foi possível ler o arquivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
 type AccountFields = {
   fullName: string;
   phone: string;
@@ -25,15 +69,6 @@ const EMPTY_FIELDS: AccountFields = {
   companyPhone: "",
   companyLogo: "",
 };
-
-function toDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(new Error("Não foi possível ler a imagem."));
-    reader.readAsDataURL(file);
-  });
-}
 
 export function AccountForm() {
   const user = useAuthStore((s) => s.user);
@@ -82,7 +117,7 @@ export function AccountForm() {
 
     try {
       setError(null);
-      const dataUrl = await toDataUrl(file);
+      const dataUrl = await fileToCompressedJpegDataUrl(file);
       onFieldChange("companyLogo", dataUrl);
     } catch (err: any) {
       setError(err?.message ?? "Falha ao carregar logo.");
@@ -151,6 +186,11 @@ export function AccountForm() {
       });
       if (metaError) throw metaError;
 
+      const { data: sess } = await supabase.auth.getSession();
+      if (sess.session?.user) {
+        useAuthStore.getState().setAuth(sess.session.user, sess.session);
+      }
+
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -213,6 +253,9 @@ export function AccountForm() {
               Alterar logo
               <input type="file" accept="image/*" className="hidden" onChange={onLogoChange} />
             </label>
+            <p className="mt-1 max-w-[220px] text-center text-[10px] text-slate-500">
+              A imagem é otimizada (JPEG) para o PDF e para salvar na conta. Se o PDF ainda vier sem logo, salve a conta de novo após escolher o arquivo.
+            </p>
           </div>
 
           <div className="space-y-3">

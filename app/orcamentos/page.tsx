@@ -14,6 +14,7 @@ import {
   deleteQuote,
 } from "@/lib/supabaseProduction";
 import type { Quote } from "@/types";
+import { rasterizeImageSrcForJsPdf } from "@/lib/pdfLogo";
 
 function generateUuid() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -58,16 +59,6 @@ function getCompanyBrandingFromMetadata(
   const phone = String(metadata.company_phone ?? "").trim();
   if (!logo && !name && !document && !email && !phone) return null;
   return { logoDataUrl: logo, name, document, email, phone };
-}
-
-/** jsPDF aceita PNG/JPEG em base64 (sem prefixo data:). */
-function parseDataUrlForJsPdf(
-  dataUrl: string,
-): { format: "PNG" | "JPEG"; data: string } | null {
-  const m = dataUrl.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/i);
-  if (!m) return null;
-  const format = m[1].toLowerCase() === "png" ? "PNG" : "JPEG";
-  return { format, data: m[2] };
 }
 
 type WizardStep = 1 | 2 | 3 | 4;
@@ -141,13 +132,13 @@ export default function OrcamentosPage() {
       if (branding) {
         let logoRendered = false;
         if (branding.logoDataUrl) {
-          const parsed = parseDataUrlForJsPdf(branding.logoDataUrl);
-          if (parsed) {
+          const raster = await rasterizeImageSrcForJsPdf(branding.logoDataUrl);
+          if (raster) {
             try {
-              doc.addImage(parsed.data, parsed.format, marginX, y, 56, 56);
+              doc.addImage(raster.data, raster.format, marginX, y, 56, 56);
               logoRendered = true;
             } catch {
-              // Logo inválido ou formato não suportado no PDF — segue só com texto
+              // Logo inválido — segue só com texto
             }
           }
         }
