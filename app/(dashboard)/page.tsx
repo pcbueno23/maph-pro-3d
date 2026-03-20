@@ -102,12 +102,12 @@ function prettyDayLabel(d: Date) {
   return d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
 }
 
-function parseOrderDate(order: ProductionOrder) {
-  // Preferimos o dueDate quando existir, pois costuma representar melhor o "dia operacional".
-  if (order.dueDate) {
-    return new Date(`${order.dueDate}T00:00:00`);
-  }
-  return new Date(order.createdAt);
+/**
+ * Data de referência para filtro "no período" no dashboard.
+ * Usar dueDate aqui excluía ordens ativas com entrega futura (comum em produção).
+ */
+function orderCreatedLocalDayStart(order: ProductionOrder): Date {
+  return startOfDayLocal(new Date(order.createdAt));
 }
 
 export default function DashboardPage() {
@@ -172,28 +172,29 @@ export default function DashboardPage() {
     const toDate = now;
     const fromDaysBack = range === "today" ? 0 : range === "7d" ? 6 : 29;
     const fromDate = startOfDayLocal(addDaysLocal(now, -fromDaysBack));
+    const endOfPeriodDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     const label = range === "today" ? "Hoje" : range === "7d" ? "Últimos 7 dias" : "Últimos 30 dias";
-    return { fromDate, toDate, label };
+    return { fromDate, toDate, endOfPeriodDate, label };
   }, [range]);
 
   const filteredOrders = useMemo(() => {
-    const { fromDate, toDate } = rangeMeta;
+    const { fromDate, endOfPeriodDate } = rangeMeta;
     return orders.filter((o) => {
-      const d = parseOrderDate(o);
-      return d >= fromDate && d <= toDate;
+      const d = orderCreatedLocalDayStart(o);
+      return d >= fromDate && d <= endOfPeriodDate;
     });
   }, [orders, rangeMeta]);
 
   /**
    * Gráfico "Ordens por status": inclui **sempre** ordens em aberto (alinha com Pipeline em aberto),
    * e no período filtrado inclui também concluídas/canceladas. Só com `filteredOrders`, ordens
-   * antigas abertas somem do gráfico quando o prazo/criação cai fora de 7/30 dias.
+   * antigas abertas somem do gráfico quando a criação cai fora de 7/30 dias.
    */
   const ordersForStatusChart = useMemo(() => {
-    const { fromDate, toDate } = rangeMeta;
+    const { fromDate, endOfPeriodDate } = rangeMeta;
     return orders.filter((o) => {
-      const d = parseOrderDate(o);
-      const inPeriod = d >= fromDate && d <= toDate;
+      const d = orderCreatedLocalDayStart(o);
+      const inPeriod = d >= fromDate && d <= endOfPeriodDate;
       const isOpen = o.status !== "done" && o.status !== "cancelled";
       return inPeriod || isOpen;
     });
@@ -403,20 +404,14 @@ export default function DashboardPage() {
     return counts;
   }, [printers]);
 
-  const endOfRangeDate = useMemo(() => {
-    const d = new Date(rangeMeta.toDate);
-    d.setHours(23, 59, 59, 999);
-    return d;
-  }, [rangeMeta.toDate]);
-
   const finishedOrdersInRange = useMemo(() => {
-    const { fromDate } = rangeMeta;
+    const { fromDate, endOfPeriodDate } = rangeMeta;
     return orders.filter((o) => {
       if (o.status !== "done") return false;
       const d = new Date(o.updatedAt);
-      return d >= fromDate && d <= endOfRangeDate;
+      return d >= fromDate && d <= endOfPeriodDate;
     });
-  }, [orders, rangeMeta.fromDate, endOfRangeDate]);
+  }, [orders, rangeMeta.fromDate, rangeMeta.endOfPeriodDate]);
 
   const finishedByDay = useMemo(() => {
     const map: Record<string, number> = {};
@@ -454,12 +449,12 @@ export default function DashboardPage() {
   }, [rangeSales]);
 
   const quotesInRange = useMemo(() => {
-    const { fromDate } = rangeMeta;
+    const { fromDate, endOfPeriodDate } = rangeMeta;
     return quotes.filter((q) => {
       const d = new Date(`${q.quoteDate}T12:00:00`);
-      return d >= fromDate && d <= endOfRangeDate;
+      return d >= fromDate && d <= endOfPeriodDate;
     });
-  }, [quotes, rangeMeta.fromDate, endOfRangeDate]);
+  }, [quotes, rangeMeta.fromDate, rangeMeta.endOfPeriodDate]);
 
   const quotesDraftInRange = useMemo(
     () => quotesInRange.filter((q) => q.status === "draft"),
@@ -569,6 +564,7 @@ export default function DashboardPage() {
           </h1>
           <p className="mt-1 text-xs text-slate-400">
             Período: <strong className="font-semibold text-slate-200">{rangeMeta.label}</strong>
+            <span className="text-slate-500"> · Ordens por data de criação (não pela entrega).</span>
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
