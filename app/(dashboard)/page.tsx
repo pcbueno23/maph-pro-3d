@@ -184,6 +184,21 @@ export default function DashboardPage() {
     });
   }, [orders, rangeMeta]);
 
+  /**
+   * Gráfico "Ordens por status": inclui **sempre** ordens em aberto (alinha com Pipeline em aberto),
+   * e no período filtrado inclui também concluídas/canceladas. Só com `filteredOrders`, ordens
+   * antigas abertas somem do gráfico quando o prazo/criação cai fora de 7/30 dias.
+   */
+  const ordersForStatusChart = useMemo(() => {
+    const { fromDate, toDate } = rangeMeta;
+    return orders.filter((o) => {
+      const d = parseOrderDate(o);
+      const inPeriod = d >= fromDate && d <= toDate;
+      const isOpen = o.status !== "done" && o.status !== "cancelled";
+      return inPeriod || isOpen;
+    });
+  }, [orders, rangeMeta]);
+
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p] as const)), [products]);
   const printerById = useMemo(() => new Map(printers.map((p) => [p.id, p] as const)), [printers]);
 
@@ -198,21 +213,16 @@ export default function DashboardPage() {
       done: 0,
       cancelled: 0,
     };
-    for (const o of filteredOrders) counts[o.status] += 1;
+    for (const o of ordersForStatusChart) counts[o.status] += 1;
     return counts;
-  }, [filteredOrders]);
+  }, [ordersForStatusChart]);
 
-  const inProgressOrders = useMemo(() => {
-    // Consideramos "em andamento" tudo que não é concluído/cancelado.
-    return (
-      ordersByStatus.new +
-      ordersByStatus.preparing +
-      ordersByStatus.queued +
-      ordersByStatus.printing +
-      ordersByStatus.post_processing +
-      ordersByStatus.ready_to_ship
-    );
-  }, [ordersByStatus]);
+  /** Ordens em aberto cujo prazo/criação cai no período (complementa o número global do card). */
+  const inProgressInFilteredPeriod = useMemo(
+    () =>
+      filteredOrders.filter((o) => o.status !== "done" && o.status !== "cancelled").length,
+    [filteredOrders],
+  );
 
   /** Pipeline aberto (ignora filtro de período — visão real do que está na oficina). */
   const globalActiveOrders = useMemo(
@@ -594,7 +604,8 @@ export default function DashboardPage() {
               </p>
               <p className="mt-0.5 text-[10px] text-slate-500">
                 No período filtrado:{" "}
-                <span className="font-semibold text-slate-400">{inProgressOrders}</span> ordens
+                <span className="font-semibold text-slate-400">{inProgressInFilteredPeriod}</span>{" "}
+                ordens
               </p>
             </div>
 
@@ -833,9 +844,14 @@ export default function DashboardPage() {
                   Ordens por status
                 </p>
                 <span className="text-[11px] text-slate-500">
-                  Total: <span className="font-semibold text-slate-200">{filteredOrders.length}</span>
+                  Total:{" "}
+                  <span className="font-semibold text-slate-200">{ordersForStatusChart.length}</span>
                 </span>
               </div>
+              <p className="mt-1 text-[10px] leading-snug text-slate-500">
+                Em aberto entram sempre; concluídas e canceladas só se a data (prazo ou criação) cair
+                no período ({rangeMeta.label.toLowerCase()}).
+              </p>
 
               <div className="mt-3 h-56">
                 <ResponsiveContainer width="100%" height="100%">
