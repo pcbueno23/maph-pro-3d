@@ -17,6 +17,14 @@ Precifica3D é uma aplicação SaaS focada em empreendedores de impressão 3D qu
 - `npm run build` – build de produção
 - `npm run start` – servidor de produção
 
+## Variáveis de ambiente
+
+1. Copie `.env.example` para **`.env.local`** (não versionado).
+2. Preencha Supabase, Stripe (`sk_test_...` + `price_...`), etc.
+3. **Nunca** commite `.env.local` nem cole **secret keys** em issues/chat.
+
+Stripe: se uma chave vazou, **revogue no Dashboard** e gere outra. Ver `docs/STRIPE_SEGURANCA.md`.
+
 ## Estrutura principal
 
 - `app/` – rotas (`/dashboard`, `/calculator`, `/products`, `/simulator`, `/settings`)

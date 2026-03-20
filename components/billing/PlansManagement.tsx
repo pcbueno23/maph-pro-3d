@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Crown, Infinity, Rocket } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import {
+  clearTrialInvitePending,
+  hasTrialInvitePending,
+} from "@/lib/trialInvite";
 
 type PlanEntitlement = "free" | "pro" | "business";
 
@@ -31,6 +35,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 export function PlansManagement() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<StripeStatusResponse | null>(null);
@@ -78,6 +83,12 @@ export function PlansManagement() {
   const isOnTrial = Boolean(status?.isTrialing);
   const plan = status?.plan ?? "free";
 
+  const trialFromUrl = searchParams.get("trial") === "1";
+  const showTrialInviteBanner =
+    (trialFromUrl || hasTrialInvitePending()) &&
+    Boolean(user?.email) &&
+    plan === "free" &&
+    !isOnTrial;
 
   const trialEnd = useMemo(() => {
     if (!status?.currentPeriodEnd) return null;
@@ -89,27 +100,50 @@ export function PlansManagement() {
     }
   }, [status]);
 
-  async function handleCheckout(nextPlan: "pro" | "lifetime") {
-    if (!user) {
-      router.push("/login");
+  const handleCheckout = useCallback(
+    async (nextPlan: "pro" | "lifetime") => {
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      if (nextPlan === "pro") clearTrialInvitePending();
+
+      setError(null);
+      setLoadingAction(true);
+      try {
+        const data = await postJson<{ url?: string; error?: string }>(
+          "/api/stripe/checkout",
+          { plan: nextPlan, email: user.email },
+        );
+        if (!data.url)
+          throw new Error(data.error ?? "URL do checkout não encontrada.");
+        window.location.href = data.url;
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Erro ao iniciar checkout.";
+        setError(msg);
+      } finally {
+        setLoadingAction(false);
+      }
+    },
+    [router, user],
+  );
+
+  /** Após cadastro pelo link de trial: abre checkout Pro (7 dias no Stripe) uma vez por aba. */
+  useEffect(() => {
+    if (loading || !user?.email || plan !== "free" || isOnTrial) return;
+    if (searchParams.get("trial") !== "1") return;
+    if (searchParams.get("start_checkout") === "0") return;
+    try {
+      if (sessionStorage.getItem("precifica_trial_auto_checkout") === "1")
+        return;
+      sessionStorage.setItem("precifica_trial_auto_checkout", "1");
+    } catch {
       return;
     }
-
-    setError(null);
-    setLoadingAction(true);
-    try {
-      const data = await postJson<{ url?: string; error?: string }>(
-        "/api/stripe/checkout",
-        { plan: nextPlan, email: user.email },
-      );
-      if (!data.url) throw new Error(data.error ?? "URL do checkout não encontrada.");
-      window.location.href = data.url;
-    } catch (e: any) {
-      setError(e?.message ?? "Erro ao iniciar checkout.");
-    } finally {
-      setLoadingAction(false);
-    }
-  }
+    void handleCheckout("pro");
+  }, [loading, user?.email, plan, isOnTrial, searchParams, handleCheckout]);
 
   async function handlePortal() {
     if (!user) {
@@ -155,6 +189,27 @@ export function PlansManagement() {
           <p className="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
             {error}
           </p>
+        ) : null}
+
+        {showTrialInviteBanner ? (
+          <div className="mb-3 rounded-xl border border-cyan-500/40 bg-cyan-500/10 p-3 text-xs text-cyan-100">
+            <p className="font-semibold text-cyan-50">
+              Trial de 7 dias no plano Pro
+            </p>
+            <p className="mt-1 text-cyan-100/90">
+              Você entrou pelo link de convite. Conclua o checkout seguro do
+              Stripe para ativar o período de teste — a cobrança só após os 7
+              dias, conforme configurado no Pro.
+            </p>
+            <button
+              type="button"
+              disabled={loadingAction}
+              onClick={() => void handleCheckout("pro")}
+              className="mt-3 rounded-lg bg-cyan-500/20 px-3 py-1.5 text-[11px] font-semibold text-cyan-100 ring-1 ring-cyan-400/40 hover:bg-cyan-500/30 disabled:opacity-60"
+            >
+              Abrir checkout do trial Pro
+            </button>
+          </div>
         ) : null}
 
         <div className="space-y-3">
@@ -285,11 +340,27 @@ export function PlansManagement() {
           </button>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
-          <p className="text-xs font-semibold text-slate-200">O que fica ON</p>
-          <p className="mt-2 text-xs text-slate-300">
-            Tudo do Pro/Business para gestão de operação, custos e vendas.
+        <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-b from-emerald-500/10 to-slate-950/40 p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
+            Plano anual Business
           </p>
+          <p className="mt-2 text-sm font-medium text-slate-100">
+            Pague menos que o Pro mensal e mantenha todas as funções — operação, custos e vendas.
+          </p>
+          {plan === "business" && !isOnTrial ? (
+            <p className="mt-3 text-xs text-slate-400">
+              Você já está no plano anual Business.
+            </p>
+          ) : (
+            <button
+              type="button"
+              disabled={loadingAction}
+              onClick={() => void handleCheckout("lifetime")}
+              className="mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.25)] transition hover:from-emerald-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {loadingAction ? "Abrindo checkout…" : "Assinar plano anual (Business)"}
+            </button>
+          )}
         </div>
       </div>
     </section>

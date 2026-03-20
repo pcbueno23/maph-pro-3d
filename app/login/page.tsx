@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, Mail, Lock, Chrome } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { hasTrialInvitePending, setTrialInvitePending } from "@/lib/trialInvite";
 
 function LoginFormContent() {
   const router = useRouter();
@@ -17,6 +18,18 @@ function LoginFormContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  /** Link para compartilhar: /login?signup=1&trial=1 — cadastro + trial Pro (Stripe, 7 dias). */
+  useEffect(() => {
+    const wantsSignup =
+      searchParams.get("signup") === "1" ||
+      searchParams.get("signup") === "true" ||
+      searchParams.get("mode") === "signup";
+    const wantsTrial =
+      searchParams.get("trial") === "1" || searchParams.get("trial") === "true";
+    if (wantsSignup) setMode("signup");
+    if (wantsTrial) setTrialInvitePending();
+  }, [searchParams]);
 
   if (!supabase) {
     return (
@@ -85,7 +98,12 @@ function LoginFormContent() {
           : typeof window !== "undefined"
             ? window.location.origin
             : "";
-      const redirectTo = appUrl ? `${appUrl.replace(/\/$/, "")}/dashboard` : undefined;
+      const pathAfterOAuth = hasTrialInvitePending()
+        ? "/pricing?trial=1"
+        : "/dashboard";
+      const redirectTo = appUrl
+        ? `${appUrl.replace(/\/$/, "")}${pathAfterOAuth}`
+        : undefined;
       await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {

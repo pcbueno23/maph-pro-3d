@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { resolveStripeAppOrigin } from "@/lib/stripeAppOrigin";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
@@ -55,13 +56,16 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (error) {
+  } catch (error: unknown) {
     // eslint-disable-next-line no-console
     console.error("Erro ao criar sessão de portal:", error);
-    return NextResponse.json(
-      { error: "Erro ao abrir portal do cliente." },
-      { status: 500 },
-    );
+    const msg =
+      error instanceof Stripe.errors.StripeError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : "Erro ao abrir portal do cliente.";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
