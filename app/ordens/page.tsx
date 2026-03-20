@@ -35,6 +35,48 @@ type DraftOrder = {
   notes?: string | null;
 };
 
+/** Impressora efetiva: escolha no rascunho ou padrão do produto. */
+function getEffectivePrinterIdForDraft(
+  draft: DraftOrder,
+  product: Product | undefined,
+): string | null {
+  const explicit = draft.printerId?.trim();
+  if (explicit) return explicit;
+  const def = product?.defaultPrinterId?.trim();
+  return def || null;
+}
+
+/** Ocupada = cadastro “Em uso” ou outra ordem (exceto a atual) em status Impressão. */
+function getPrinterOccupiedInfo(
+  printerId: string | null,
+  printersById: Map<string, Printer>,
+  orders: ProductionOrder[],
+  excludeOrderId?: string,
+): { occupied: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  if (!printerId) return { occupied: false, reasons };
+  const printer = printersById.get(printerId);
+  if (printer?.status === "busy") {
+    reasons.push(
+      `A impressora "${printer.name}" está marcada como "Em uso" em /impressoras.`,
+    );
+  }
+  const printingOthers = orders.filter(
+    (o) =>
+      o.id !== excludeOrderId &&
+      o.printerId === printerId &&
+      o.status === "printing",
+  );
+  if (printingOthers.length === 1) {
+    reasons.push(`Já existe 1 ordem em "Impressão" usando esta máquina.`);
+  } else if (printingOthers.length > 1) {
+    reasons.push(
+      `Já existem ${printingOthers.length} ordens em "Impressão" usando esta máquina.`,
+    );
+  }
+  return { occupied: reasons.length > 0, reasons };
+}
+
 export default function OrdersPage() {
   const { user } = useAuthStore();
   const { settings } = useSettingsStore();
@@ -101,6 +143,13 @@ export default function OrdersPage() {
     () => new Map(printers.map((p) => [p.id, p] as const)),
     [printers],
   );
+
+  const printerOccupiedInModal = useMemo(() => {
+    if (!modalOpen || !draft) return { occupied: false, reasons: [] as string[] };
+    const prod = productsById.get(draft.productId);
+    const pid = getEffectivePrinterIdForDraft(draft, prod);
+    return getPrinterOccupiedInfo(pid, printersById, orders, draft.id);
+  }, [modalOpen, draft, productsById, printersById, orders]);
 
   // Produto elegível para ordens: tem tempo estimado, impressora padrão e pelo menos 1 material.
   const eligibleProducts = useMemo(
@@ -293,6 +342,22 @@ export default function OrdersPage() {
         });
         setError(`Estoque de filamento baixo. Não é possível criar esta ordem.\n${lines.join("\n")}`);
         return; // mantém o modal aberto
+      }
+
+      const effectivePid = getEffectivePrinterIdForDraft(draft, prod);
+      const occupiedInfo = getPrinterOccupiedInfo(
+        effectivePid,
+        printersById,
+        orders,
+        draft.id,
+      );
+      if (occupiedInfo.occupied) {
+        const ok = window.confirm(
+          `A impressora escolhida parece estar em uso:\n\n${occupiedInfo.reasons.join(
+            "\n",
+          )}\n\nDeseja salvar a ordem mesmo assim?`,
+        );
+        if (!ok) return;
       }
 
       const payload: ProductionOrder = {
@@ -712,6 +777,19 @@ export default function OrdersPage() {
                     </option>
                   ))}
                 </select>
+                {printerOccupiedInModal.occupied ? (
+                  <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                    <p className="font-semibold text-amber-200">Aviso — impressora em uso</p>
+                    <ul className="mt-1 list-inside list-disc space-y-0.5 text-amber-100/90">
+                      {printerOccupiedInModal.reasons.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-[11px] text-amber-200/80">
+                      Você ainda pode salvar; ao confirmar, será pedida uma confirmação extra.
+                    </p>
+                  </div>
+                ) : null}
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
