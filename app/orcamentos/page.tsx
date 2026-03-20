@@ -14,7 +14,7 @@ import {
   deleteQuote,
 } from "@/lib/supabaseProduction";
 import type { Quote } from "@/types";
-import { rasterizeImageSrcForJsPdf } from "@/lib/pdfLogo";
+import { rasterizeCompanyLogoForPdf } from "@/lib/companyLogoPdf";
 import { supabase } from "@/lib/supabaseClient";
 
 function generateUuid() {
@@ -140,7 +140,7 @@ export default function OrcamentosPage() {
       if (branding) {
         let logoRendered = false;
         if (branding.logoDataUrl) {
-          const raster = await rasterizeImageSrcForJsPdf(branding.logoDataUrl);
+          const raster = await rasterizeCompanyLogoForPdf(branding.logoDataUrl);
           if (raster) {
             try {
               doc.addImage(raster.data, raster.format, marginX, y, 56, 56);

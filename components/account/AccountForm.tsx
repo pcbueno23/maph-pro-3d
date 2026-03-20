@@ -174,8 +174,10 @@ export function AccountForm() {
       }
 
       const rawLogo = fields.companyLogo.trim();
-      let company_logo_url = "";
-      let company_logo = "";
+      const prevMd = (user.user_metadata ?? {}) as Record<string, unknown>;
+      /** Mantém logo já salva se o usuário não reenviar arquivo (evita apagar ao salvar só nome/CNPJ). */
+      let company_logo_url = String(prevMd.company_logo_url ?? "").trim();
+      let company_logo = String(prevMd.company_logo ?? "").trim();
 
       if (rawLogo.startsWith("data:image/")) {
         const up = await uploadCompanyLogoFromDataUrl(user.id, rawLogo);
@@ -183,8 +185,10 @@ export function AccountForm() {
           throw new Error(up.error);
         }
         company_logo_url = up.publicUrl;
+        company_logo = "";
       } else if (rawLogo.startsWith("http://") || rawLogo.startsWith("https://")) {
         company_logo_url = rawLogo;
+        company_logo = "";
       }
 
       const nextMetadata = {
