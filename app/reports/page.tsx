@@ -8,6 +8,7 @@ import { listSupplies } from "@/lib/supabaseProduction";
 import { fetchUserInventory } from "@/lib/supabaseUserData";
 import { fetchUserProducts } from "@/lib/supabaseProducts";
 import { computeProductUnitCost } from "@/lib/productionCost";
+import jsPDF from "jspdf";
 
 const SUPPLY_CATEGORY_LABEL: Record<SupplyCategory, string> = {
   filament: "Filamento",
@@ -146,6 +147,78 @@ export default function ReportsPage() {
       };
     });
   }, [items, productUnitCosts]);
+
+  const belowMinimumSupplies = useMemo(
+    () =>
+      supplies
+        .map((s) => {
+          const stockQty = Number(s.stockQty ?? 0);
+          const minQty = Number(s.minStockQty ?? 0);
+          return {
+            ...s,
+            stockQty,
+            minQty,
+            deficitQty: Math.max(0, minQty - stockQty),
+          };
+        })
+        .filter((s) => s.minQty > 0 && s.stockQty < s.minQty),
+    [supplies],
+  );
+
+  const totalEstimatedPurchase = useMemo(
+    () =>
+      belowMinimumSupplies.reduce(
+        (acc, s) => acc + s.deficitQty * Number(s.unitCost ?? 0),
+        0,
+      ),
+    [belowMinimumSupplies],
+  );
+
+  function handleGenerateLowStockPdf() {
+    if (belowMinimumSupplies.length === 0) return;
+
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const today = new Date().toLocaleDateString("pt-BR");
+
+    doc.setFontSize(14);
+    doc.text("Lista de compra de insumos", 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Gerado em: ${today}`, 14, 22);
+    doc.text(
+      `Itens abaixo do mínimo: ${belowMinimumSupplies.length} | Custo estimado: ${formatBRL(totalEstimatedPurchase)}`,
+      14,
+      28,
+    );
+
+    let y = 36;
+    belowMinimumSupplies.forEach((s, idx) => {
+      if (y > 276) {
+        doc.addPage();
+        y = 16;
+      }
+      doc.setFontSize(10);
+      doc.text(`${idx + 1}. ${s.name}`, 14, y);
+      y += 5;
+      doc.setFontSize(9);
+      doc.text(
+        `Categoria: ${SUPPLY_CATEGORY_LABEL[s.category]}  |  Unidade: ${s.unit}`,
+        18,
+        y,
+      );
+      y += 4.5;
+      doc.text(
+        `Estoque atual: ${s.stockQty.toLocaleString("pt-BR")}  |  Mínimo: ${s.minQty.toLocaleString("pt-BR")}  |  Comprar: ${s.deficitQty.toLocaleString("pt-BR")}`,
+        18,
+        y,
+      );
+      y += 4.5;
+      doc.text(`Custo/un: ${formatBRL(s.unitCost ?? 0)}  |  Subtotal: ${formatBRL(s.deficitQty * Number(s.unitCost ?? 0))}`, 18, y);
+      y += 6;
+    });
+
+    const fileDate = new Date().toISOString().slice(0, 10);
+    doc.save(`lista-compra-insumos-${fileDate}.pdf`);
+  }
 
   return (
     <div className="space-y-4">
@@ -321,9 +394,29 @@ export default function ReportsPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-            Lista de insumos (tudo que você tem)
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Lista de insumos (tudo que você tem)
+            </p>
+            <button
+              type="button"
+              onClick={handleGenerateLowStockPdf}
+              disabled={belowMinimumSupplies.length === 0}
+              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Gerar PDF de compra (abaixo do mínimo)
+            </button>
+          </div>
+          {belowMinimumSupplies.length > 0 ? (
+            <p className="mt-2 text-[11px] text-amber-300">
+              {belowMinimumSupplies.length} item(ns) abaixo do mínimo. Custo estimado de reposição:{" "}
+              <span className="font-semibold">{formatBRL(totalEstimatedPurchase)}</span>
+            </p>
+          ) : (
+            <p className="mt-2 text-[11px] text-slate-500">
+              Nenhum item abaixo do estoque mínimo no momento.
+            </p>
+          )}
           {supplies.length === 0 ? (
             <p className="mt-4 text-sm text-slate-400">Nenhum insumo cadastrado.</p>
           ) : (
