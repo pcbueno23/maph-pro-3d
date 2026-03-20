@@ -578,27 +578,30 @@ export default function Home() {
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="text-2xl font-bold text-slate-50 sm:text-3xl">
-                Diagnóstico rápido: o Maph Pro 3D é para você agora?
+                Diagnóstico rápido (BANT): o Maph Pro 3D é para você agora?
               </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                BANT = Orçamento, Autoridade de decisão, Necessidade e Tempo.
+              </p>
               <p className="mt-3 text-slate-400">
                 Se você marcar “sim” para 3 ou mais pontos, vale iniciar o teste grátis hoje.
               </p>
             </div>
             <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <BantCard
-                title="B · Budget"
+                title="B · Orçamento"
                 question="Você já vende ou quer vender peças com ticket acima de R$ 30?"
               />
               <BantCard
-                title="A · Authority"
+                title="A · Autoridade de decisão"
                 question="Você decide preço, desconto e canal de venda no seu negócio?"
               />
               <BantCard
-                title="N · Need"
+                title="N · Necessidade"
                 question="Você já teve dúvida se estava lucrando de verdade em cada venda?"
               />
               <BantCard
-                title="T · Timing"
+                title="T · Tempo"
                 question="Você quer organizar sua precificação e operação nas próximas semanas?"
               />
             </div>
