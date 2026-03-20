@@ -35,22 +35,46 @@ type DraftOrder = {
   notes?: string | null;
 };
 
-/** Impressora efetiva: escolha no rascunho ou padrão do produto. */
+/** Impressora efetiva: escolha explícita ou padrão do produto (igual ao que a ordem representa na prática). */
+function getEffectivePrinterIdFromRefs(
+  explicitPrinterId: string | null | undefined,
+  product: Product | undefined,
+): string | null {
+  const explicit = typeof explicitPrinterId === "string" ? explicitPrinterId.trim() : "";
+  if (explicit) return explicit;
+  const defRaw = product?.defaultPrinterId;
+  const def = typeof defRaw === "string" ? defRaw.trim() : "";
+  return def || null;
+}
+
 function getEffectivePrinterIdForDraft(
   draft: DraftOrder,
   product: Product | undefined,
 ): string | null {
-  const explicit = draft.printerId?.trim();
-  if (explicit) return explicit;
-  const def = product?.defaultPrinterId?.trim();
-  return def || null;
+  return getEffectivePrinterIdFromRefs(draft.printerId, product);
 }
 
-/** Ocupada = cadastro “Em uso” ou outra ordem (exceto a atual) em status Impressão. */
+function getEffectivePrinterIdForOrder(
+  order: ProductionOrder,
+  product: Product | undefined,
+): string | null {
+  return getEffectivePrinterIdFromRefs(order.printerId, product);
+}
+
+function isOrderActiveForPrinterConflict(o: ProductionOrder): boolean {
+  return o.status !== "done" && o.status !== "cancelled";
+}
+
+/**
+ * Ocupada se: cadastro "Em uso" em /impressoras, ou existe outra ordem em aberto
+ * (não concluída/cancelada) cuja impressora efetiva é a mesma — inclusive quando a ordem
+ * só usa o padrão do produto (printer_id nulo no banco).
+ */
 function getPrinterOccupiedInfo(
   printerId: string | null,
   printersById: Map<string, Printer>,
   orders: ProductionOrder[],
+  productsById: Map<string, Product>,
   excludeOrderId?: string,
 ): { occupied: boolean; reasons: string[] } {
   const reasons: string[] = [];
@@ -61,17 +85,19 @@ function getPrinterOccupiedInfo(
       `A impressora "${printer.name}" está marcada como "Em uso" em /impressoras.`,
     );
   }
-  const printingOthers = orders.filter(
-    (o) =>
-      o.id !== excludeOrderId &&
-      o.printerId === printerId &&
-      o.status === "printing",
-  );
-  if (printingOthers.length === 1) {
-    reasons.push(`Já existe 1 ordem em "Impressão" usando esta máquina.`);
-  } else if (printingOthers.length > 1) {
+  const activeOthers = orders.filter((o) => {
+    if (excludeOrderId && o.id === excludeOrderId) return false;
+    if (!isOrderActiveForPrinterConflict(o)) return false;
+    const eff = getEffectivePrinterIdForOrder(o, productsById.get(o.productId));
+    return eff === printerId;
+  });
+  if (activeOthers.length === 1) {
     reasons.push(
-      `Já existem ${printingOthers.length} ordens em "Impressão" usando esta máquina.`,
+      `Já existe 1 ordem em aberto associada a esta máquina (via impressora da ordem ou padrão do produto).`,
+    );
+  } else if (activeOthers.length > 1) {
+    reasons.push(
+      `Já existem ${activeOthers.length} ordens em aberto associadas a esta máquina.`,
     );
   }
   return { occupied: reasons.length > 0, reasons };
@@ -148,7 +174,7 @@ export default function OrdersPage() {
     if (!modalOpen || !draft) return { occupied: false, reasons: [] as string[] };
     const prod = productsById.get(draft.productId);
     const pid = getEffectivePrinterIdForDraft(draft, prod);
-    return getPrinterOccupiedInfo(pid, printersById, orders, draft.id);
+    return getPrinterOccupiedInfo(pid, printersById, orders, productsById, draft.id);
   }, [modalOpen, draft, productsById, printersById, orders]);
 
   // Produto elegível para ordens: tem tempo estimado, impressora padrão e pelo menos 1 material.
@@ -349,6 +375,7 @@ export default function OrdersPage() {
         effectivePid,
         printersById,
         orders,
+        productsById,
         draft.id,
       );
       if (occupiedInfo.occupied) {
