@@ -1,20 +1,41 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
+  Bell,
+  Boxes,
+  CalendarDays,
   Clock,
   ClipboardList,
+  FileSpreadsheet,
+  Gauge,
+  Package,
   Printer,
   ShoppingBag,
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import type { Printer as PrinterType, Product, ProductionOrder } from "@/types";
+import type {
+  Printer as PrinterType,
+  Product,
+  ProductionOrder,
+  Quote,
+  SupplyItem,
+} from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { useSalesStore } from "@/store/salesStore";
 import type { Sale } from "@/store/salesStore";
-import { listPrinters, listProductionOrders } from "@/lib/supabaseProduction";
+import type { InventoryItem } from "@/store/inventoryStore";
+import {
+  listPrinters,
+  listProductionOrders,
+  listQuotes,
+  listSupplies,
+} from "@/lib/supabaseProduction";
 import { fetchUserProducts } from "@/lib/supabaseProducts";
+import { fetchUserInventory } from "@/lib/supabaseUserData";
 import {
   ResponsiveContainer,
   BarChart,
@@ -27,6 +48,8 @@ import {
   LineChart,
   CartesianGrid,
   Legend,
+  PieChart,
+  Pie,
 } from "recharts";
 
 type RangeOption = "today" | "7d" | "30d";
@@ -93,6 +116,16 @@ function dayKeyLocal(d: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function parseDateOnlyLocal(isoDate: string) {
+  const [y, m, d] = isoDate.split("-").map((v) => Number(v));
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+
+function startOfTodayLocal(now = new Date()) {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+}
+
 function prettyDayLabel(d: Date) {
   return d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
 }
@@ -113,6 +146,9 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
   const [printers, setPrinters] = useState<PrinterType[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [supplies, setSupplies] = useState<SupplyItem[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -130,15 +166,21 @@ export default function DashboardPage() {
 
     void (async () => {
       try {
-        const [ord, prts, prods] = await Promise.all([
+        const [ord, prts, prods, sup, qt, inv] = await Promise.all([
           listProductionOrders(user.id),
           listPrinters(user.id),
           fetchUserProducts(user.id),
+          listSupplies(user.id),
+          listQuotes(user.id),
+          fetchUserInventory(user.id),
         ]);
         if (!alive) return;
         setOrders(ord);
         setPrinters(prts);
         setProducts(prods);
+        setSupplies(sup);
+        setQuotes(qt);
+        setInventoryItems(inv);
       } catch (e: any) {
         if (!alive) return;
         setError(e?.message ?? "Falha ao carregar dashboard operacional.");
@@ -199,6 +241,16 @@ export default function DashboardPage() {
       ordersByStatus.ready_to_ship
     );
   }, [ordersByStatus]);
+
+  /** Pipeline aberto (ignora filtro de período — visão real do que está na oficina). */
+  const globalActiveOrders = useMemo(
+    () => orders.filter((o) => o.status !== "done" && o.status !== "cancelled"),
+    [orders],
+  );
+  const globalActiveQty = useMemo(
+    () => globalActiveOrders.reduce((acc, o) => acc + (o.quantity ?? 0), 0),
+    [globalActiveOrders],
+  );
 
   const doneOrders = ordersByStatus.done;
   const cancelledOrders = ordersByStatus.cancelled;
@@ -320,6 +372,189 @@ export default function DashboardPage() {
     return sorted.slice(0, 8);
   }, [rangeSales.list]);
 
+  const todayStart = useMemo(() => startOfTodayLocal(new Date()), []);
+
+  const overdueOrdersAll = useMemo(() => {
+    const res: ProductionOrder[] = [];
+    for (const o of globalActiveOrders) {
+      if (!o.dueDate) continue;
+      const d = parseDateOnlyLocal(o.dueDate);
+      if (!d || d >= todayStart) continue;
+      res.push(o);
+    }
+    return res;
+  }, [globalActiveOrders, todayStart]);
+
+  const dueSoon3d = useMemo(() => {
+    const end = addDaysLocal(todayStart, 3);
+    const res: ProductionOrder[] = [];
+    for (const o of globalActiveOrders) {
+      if (!o.dueDate) continue;
+      const d = parseDateOnlyLocal(o.dueDate);
+      if (!d || d < todayStart || d > end) continue;
+      res.push(o);
+    }
+    return res;
+  }, [globalActiveOrders, todayStart]);
+
+  const printingNowCount = useMemo(
+    () => orders.filter((o) => o.status === "printing").length,
+    [orders],
+  );
+
+  const lowStockSupplies = useMemo(() => {
+    return supplies.filter((s) => {
+      const min = s.minStockQty ?? 0;
+      if (min <= 0) return false;
+      return (s.stockQty ?? 0) < min;
+    });
+  }, [supplies]);
+
+  const printerStatusCounts = useMemo(() => {
+    const counts: Record<PrinterType["status"], number> = {
+      available: 0,
+      busy: 0,
+      maintenance: 0,
+      offline: 0,
+    };
+    for (const p of printers) counts[p.status] += 1;
+    return counts;
+  }, [printers]);
+
+  const endOfRangeDate = useMemo(() => {
+    const d = new Date(rangeMeta.toDate);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }, [rangeMeta.toDate]);
+
+  const finishedOrdersInRange = useMemo(() => {
+    const { fromDate } = rangeMeta;
+    return orders.filter((o) => {
+      if (o.status !== "done") return false;
+      const d = new Date(o.updatedAt);
+      return d >= fromDate && d <= endOfRangeDate;
+    });
+  }, [orders, rangeMeta.fromDate, endOfRangeDate]);
+
+  const finishedByDay = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const d of salesDays) {
+      map[dayKeyLocal(d)] = 0;
+    }
+    for (const o of finishedOrdersInRange) {
+      const k = dayKeyLocal(new Date(o.updatedAt));
+      if (map[k] !== undefined) map[k] += 1;
+    }
+    return salesDays.map((d) => {
+      const k = dayKeyLocal(d);
+      return {
+        day: prettyDayLabel(d),
+        key: k,
+        finalizadas: map[k] ?? 0,
+      };
+    });
+  }, [finishedOrdersInRange, salesDays]);
+
+  const orderCostEstimate = useMemo(() => {
+    return filteredOrders.reduce((acc, o) => {
+      const p = productById.get(o.productId);
+      const unit = p?.totalCost ?? 0;
+      return acc + unit * (o.quantity ?? 0);
+    }, 0);
+  }, [filteredOrders, productById]);
+
+  const financialExtras = useMemo(() => {
+    const avgTicket =
+      rangeSales.totalOrders > 0 ? rangeSales.totalRevenue / rangeSales.totalOrders : 0;
+    const marginPct =
+      rangeSales.totalRevenue > 0 ? (rangeSales.totalProfit / rangeSales.totalRevenue) * 100 : 0;
+    return { avgTicket, marginPct };
+  }, [rangeSales]);
+
+  const quotesInRange = useMemo(() => {
+    const { fromDate } = rangeMeta;
+    return quotes.filter((q) => {
+      const d = new Date(`${q.quoteDate}T12:00:00`);
+      return d >= fromDate && d <= endOfRangeDate;
+    });
+  }, [quotes, rangeMeta.fromDate, endOfRangeDate]);
+
+  const quotesDraftInRange = useMemo(
+    () => quotesInRange.filter((q) => q.status === "draft"),
+    [quotesInRange],
+  );
+  const quotesDraftValue = useMemo(
+    () => quotesDraftInRange.reduce((a, q) => a + q.total, 0),
+    [quotesDraftInRange],
+  );
+
+  const inventoryStats = useMemo(() => {
+    const totalQty = inventoryItems.reduce((a, i) => a + i.quantity, 0);
+    const potential = inventoryItems.reduce((a, i) => a + i.quantity * (i.price || 0), 0);
+    const cost = inventoryItems.reduce((a, i) => a + i.quantity * (i.productionCost ?? 0), 0);
+    return { skus: inventoryItems.length, totalQty, potential, cost };
+  }, [inventoryItems]);
+
+  const topProductsInRange = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const o of filteredOrders) {
+      map.set(o.productId, (map.get(o.productId) ?? 0) + (o.quantity ?? 0));
+    }
+    return [...map.entries()]
+      .map(([productId, qty]) => ({
+        productId,
+        name: productById.get(productId)?.name ?? "Produto",
+        qty,
+      }))
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 5);
+  }, [filteredOrders, productById]);
+
+  const deadlinePerf = useMemo(() => {
+    let late = 0;
+    let onTime = 0;
+    for (const o of finishedOrdersInRange) {
+      if (!o.dueDate) {
+        onTime += 1;
+        continue;
+      }
+      const doneKey = dayKeyLocal(new Date(o.updatedAt));
+      if (doneKey > o.dueDate) late += 1;
+      else onTime += 1;
+    }
+    return { late, onTime };
+  }, [finishedOrdersInRange]);
+
+  const deadlinePieData = useMemo(
+    () =>
+      [
+        { name: "No prazo", value: deadlinePerf.onTime, fill: "#34d399" },
+        { name: "Atrasada", value: deadlinePerf.late, fill: "#fb7185" },
+      ].filter((x) => x.value > 0),
+    [deadlinePerf],
+  );
+
+  const pipelinePieData = useMemo(() => {
+    const counts: Partial<Record<ProductionOrder["status"], number>> = {};
+    for (const o of globalActiveOrders) {
+      counts[o.status] = (counts[o.status] ?? 0) + 1;
+    }
+    return ORDER_STATUS_ORDER.filter((s) => s !== "done" && s !== "cancelled")
+      .map((status) => ({
+        status,
+        name: STATUS_LABELS[status],
+        value: counts[status] ?? 0,
+      }))
+      .filter((x) => x.value > 0);
+  }, [globalActiveOrders]);
+
+  const PRINTER_STATUS_LABEL: Record<PrinterType["status"], string> = {
+    available: "Disponível",
+    busy: "Imprimindo",
+    maintenance: "Manutenção",
+    offline: "Offline",
+  };
+
   const filterButton = (key: RangeOption, label: string) => {
     const active = range === key;
     return (
@@ -371,27 +606,37 @@ export default function DashboardPage() {
           <div className="grid gap-3 md:grid-cols-4">
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Ordens em andamento
+                Ordens em aberto
               </p>
               <div className="mt-2 flex items-center justify-between">
-                <p className="text-lg font-semibold text-slate-50">{inProgressOrders}</p>
+                <p className="text-lg font-semibold text-slate-50">{globalActiveOrders.length}</p>
                 <ClipboardList className="h-5 w-5 text-cyan-400" />
               </div>
               <p className="mt-1 text-[11px] text-slate-400">
-                Qtde peças: <span className="font-semibold text-slate-200">{totalOrderQty}</span>
+                <span className="font-semibold text-slate-200">{globalActiveQty}</span> peças no
+                pipeline
+              </p>
+              <p className="mt-0.5 text-[10px] text-slate-500">
+                No período filtrado:{" "}
+                <span className="font-semibold text-slate-400">{inProgressOrders}</span> ordens
               </p>
             </div>
 
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Concluídas
+                Concluídas no período
               </p>
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-lg font-semibold text-emerald-400">{doneOrders}</p>
                 <Clock className="h-5 w-5 text-emerald-400" />
               </div>
               <p className="mt-1 text-[11px] text-slate-400">
-                Canceladas: <span className="font-semibold text-rose-300">{cancelledOrders}</span>
+                Por atualização:{" "}
+                <span className="font-semibold text-slate-200">{finishedOrdersInRange.length}</span>
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-400">
+                Canceladas (período):{" "}
+                <span className="font-semibold text-rose-300">{cancelledOrders}</span>
               </p>
             </div>
 
@@ -419,10 +664,187 @@ export default function DashboardPage() {
                 <Wallet className="h-5 w-5 text-cyan-400" />
               </div>
               <p className="mt-1 text-[11px] text-slate-400">
-                Lucro líquido:{" "}
+                Lucro:{" "}
                 <span className="font-semibold text-emerald-400">
                   {formatBRL(rangeSales.totalProfit)}
                 </span>
+                {" · "}
+                Ticket médio:{" "}
+                <span className="font-semibold text-slate-200">
+                  {formatBRL(financialExtras.avgTicket)}
+                </span>
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-400">
+                Margem sobre faturamento:{" "}
+                <span className="font-semibold text-emerald-300">
+                  {financialExtras.marginPct.toFixed(1)}%
+                </span>
+              </p>
+            </div>
+          </div>
+
+          {/* Alertas rápidos + atalhos */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div
+              className={`rounded-2xl border p-3 ${
+                overdueOrdersAll.length
+                  ? "border-rose-500/40 bg-rose-950/25"
+                  : "border-slate-800 bg-slate-950/70"
+              }`}
+            >
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Atrasadas
+              </p>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-lg font-semibold text-slate-50">{overdueOrdersAll.length}</p>
+                <Bell className="h-5 w-5 text-rose-400" />
+              </div>
+              <Link href="/alertas" className="mt-1 inline-block text-[10px] text-cyan-400 hover:underline">
+                Ver alertas →
+              </Link>
+            </div>
+            <div
+              className={`rounded-2xl border p-3 ${
+                dueSoon3d.length
+                  ? "border-amber-500/35 bg-amber-950/20"
+                  : "border-slate-800 bg-slate-950/70"
+              }`}
+            >
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Vencem em 3 dias
+              </p>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-lg font-semibold text-slate-50">{dueSoon3d.length}</p>
+                <CalendarDays className="h-5 w-5 text-amber-400" />
+              </div>
+              <p className="mt-1 text-[10px] text-slate-500">Entrega próxima</p>
+            </div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Imprimindo agora
+              </p>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-lg font-semibold text-slate-50">{printingNowCount}</p>
+                <Printer className="h-5 w-5 text-violet-400" />
+              </div>
+              <p className="mt-1 text-[10px] text-slate-500">Status “em impressão”</p>
+            </div>
+            <div
+              className={`rounded-2xl border p-3 ${
+                lowStockSupplies.length
+                  ? "border-orange-500/35 bg-orange-950/15"
+                  : "border-slate-800 bg-slate-950/70"
+              }`}
+            >
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Insumos críticos
+              </p>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-lg font-semibold text-slate-50">{lowStockSupplies.length}</p>
+                <AlertTriangle className="h-5 w-5 text-orange-400" />
+              </div>
+              <Link href="/insumos" className="mt-1 inline-block text-[10px] text-cyan-400 hover:underline">
+                Insumos →
+              </Link>
+            </div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Orçamentos (período)
+              </p>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-lg font-semibold text-slate-50">{quotesInRange.length}</p>
+                <FileSpreadsheet className="h-5 w-5 text-cyan-400" />
+              </div>
+              <p className="mt-1 text-[10px] text-slate-400">
+                Rascunhos: {quotesDraftInRange.length} ·{" "}
+                <span className="text-slate-300">{formatBRL(quotesDraftValue)}</span>
+              </p>
+              <Link href="/orcamentos" className="mt-0.5 inline-block text-[10px] text-cyan-400 hover:underline">
+                Orçamentos →
+              </Link>
+            </div>
+          </div>
+
+          {/* Impressoras + estoque + custo período */}
+          <div className="grid gap-3 lg:grid-cols-3">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Status das impressoras
+                </p>
+                <Gauge className="h-4 w-4 text-slate-500" />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+                {(["available", "busy", "maintenance", "offline"] as const).map((st) => (
+                  <div
+                    key={st}
+                    className="flex items-center justify-between rounded-lg border border-slate-800/80 bg-slate-900/40 px-2 py-1.5"
+                  >
+                    <span className="text-slate-400">{PRINTER_STATUS_LABEL[st]}</span>
+                    <span className="font-semibold text-slate-100">{printerStatusCounts[st]}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] text-slate-500">
+                Total cadastradas:{" "}
+                <span className="font-semibold text-slate-300">{printers.length}</span>
+              </p>
+              <Link href="/impressoras" className="mt-1 inline-block text-[10px] text-cyan-400 hover:underline">
+                Gerenciar impressoras →
+              </Link>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Estoque (nuvem)
+                </p>
+                <Boxes className="h-4 w-4 text-slate-500" />
+              </div>
+              <ul className="mt-3 space-y-1.5 text-[11px] text-slate-300">
+                <li className="flex justify-between">
+                  <span className="text-slate-500">SKUs</span>
+                  <span className="font-semibold text-slate-100">{inventoryStats.skus}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span className="text-slate-500">Unidades</span>
+                  <span className="font-semibold text-slate-100">{inventoryStats.totalQty}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span className="text-slate-500">Valor catálogo</span>
+                  <span className="font-semibold text-emerald-300">
+                    {formatBRL(inventoryStats.potential)}
+                  </span>
+                </li>
+                <li className="flex justify-between">
+                  <span className="text-slate-500">Custo estimado</span>
+                  <span className="font-semibold text-slate-200">
+                    {formatBRL(inventoryStats.cost)}
+                  </span>
+                </li>
+              </ul>
+              <Link href="/inventory" className="mt-2 inline-block text-[10px] text-cyan-400 hover:underline">
+                Abrir estoque →
+              </Link>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Custo estimado (ordens no período)
+                </p>
+                <Package className="h-4 w-4 text-slate-500" />
+              </div>
+              <p className="mt-3 text-2xl font-semibold text-slate-50">
+                {formatBRL(orderCostEstimate)}
+              </p>
+              <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+                Soma de <span className="text-slate-400">custo unitário do produto × quantidade</span>{" "}
+                das ordens que caem no filtro de datas (use produtos com custo salvo).
+              </p>
+              <p className="mt-2 text-[10px] text-slate-500">
+                Produtos no catálogo:{" "}
+                <span className="font-semibold text-slate-300">{products.length}</span>
               </p>
             </div>
           </div>
@@ -545,6 +967,206 @@ export default function DashboardPage() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+
+          {/* Pipeline aberto, prazos e ritmo de conclusão */}
+          <div className="grid gap-3 lg:grid-cols-3">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Pipeline em aberto
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Distribuição por status (todas as ordens não finalizadas)
+              </p>
+              {pipelinePieData.length === 0 ? (
+                <p className="mt-8 text-center text-sm text-slate-500">Nenhuma ordem em aberto.</p>
+              ) : (
+                <div className="mt-2 h-52">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pipelinePieData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={48}
+                        outerRadius={72}
+                        paddingAngle={2}
+                      >
+                        {pipelinePieData.map((e) => (
+                          <Cell key={e.status} fill={STATUS_COLORS[e.status]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#020617",
+                          borderColor: "#1f2937",
+                          borderRadius: 12,
+                          fontSize: 11,
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 10 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Prazo na conclusão
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Ordens <strong className="text-slate-400">concluídas</strong> no período vs data de entrega
+              </p>
+              {finishedOrdersInRange.length === 0 ? (
+                <p className="mt-8 text-center text-sm text-slate-500">
+                  Sem ordens concluídas no período.
+                </p>
+              ) : (
+                <div className="mt-2 h-52">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={deadlinePieData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={48}
+                        outerRadius={72}
+                        paddingAngle={2}
+                      >
+                        {deadlinePieData.map((e) => (
+                          <Cell key={e.name} fill={e.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#020617",
+                          borderColor: "#1f2937",
+                          borderRadius: 12,
+                          fontSize: 11,
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 10 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Finalizadas por dia
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Contagem por <strong className="text-slate-400">data de atualização</strong> (status concluída)
+              </p>
+              <div className="mt-3 h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={finishedByDay} margin={{ left: -10, right: 10 }}>
+                    <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="#1f2937" />
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fontSize: 9, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "#6b7280" }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#020617",
+                        borderColor: "#1f2937",
+                        borderRadius: 12,
+                        fontSize: 11,
+                      }}
+                      formatter={(v: any) => [Number(v).toFixed(0), "Ordens"]}
+                    />
+                    <Bar dataKey="finalizadas" fill="#10b981" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Produtos mais movimentados no período
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">Soma de quantidades nas ordens filtradas</p>
+              <ul className="mt-3 space-y-2">
+                {topProductsInRange.length === 0 ? (
+                  <li className="text-sm text-slate-500">Sem ordens no período.</li>
+                ) : (
+                  topProductsInRange.map((row, idx) => (
+                    <li
+                      key={row.productId}
+                      className="flex items-center justify-between rounded-lg border border-slate-800/80 bg-slate-900/30 px-3 py-2 text-[11px]"
+                    >
+                      <span className="flex items-center gap-2 text-slate-200">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-cyan-500/15 text-[10px] font-bold text-cyan-300">
+                          {idx + 1}
+                        </span>
+                        <span className="truncate max-w-[220px]" title={row.name}>
+                          {row.name}
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-semibold text-slate-100">{row.qty} pç</span>
+                    </li>
+                  ))
+                )}
+              </ul>
+              <Link href="/ordens" className="mt-3 inline-block text-[10px] text-cyan-400 hover:underline">
+                Ir para ordens →
+              </Link>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Insumos abaixo do mínimo
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">Top 6 por estoque vs mínimo configurado</p>
+              <ul className="mt-3 max-h-52 space-y-2 overflow-y-auto">
+                {lowStockSupplies.length === 0 ? (
+                  <li className="text-sm text-slate-500">Nenhum insumo crítico.</li>
+                ) : (
+                  lowStockSupplies.slice(0, 6).map((s) => {
+                    const min = s.minStockQty ?? 0;
+                    const stock = s.stockQty ?? 0;
+                    const pct = min > 0 ? Math.min(100, Math.round((stock / min) * 100)) : 0;
+                    return (
+                      <li
+                        key={s.id}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-slate-800/80 bg-slate-900/30 px-3 py-2 text-[11px]"
+                      >
+                        <span className="truncate text-slate-200" title={s.name}>
+                          {s.name}
+                        </span>
+                        <span className="shrink-0 text-slate-400">
+                          {stock} {s.unit}
+                          <span className="text-slate-600"> / min {min}</span>
+                          <span
+                            className={`ml-2 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
+                              pct <= 30 ? "bg-rose-500/20 text-rose-300" : "bg-amber-500/15 text-amber-200"
+                            }`}
+                          >
+                            {pct}%
+                          </span>
+                        </span>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
             </div>
           </div>
 
