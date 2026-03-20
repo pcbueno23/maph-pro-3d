@@ -38,6 +38,38 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Dados salvos na aba Conta (Supabase Auth user_metadata). */
+type CompanyBrandingPdf = {
+  logoDataUrl: string;
+  name: string;
+  document: string;
+  email: string;
+  phone: string;
+};
+
+function getCompanyBrandingFromMetadata(
+  metadata: Record<string, unknown> | undefined | null,
+): CompanyBrandingPdf | null {
+  if (!metadata) return null;
+  const logo = String(metadata.company_logo ?? metadata.avatar_url ?? "").trim();
+  const name = String(metadata.company_name ?? "").trim();
+  const document = String(metadata.company_document ?? "").trim();
+  const email = String(metadata.company_email ?? "").trim();
+  const phone = String(metadata.company_phone ?? "").trim();
+  if (!logo && !name && !document && !email && !phone) return null;
+  return { logoDataUrl: logo, name, document, email, phone };
+}
+
+/** jsPDF aceita PNG/JPEG em base64 (sem prefixo data:). */
+function parseDataUrlForJsPdf(
+  dataUrl: string,
+): { format: "PNG" | "JPEG"; data: string } | null {
+  const m = dataUrl.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/i);
+  if (!m) return null;
+  const format = m[1].toLowerCase() === "png" ? "PNG" : "JPEG";
+  return { format, data: m[2] };
+}
+
 type WizardStep = 1 | 2 | 3 | 4;
 
 export default function OrcamentosPage() {
@@ -96,11 +128,66 @@ export default function OrcamentosPage() {
       });
 
       const marginX = 48;
-      let y = 54;
+      const pageW = doc.internal.pageSize.getWidth();
+      const marginRight = marginX;
+      let y = 48;
 
+      const branding = user
+        ? getCompanyBrandingFromMetadata(
+            user.user_metadata as Record<string, unknown> | undefined,
+          )
+        : null;
+
+      if (branding) {
+        let logoRendered = false;
+        if (branding.logoDataUrl) {
+          const parsed = parseDataUrlForJsPdf(branding.logoDataUrl);
+          if (parsed) {
+            try {
+              doc.addImage(parsed.data, parsed.format, marginX, y, 56, 56);
+              logoRendered = true;
+            } catch {
+              // Logo inválido ou formato não suportado no PDF — segue só com texto
+            }
+          }
+        }
+
+        const textColumnX = marginX + (logoRendered ? 72 : 0);
+        const companyTitle = branding.name || "Empresa";
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text(companyTitle, textColumnX, y + 14);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+
+        let ty = y + 28;
+        if (branding.document) {
+          doc.text(`CNPJ/CPF: ${branding.document}`, textColumnX, ty);
+          ty += 12;
+        }
+        if (branding.email) {
+          doc.text(branding.email, textColumnX, ty);
+          ty += 12;
+        }
+        if (branding.phone) {
+          doc.text(`Tel: ${branding.phone}`, textColumnX, ty);
+          ty += 12;
+        }
+
+        const headerBottom = Math.max(logoRendered ? y + 56 : y, ty + 4);
+        y = headerBottom + 10;
+
+        doc.setDrawColor(180);
+        doc.line(marginX, y, pageW - marginRight, y);
+        y += 20;
+      }
+
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
       doc.text("Orçamento", marginX, y);
       y += 18;
+      doc.setFont("helvetica", "normal");
 
       doc.setFontSize(10);
       doc.text(`Cliente: ${clientName.trim()}`, marginX, y);
@@ -180,6 +267,21 @@ export default function OrcamentosPage() {
           doc.text(String(line), marginX, y);
           y += 12;
         }
+      }
+
+      const totalPages = doc.getNumberOfPages();
+      const pageH = doc.internal.pageSize.getHeight();
+      for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(130);
+        doc.text(
+          `Documento gerado em ${new Date().toLocaleString("pt-BR")} · Página ${p}/${totalPages}`,
+          marginX,
+          pageH - 28,
+        );
+        doc.setTextColor(0);
       }
 
       doc.save(`orcamento_${quoteId}.pdf`);
