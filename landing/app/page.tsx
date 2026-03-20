@@ -59,7 +59,7 @@ export default function Home() {
                   href="#docs"
                   className="text-sm text-slate-400 hover:text-cyan-400"
                 >
-                  Documentação
+                  Primeiros passos
                 </a>
               )}
             </nav>
@@ -83,17 +83,18 @@ export default function Home() {
         {/* ========== HERO ========== */}
         <section className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8 lg:py-36">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-400">
-            Precificação e gestão para makers
+            Precificação, produção e vendas em um só lugar
           </p>
           <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-slate-50 sm:text-5xl lg:text-6xl">
             Precifique certo.{" "}
             <span className="bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
-              Venda com margem.
+              Opere com margem real.
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-400">
-            Calculadora de custos e preços para impressão 3D. Shopee, Mercado
-            Livre e venda direta (PIX e cartão) em poucas linhas.
+            Calculadora completa para Shopee, Mercado Livre e venda direta, mais
+            dashboard operacional, ordens de produção, insumos, vendas, orçamentos
+            em PDF com a sua marca e sincronização na nuvem.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
@@ -106,104 +107,263 @@ export default function Home() {
               href="#recursos"
               className="w-full rounded-xl border border-slate-600 bg-slate-800/50 px-8 py-4 text-center text-base font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/80 sm:w-auto"
             >
-              Por que usar?
+              Ver recursos
             </a>
           </div>
         </section>
 
-        {/* ========== CANAIS DE VENDA (estilo AbacatePay) ========== */}
+        {/* ========== RECURSOS (organizado por área) ========== */}
         <section id="recursos" className="border-t border-slate-800/80 bg-slate-900/30 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mx-auto max-w-2xl text-center">
+              <h2 className="text-3xl font-bold text-slate-50 sm:text-4xl">
+                O que o app faz hoje
+              </h2>
+              <p className="mt-3 text-slate-400">
+                Da simulação de preço à gestão do dia a dia do seu laboratório 3D.
+              </p>
+            </div>
+
+            {/* Precificação */}
+            <h3 className="mt-14 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
+              Precificação
+            </h3>
+            <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 {
                   title: "Calculadora completa",
                   description:
-                    "Custo por peça, energia, filamento, depreciação e embalagem. Sugestão de preço por canal com margem desejada.",
+                    "Filamento, energia, depreciação, embalagem, frete e margem. Ajustes avançados: taxa de falha, mão de obra e desconto real com lucro líquido e margem real.",
                   icon: "🧮",
                 },
                 {
                   title: "Shopee e Mercado Livre",
                   description:
-                    "Taxas e comissões configuráveis. Frete grátis, CPF ou CNPJ. Preço mínimo e sugestões por marketplace.",
+                    "Comissões configuráveis, frete grátis na Shopee, CPF ou CNPJ, preço sugerido e mínimo por canal.",
                   icon: "🛒",
                 },
                 {
                   title: "PIX e cartão direto",
                   description:
-                    "Preços sugeridos para venda direta sem marketplace. Taxa de cartão configurável. Ideal para encomendas.",
+                    "Sugestão de preço para venda fora do marketplace, com taxa de cartão configurável.",
                   icon: "💳",
                 },
                 {
-                  title: "Produtos e estoque",
+                  title: "Produtos salvos",
                   description:
-                    "Salve simulações como produtos, acompanhe estoque e organize seu catálogo para venda.",
+                    "Transforme simulações em produtos com ficha, imagem e histórico para reutilizar na operação.",
                   icon: "📦",
                 },
               ].map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-2xl border border-slate-800 bg-slate-950/80 p-6 backdrop-blur-sm transition hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/5"
-                >
-                  <span className="text-3xl" aria-hidden>
-                    {item.icon}
-                  </span>
-                  <h3 className="mt-4 text-lg font-semibold text-slate-100">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                    {item.description}
-                  </p>
-                </div>
+                <FeatureCard key={item.title} {...item} />
+              ))}
+            </div>
+
+            {/* Operação */}
+            <h3 className="mt-14 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
+              Produção e estoque
+            </h3>
+            <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  title: "Dashboard operacional",
+                  description:
+                    "Visão de ordens, uso de impressoras e vendas com filtros por período (hoje, 7 e 30 dias).",
+                  icon: "📊",
+                },
+                {
+                  title: "Ordens e impressoras",
+                  description:
+                    "Ordens de produção ligadas a produtos e impressoras cadastradas com custos reais para a calculadora.",
+                  icon: "🖨️",
+                },
+                {
+                  title: "Insumos e movimentações",
+                  description:
+                    "Controle de materiais com histórico de entradas e saídas.",
+                  icon: "🧵",
+                },
+                {
+                  title: "Peças produzidas",
+                  description:
+                    "Acompanhe o que já saiu da impressora e integre com o fluxo de produtos.",
+                  icon: "✅",
+                },
+              ].map((item) => (
+                <FeatureCard key={item.title} {...item} />
+              ))}
+            </div>
+
+            {/* Comercial */}
+            <h3 className="mt-14 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
+              Vendas e documentos
+            </h3>
+            <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  title: "Vendas",
+                  description:
+                    "Registre vendas por canal e acompanhe receita no painel.",
+                  icon: "💰",
+                },
+                {
+                  title: "Orçamentos em PDF",
+                  description:
+                    "Gere orçamento com itens e totais; o PDF usa logo e dados da empresa salvos em Conta.",
+                  icon: "📄",
+                },
+                {
+                  title: "Relatórios",
+                  description:
+                    "Visão consolidada de insumos, produção e indicadores para decisão.",
+                  icon: "📈",
+                },
+                {
+                  title: "Alertas",
+                  description:
+                    "Acompanhe avisos importantes da operação e da margem.",
+                  icon: "🔔",
+                },
+              ].map((item) => (
+                <FeatureCard key={item.title} {...item} />
+              ))}
+            </div>
+
+            {/* Conta, PWA, tutorial */}
+            <h3 className="mt-14 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
+              Conta e experiência
+            </h3>
+            <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  title: "Conta e empresa",
+                  description:
+                    "Dados pessoais, dados da empresa, logo e segurança (senha) em um só lugar.",
+                  icon: "👤",
+                },
+                {
+                  title: "PWA no celular",
+                  description:
+                    "Use no navegador ou instale como app (Android e iPhone) com layout responsivo.",
+                  icon: "📱",
+                },
+                {
+                  title: "Tutorial no app",
+                  description:
+                    "Tour em 5 passos, um de cada vez, para configurar e usar o fluxo completo.",
+                  icon: "🎓",
+                },
+                {
+                  title: "Configurações",
+                  description:
+                    "Margem padrão, moeda, presets de comissão e preferências alinhadas à calculadora.",
+                  icon: "⚙️",
+                },
+              ].map((item) => (
+                <FeatureCard key={item.title} {...item} />
               ))}
             </div>
           </div>
         </section>
 
-        {/* ========== QUANTO CUSTA ========== */}
+        {/* ========== PREÇOS ========== */}
         <section id="precos" className="border-t border-slate-800/80 py-16 sm:py-20">
-          <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-slate-50 sm:text-4xl">
-              Quanto custa?
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg text-slate-400">
-              Menos do que você imagina. Em beta, acesso gratuito para testar
-              todas as funções. Planos em breve.
-            </p>
-            <Link
-              href={APP_URL}
-              className="mt-8 inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-3.5 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-400"
-            >
-              Ver o app
-            </Link>
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center">
+              <h2 className="text-3xl font-bold text-slate-50 sm:text-4xl">
+                Planos simples
+              </h2>
+              <p className="mt-4 text-lg text-slate-400">
+                Comece com trial do Pro e escolha o que combina com o seu momento.
+              </p>
+            </div>
+            <div className="mx-auto mt-10 grid max-w-4xl gap-6 sm:grid-cols-3">
+              {[
+                {
+                  name: "Free",
+                  price: "R$ 0",
+                  detail: "Inclui período de teste com acesso Pro.",
+                  highlight: false,
+                },
+                {
+                  name: "Pro",
+                  price: "R$ 24,99",
+                  detail: "Por mês · precificação e operação completas.",
+                  highlight: true,
+                },
+                {
+                  name: "Business",
+                  price: "12× R$ 19,90",
+                  detail: "Plano anual · mesmo escopo, melhor custo mensal.",
+                  highlight: false,
+                },
+              ].map((plan) => (
+                <div
+                  key={plan.name}
+                  className={`rounded-2xl border p-6 text-center ${
+                    plan.highlight
+                      ? "border-cyan-500/50 bg-slate-900/80 shadow-lg shadow-cyan-500/10"
+                      : "border-slate-800 bg-slate-950/80"
+                  }`}
+                >
+                  <p className="text-sm font-medium text-cyan-400">{plan.name}</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-50">{plan.price}</p>
+                  <p className="mt-2 text-sm text-slate-400">{plan.detail}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href={`${APP_URL}/pricing`}
+                className="inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-3.5 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-400"
+              >
+                Ver planos e assinar
+              </Link>
+              <Link
+                href={APP_URL}
+                className="inline-block rounded-xl border border-slate-600 bg-slate-800/50 px-8 py-3.5 text-base font-medium text-slate-200 transition hover:border-cyan-500/50 hover:bg-slate-800"
+              >
+                Abrir o app
+              </Link>
+            </div>
           </div>
         </section>
 
-        {/* ========== INTEGRAÇÕES ========== */}
+        {/* ========== USE ONDE QUISER + LINKS ========== */}
         <section className="border-t border-slate-800/80 bg-slate-900/30 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <h2 className="text-center text-2xl font-bold text-slate-50 sm:text-3xl">
               Use onde quiser
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-center text-slate-400">
-              Navegador, celular ou instalado como app. PWA com suporte offline
-              básico.
+              Navegador no computador ou celular, com opção de instalar como PWA.
             </p>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-8 text-slate-500">
-              <span className="rounded-xl border border-slate-700 bg-slate-800/50 px-5 py-2.5 text-sm font-medium">
-                PWA
-              </span>
-              <span className="rounded-xl border border-slate-700 bg-slate-800/50 px-5 py-2.5 text-sm font-medium">
-                Navegador
-              </span>
-              <span className="rounded-xl border border-slate-700 bg-slate-800/50 px-5 py-2.5 text-sm font-medium">
-                Mobile
-              </span>
-              <span className="rounded-xl border border-slate-700 bg-slate-800/50 px-5 py-2.5 text-sm font-medium">
-                Desktop
-              </span>
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-4 text-slate-500">
+              {["PWA", "Chrome / Safari", "Android / iPhone", "Desktop"].map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-xl border border-slate-700 bg-slate-800/50 px-5 py-2.5 text-sm font-medium"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
-            <div className="mt-12 grid gap-6 sm:grid-cols-2">
+            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <Link
+                href={`${APP_URL}/tutorial`}
+                className="group rounded-2xl border border-slate-800 bg-slate-950/80 p-6 transition hover:border-cyan-500/40"
+              >
+                <h3 className="text-lg font-semibold text-slate-100 group-hover:text-cyan-400">
+                  Tutorial no app
+                </h3>
+                <p className="mt-2 text-sm text-slate-400">
+                  Passo a passo dentro do próprio sistema — ideal para a primeira
+                  configuração.
+                </p>
+                <span className="mt-3 inline-block text-sm font-medium text-cyan-400">
+                  Abrir tutorial →
+                </span>
+              </Link>
               {DOCS_URL ? (
                 <Link
                   href={DOCS_URL}
@@ -213,7 +373,7 @@ export default function Home() {
                     Documentação
                   </h3>
                   <p className="mt-2 text-sm text-slate-400">
-                    Guias e referência para usar o Maph Pro 3D no dia a dia.
+                    Guias e referência para aprofundar o uso.
                   </p>
                   <span className="mt-3 inline-block text-sm font-medium text-cyan-400">
                     Acessar documentação →
@@ -225,13 +385,14 @@ export default function Home() {
                   className="group block rounded-2xl border border-slate-800 bg-slate-950/80 p-6 transition hover:border-cyan-500/40"
                 >
                   <h3 className="text-lg font-semibold text-slate-100 group-hover:text-cyan-400">
-                    Documentação
+                    Primeiros passos
                   </h3>
                   <p className="mt-2 text-sm text-slate-400">
-                    Guias e referência em breve. Enquanto isso, use o app.
+                    Documentação externa em breve; use o tutorial e a calculadora
+                    no app.
                   </p>
                   <span className="mt-3 inline-block text-sm font-medium text-cyan-400">
-                    Ver seção documentação →
+                    Ler abaixo →
                   </span>
                 </a>
               )}
@@ -243,7 +404,7 @@ export default function Home() {
                   Calculadora
                 </h3>
                 <p className="mt-2 text-sm text-slate-400">
-                  Abra o app e comece a simular custos e preços agora.
+                  Simule custos e preços por canal em minutos.
                 </p>
                 <span className="mt-3 inline-block text-sm font-medium text-cyan-400">
                   Abrir o app →
@@ -253,50 +414,61 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ========== DOCUMENTAÇÃO ========== */}
+        {/* ========== PRIMEIROS PASSOS / DOCS ========== */}
         <section id="docs" className="border-t border-slate-800/80 py-16 sm:py-20">
           <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
             <h2 className="text-2xl font-bold text-slate-50 sm:text-3xl">
-              Documentação
+              Por onde começar
             </h2>
             <p className="mt-4 text-slate-400">
-              Guias e tutoriais em breve. Enquanto isso, use o app para explorar
-              a calculadora, configurações e gestão de produtos.
+              Recomendamos abrir o <strong className="text-slate-300">Tutorial</strong>{" "}
+              no app (5 passos) e, em seguida, ajustar{" "}
+              <strong className="text-slate-300">Configurações</strong> e{" "}
+              <strong className="text-slate-300">Impressoras</strong> antes da primeira
+              simulação na calculadora.
             </p>
-            <Link
-              href={APP_URL}
-              className="mt-6 inline-block rounded-xl border border-slate-600 bg-slate-800/50 px-6 py-3 text-sm font-medium text-slate-200 transition hover:border-cyan-500/50 hover:bg-slate-800"
-            >
-              Abrir o app
-            </Link>
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href={`${APP_URL}/tutorial`}
+                className="inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-400"
+              >
+                Abrir tutorial
+              </Link>
+              <Link
+                href={APP_URL}
+                className="inline-block rounded-xl border border-slate-600 bg-slate-800/50 px-6 py-3 text-sm font-medium text-slate-200 transition hover:border-cyan-500/50 hover:bg-slate-800"
+              >
+                Ir para o app
+              </Link>
+            </div>
           </div>
         </section>
 
-        {/* ========== SUITE DE SOLUÇÕES ========== */}
+        {/* ========== VISÃO GERAL (3 pilares) ========== */}
         <section className="border-t border-slate-800/80 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <h2 className="text-center text-2xl font-bold text-slate-50 sm:text-3xl">
-              Uma solução completa para o seu negócio 3D
+              Três pilares do Maph Pro 3D
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-center text-slate-400">
-              Precificação, marketplaces e gestão de produtos em um só lugar.
+              Precificar com método, produzir com controle e vender com números claros.
             </p>
             <div className="mt-12 grid gap-8 sm:grid-cols-3">
               {[
                 {
-                  title: "Precificação inteligente",
+                  title: "Margem real",
                   description:
-                    "Calcule custos reais por peça e sugestões de preço por canal (Shopee, ML, PIX, cartão) com a margem que você definir.",
+                    "Preço sugerido por canal com taxas, impostos e custos alinhados — incluindo cenários com ajustes avançados.",
                 },
                 {
-                  title: "Marketplaces",
+                  title: "Operação organizada",
                   description:
-                    "Taxas e comissões configuráveis para Shopee e Mercado Livre. Preço mínimo e kit por placa.",
+                    "Dashboard, ordens, impressoras e insumos para saber o que produzir, com o quê e em que ordem.",
                 },
                 {
-                  title: "Gestão de produtos",
+                  title: "Cliente e caixa",
                   description:
-                    "Salve simulações, acompanhe estoque, relatórios e analisador STL para estimar tempo e material.",
+                    "Vendas registradas, orçamentos profissionais em PDF com a sua marca e relatórios para acompanhar resultado.",
                 },
               ].map((item) => (
                 <div
@@ -317,25 +489,29 @@ export default function Home() {
         <section id="faq" className="border-t border-slate-800/80 bg-slate-900/30 py-16 sm:py-20">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <h2 className="text-center text-2xl font-bold text-slate-50 sm:text-3xl">
-              Tem dúvidas? Aqui estão as respostas.
+              Perguntas frequentes
             </h2>
             <ul className="mt-12 space-y-6">
               {[
                 {
                   q: "O que é o Maph Pro 3D?",
-                  a: "É um SaaS de precificação e gestão para quem imprime em 3D. Você informa peso, tempo, custos e margem desejada e recebe sugestões de preço para Shopee, Mercado Livre e venda direta (PIX e cartão), além de gestão de produtos e estoque.",
+                  a: "É um SaaS para quem vende impressão 3D: calculadora de custos e preços por canal (Shopee, Mercado Livre, PIX e cartão), gestão de produtos, produção, insumos, vendas, orçamentos em PDF e painéis para acompanhar a operação.",
                 },
                 {
-                  q: "Preciso pagar para usar?",
-                  a: "Em versão beta, o acesso é gratuito. Quando saírem os planos, haverá opção gratuita limitada e planos pagos com mais recursos.",
+                  q: "Como funcionam os planos?",
+                  a: "Há um plano Free, o Pro mensal e o Business em formato anual (melhor custo por mês). No app, em Planos, você vê valores atualizados, trial quando disponível e pode gerenciar assinatura.",
                 },
                 {
                   q: "Funciona no celular?",
-                  a: "Sim. O app é um PWA: você pode usar no navegador ou instalar na tela inicial e usar como app, inclusive com rotação de tela.",
+                  a: "Sim. O app é responsivo e pode ser instalado como PWA na tela inicial no Android (Chrome) e no iPhone (Safari).",
                 },
                 {
-                  q: "Posso usar com pessoa física (CPF)?",
-                  a: "Sim. A calculadora permite escolher CPF ou CNPJ para ajustar as taxas de Shopee e Mercado Livre. Para venda direta (PIX/cartão), não há restrição.",
+                  q: "O PDF do orçamento pode ter minha marca?",
+                  a: "Sim. Cadastre logo e dados da empresa na aba Conta no app; o orçamento em PDF usa essas informações no cabeçalho.",
+                },
+                {
+                  q: "Posso usar com CPF?",
+                  a: "Sim. Na calculadora você define pessoa física ou jurídica para refletir melhor as regras de marketplace; venda direta continua configurável.",
                 },
               ].map((item) => (
                 <li
@@ -356,22 +532,22 @@ export default function Home() {
         <section className="border-t border-slate-800/80 py-16 sm:py-20">
           <div className="mx-auto max-w-2xl px-4 text-center sm:px-6 lg:px-8">
             <h2 className="text-2xl font-bold text-slate-50 sm:text-3xl">
-              Você chegou no fim da página.
+              Pronto para precificar com método?
             </h2>
             <p className="mt-3 text-slate-400">
-              Se chegou até aqui, é porque tá interessado. Então vai lá, abre o
-              app e começa a precificar.
+              Entre no app, siga o tutorial e faça sua primeira simulação com os seus
+              custos reais.
             </p>
             <Link
               href={APP_URL}
               className="mt-6 inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-4 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-emerald-400"
             >
-              Vai, clica nesse botão
+              Abrir o Maph Pro 3D
             </Link>
           </div>
         </section>
 
-        {/* ========== FOOTER (estilo AbacatePay) ========== */}
+        {/* ========== FOOTER ========== */}
         <footer className="border-t border-slate-800 bg-slate-950 py-12">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -396,6 +572,14 @@ export default function Home() {
                       Começar agora
                     </Link>
                   </li>
+                  <li>
+                    <Link
+                      href={`${APP_URL}/conta`}
+                      className="text-sm text-slate-400 hover:text-cyan-400"
+                    >
+                      Conta (app)
+                    </Link>
+                  </li>
                 </ul>
               </div>
               <div>
@@ -414,6 +598,14 @@ export default function Home() {
                     </a>
                   </li>
                   <li>
+                    <Link
+                      href={`${APP_URL}/tutorial`}
+                      className="text-sm text-slate-400 hover:text-cyan-400"
+                    >
+                      Tutorial (app)
+                    </Link>
+                  </li>
+                  <li>
                     {DOCS_URL ? (
                       <Link
                         href={DOCS_URL}
@@ -423,7 +615,7 @@ export default function Home() {
                       </Link>
                     ) : (
                       <a href="#docs" className="text-sm text-slate-400 hover:text-cyan-400">
-                        Documentação
+                        Primeiros passos
                       </a>
                     )}
                   </li>
@@ -447,6 +639,14 @@ export default function Home() {
                       App
                     </Link>
                   </li>
+                  <li>
+                    <Link
+                      href={`${APP_URL}/pricing`}
+                      className="text-sm text-slate-400 hover:text-cyan-400"
+                    >
+                      Planos (app)
+                    </Link>
+                  </li>
                 </ul>
               </div>
               <div>
@@ -454,16 +654,36 @@ export default function Home() {
                   Maph Pro 3D
                 </h4>
                 <p className="mt-3 text-sm text-slate-400">
-                  Precificação e gestão para impressão 3D. Beta.
+                  Precificação, produção e vendas para o seu negócio de impressão 3D.
                 </p>
               </div>
             </div>
             <div className="mt-12 border-t border-slate-800 pt-8 text-center text-sm text-slate-500">
-              © {new Date().getFullYear()} Maph Pro 3D · Beta
+              © {new Date().getFullYear()} Maph Pro 3D
             </div>
           </div>
         </footer>
       </div>
+    </div>
+  );
+}
+
+function FeatureCard({
+  title,
+  description,
+  icon,
+}: {
+  title: string;
+  description: string;
+  icon: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-6 backdrop-blur-sm transition hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/5">
+      <span className="text-3xl" aria-hidden>
+        {icon}
+      </span>
+      <h3 className="mt-4 text-lg font-semibold text-slate-100">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-slate-400">{description}</p>
     </div>
   );
 }

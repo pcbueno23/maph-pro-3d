@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Maph Pro 3D – Precificação e gestão para impressão 3D",
   description:
-    "Calculadora de custos, margens e preços para makers e negócios de impressão 3D. Shopee, Mercado Livre e venda direta.",
+    "Calculadora com Shopee, Mercado Livre e venda direta; dashboard, ordens, insumos, vendas, orçamentos em PDF com sua marca e PWA.",
   icons: {
     icon: [{ url: "/logo.png", type: "image/png" }],
     apple: "/logo.png",
