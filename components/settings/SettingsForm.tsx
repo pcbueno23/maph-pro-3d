@@ -222,6 +222,110 @@ export function SettingsForm() {
         </section>
       </div>
 
+      <section className="space-y-3 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+          Ajustes avançados (calculadora)
+        </h2>
+        <p className="text-[11px] text-slate-500">
+          Valores iniciais para cada nova simulação na calculadora (taxa de falha, desconto real e mão de obra).
+          Você ainda pode alterar na hora no painel da calculadora.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="mb-1 block text-xs text-slate-300">
+              Taxa de falha (%){" "}
+              <span className="text-slate-500" title="Aumenta o custo real: custo ÷ (1 − falha).">
+                (?)
+              </span>
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              min={0}
+              max={99.9}
+              className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+              {...form.register("advanced.taxaFalha", { valueAsNumber: true })}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-slate-300">
+              Desconto real (%){" "}
+              <span
+                className="text-slate-500"
+                title="Desconto que o cliente costuma receber; o preço sugerido compensa para manter a margem."
+              >
+                (?)
+              </span>
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              min={0}
+              max={99}
+              className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+              {...form.register("advanced.descontoPercentual", { valueAsNumber: true })}
+            />
+          </div>
+          <div className="md:col-span-2 lg:col-span-2">
+            <p className="mb-1 text-xs text-slate-300">
+              Mão de obra{" "}
+              <span
+                className="text-slate-500"
+                title="Fixo por peça ou valor por hora aplicado ao tempo manual."
+              >
+                (?)
+              </span>
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-200">
+                <input
+                  type="radio"
+                  value="fixo"
+                  className="border-slate-600 text-violet-500 focus:ring-violet-500"
+                  {...form.register("advanced.maoDeObraTipo")}
+                />
+                Fixo/peça
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-200">
+                <input
+                  type="radio"
+                  value="hora"
+                  className="border-slate-600 text-violet-500 focus:ring-violet-500"
+                  {...form.register("advanced.maoDeObraTipo")}
+                />
+                Por hora
+              </label>
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-slate-300">Valor (R$)</label>
+            <input
+              type="number"
+              step="0.01"
+              min={0}
+              className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+              {...form.register("advanced.maoDeObraValor", { valueAsNumber: true })}
+            />
+            <p className="mt-0.5 text-[10px] text-slate-500">R$/peça ou R$/h conforme o modo.</p>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-slate-300">
+              Tempo manual (min){" "}
+              <span className="text-slate-500" title="Usado quando mão de obra é por hora.">
+                (?)
+              </span>
+            </label>
+            <input
+              type="number"
+              step="1"
+              min={0}
+              className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+              {...form.register("advanced.tempoManualMin", { valueAsNumber: true })}
+            />
+          </div>
+        </div>
+      </section>
+
       <div className="flex justify-end">
         <button
           type="submit"

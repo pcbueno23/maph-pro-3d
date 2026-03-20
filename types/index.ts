@@ -3,6 +3,41 @@ import { MARKETPLACES } from "@/lib/constants";
 
 export type Marketplace = (typeof MARKETPLACES)[number];
 
+/** Padrões globais (Configurações) e fallback da calculadora — mesma forma do bloco `advanced` do formulário. */
+export const CALCULATOR_ADVANCED_DEFAULTS = {
+  taxaFalha: 10,
+  maoDeObraTipo: "fixo" as const,
+  maoDeObraValor: 0,
+  tempoManualMin: 0,
+  descontoPercentual: 0,
+};
+
+export const calculatorAdvancedObjectSchema = z.object({
+  taxaFalha: z
+    .union([z.number(), z.nan()])
+    .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 10))
+    .pipe(z.number().min(0).max(99.9))
+    .default(10),
+  maoDeObraTipo: z.enum(["fixo", "hora"]).default("fixo"),
+  maoDeObraValor: z
+    .union([z.number(), z.nan()])
+    .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
+    .pipe(z.number().min(0))
+    .default(0),
+  tempoManualMin: z
+    .union([z.number(), z.nan()])
+    .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
+    .pipe(z.number().min(0))
+    .default(0),
+  descontoPercentual: z
+    .union([z.number(), z.nan()])
+    .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
+    .pipe(z.number().min(0).max(99))
+    .default(0),
+});
+
+export type CalculatorAdvancedDefaults = z.infer<typeof calculatorAdvancedObjectSchema>;
+
 export const calculatorSchema = z
   .object({
   productName: z.string().optional(),
@@ -80,37 +115,7 @@ export const calculatorSchema = z
       .optional()
       .transform((n) => (typeof n === "number" && !Number.isNaN(n) && n > 0 ? n : undefined)),
   }),
-  advanced: z
-    .object({
-      taxaFalha: z
-        .union([z.number(), z.nan()])
-        .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 10))
-        .pipe(z.number().min(0).max(99.9))
-        .default(10),
-      maoDeObraTipo: z.enum(["fixo", "hora"]).default("fixo"),
-      maoDeObraValor: z
-        .union([z.number(), z.nan()])
-        .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
-        .pipe(z.number().min(0))
-        .default(0),
-      tempoManualMin: z
-        .union([z.number(), z.nan()])
-        .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
-        .pipe(z.number().min(0))
-        .default(0),
-      descontoPercentual: z
-        .union([z.number(), z.nan()])
-        .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
-        .pipe(z.number().min(0).max(99))
-        .default(0),
-    })
-    .default({
-      taxaFalha: 10,
-      maoDeObraTipo: "fixo",
-      maoDeObraValor: 0,
-      tempoManualMin: 0,
-      descontoPercentual: 0,
-    }),
+  advanced: calculatorAdvancedObjectSchema.default(CALCULATOR_ADVANCED_DEFAULTS),
 })
   .superRefine((data, ctx) => {
     if (data.time.unitsPerBatch <= 1 && data.material.weight < 1) {
@@ -378,6 +383,8 @@ export const settingsSchema = z.object({
       )
       .default([]),
   }),
+  /** Presets de “Ajustes avançados” da calculadora (taxa de falha, mão de obra, etc.). */
+  advanced: calculatorAdvancedObjectSchema.default(CALCULATOR_ADVANCED_DEFAULTS),
 });
 
 export type SettingsValues = z.infer<typeof settingsSchema>;

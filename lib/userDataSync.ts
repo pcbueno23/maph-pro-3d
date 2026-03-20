@@ -27,6 +27,10 @@ export async function syncUserDataOnLogin(userId: string): Promise<void> {
         ...defaultSettings.printer,
         ...(data.settings.printer ?? defaultSettings.printer),
       },
+      advanced: {
+        ...defaultSettings.advanced,
+        ...(data.settings.advanced ?? defaultSettings.advanced),
+      },
     };
     settingsStore.updateSettings(merged);
   } else {

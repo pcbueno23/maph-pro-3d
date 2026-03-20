@@ -4,7 +4,11 @@ import { useEffect, useMemo, useRef } from "react";
 import type { Resolver } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { calculatorSchema, type CalculatorFormValues } from "@/types";
+import {
+  calculatorSchema,
+  type CalculatorFormValues,
+  CALCULATOR_ADVANCED_DEFAULTS,
+} from "@/types";
 import type { Product } from "@/types";
 import { DEFAULT_MARKETPLACE_FEES } from "@/lib/constants";
 import {
@@ -77,11 +81,8 @@ function getDefaultValues(
       cardFeePercent: settings.defaults.cardFeePercent ?? 0,
     },
     advanced: {
-      taxaFalha: 10,
-      maoDeObraTipo: "fixo" as const,
-      maoDeObraValor: 0,
-      tempoManualMin: 0,
-      descontoPercentual: 0,
+      ...CALCULATOR_ADVANCED_DEFAULTS,
+      ...settings.advanced,
     },
   };
 }
@@ -348,6 +349,10 @@ export function useCalculator() {
         taxMode: settings.defaults.taxMode ?? "net_marketplace",
         mlClassic: settings.defaults.mlClassic ?? false,
         freeShipping: settings.defaults.shopeeFreeShippingDefault ?? false,
+      },
+      advanced: {
+        ...CALCULATOR_ADVANCED_DEFAULTS,
+        ...settings.advanced,
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

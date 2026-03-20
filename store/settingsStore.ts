@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { SettingsValues } from "@/types";
+import { CALCULATOR_ADVANCED_DEFAULTS } from "@/types";
 
 // Chave única para as configurações no localStorage
 const STORAGE_KEY = "precifica3d-settings-v3";
@@ -44,6 +45,7 @@ export const defaultSettings: SettingsValues = {
     customYearlyPrintHours: undefined,
     customPresets: [],
   },
+  advanced: { ...CALCULATOR_ADVANCED_DEFAULTS },
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -66,6 +68,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
                 ...defaultSettings.printer,
                 ...(parsed.printer ?? defaultSettings.printer),
               },
+              advanced: {
+                ...defaultSettings.advanced,
+                ...(parsed.advanced ?? defaultSettings.advanced),
+              },
             };
           } catch {
             return defaultSettings;
@@ -83,6 +89,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         printer: {
           ...state.settings.printer,
           ...(next.printer ?? {}),
+        },
+        advanced: {
+          ...state.settings.advanced,
+          ...(next.advanced ?? {}),
         },
       };
       if (typeof window !== "undefined") {
