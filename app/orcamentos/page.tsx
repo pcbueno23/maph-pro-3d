@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import type { Product } from "@/types";
 import type { QuoteItem } from "@/types";
@@ -468,14 +469,21 @@ export default function OrcamentosPage() {
 
   async function handleDeleteQuote(q: Quote) {
     if (!user) return;
-    const ok = typeof window !== "undefined" ? window.confirm("Remover este orçamento?") : false;
+    const ok =
+      typeof window !== "undefined"
+        ? window.confirm(
+            `Excluir o orçamento de "${q.clientName}" (${q.quoteDate})?\nEsta ação não pode ser desfeita.`,
+          )
+        : false;
     if (!ok) return;
     setLoading(true);
     setError(null);
     try {
       await deleteQuote(user.id, q.id);
       setQuotes((prev) => prev.filter((x) => x.id !== q.id));
-      // não mexe no wizard
+      if (quoteId === q.id) {
+        resetWizard();
+      }
     } catch (e: any) {
       setError(e?.message ?? "Falha ao remover orçamento.");
     } finally {
@@ -854,23 +862,41 @@ export default function OrcamentosPage() {
           ) : (
             <div className="mt-3 space-y-2">
               {quotes.slice(0, 8).map((q) => (
-                <button
+                <div
                   key={q.id}
-                  type="button"
-                  onClick={() => handleLoadQuote(q)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-950/40 p-3 text-left transition hover:bg-slate-900/60"
-                  disabled={loading}
+                  className="flex items-stretch gap-1 rounded-xl border border-slate-800 bg-slate-950/40 transition hover:border-slate-700"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold text-slate-100 truncate">{q.clientName}</p>
-                    <p className="text-[11px] text-emerald-300">
-                      {q.total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  <button
+                    type="button"
+                    onClick={() => handleLoadQuote(q)}
+                    className="min-w-0 flex-1 p-3 text-left transition hover:bg-slate-900/60"
+                    disabled={loading}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-slate-100 truncate">{q.clientName}</p>
+                      <p className="shrink-0 text-[11px] text-emerald-300">
+                        {q.total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      {q.quoteDate} · {q.status}
                     </p>
-                  </div>
-                  <p className="mt-1 text-[11px] text-slate-400">
-                    {q.quoteDate} · {q.status}
-                  </p>
-                </button>
+                  </button>
+                  <button
+                    type="button"
+                    title="Excluir orçamento"
+                    aria-label={`Excluir orçamento de ${q.clientName}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      void handleDeleteQuote(q);
+                    }}
+                    disabled={loading}
+                    className="flex shrink-0 items-center justify-center rounded-r-xl border-l border-slate-800 px-3 text-rose-400 transition hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               ))}
             </div>
           )}
