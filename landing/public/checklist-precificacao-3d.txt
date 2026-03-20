@@ -1,0 +1,19 @@
+CHECKLIST GRATIS - PRECIFICACAO 3D COM MARGEM
+
+Use este checklist antes de publicar qualquer anuncio.
+
+1) Some custo de material por peca (peso total real).
+2) Some custo de energia com base no tempo de impressao.
+3) Inclua embalagem e consumiveis.
+4) Inclua depreciacao da impressora (custo + vida util).
+5) Considere taxa de falha/reimpressao.
+6) Defina margem alvo minima antes de calcular preco.
+7) Simule taxas por canal (Shopee, ML, cartao, etc.).
+8) Compare preco sugerido x preco de mercado.
+9) Defina preco minimo abaixo do qual nao vende.
+10) Valide lucro liquido apos taxas e impostos.
+11) Revise se o preco cobre seu tempo de operacao.
+12) Salve produto e padronize para pedidos futuros.
+
+Quer aplicar esse checklist em 5 minutos?
+Crie sua conta gratis: /login?signup=1

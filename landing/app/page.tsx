@@ -8,6 +8,7 @@ const DOCS_URL =
 const APP_BASE_URL = APP_URL.replace(/\/$/, "");
 const APP_LOGIN_URL = `${APP_BASE_URL}/login`;
 const APP_SIGNUP_URL = `${APP_BASE_URL}/login?signup=1`;
+const LEAD_MAGNET_URL = "/checklist-precificacao-3d.txt";
 
 export default function Home() {
   return (
@@ -41,11 +42,17 @@ export default function Home() {
               </span>
             </Link>
             <nav className="hidden items-center gap-8 md:flex">
+              <a href="#oferta" className="text-sm text-slate-400 hover:text-cyan-400">
+                Oferta
+              </a>
               <a href="#recursos" className="text-sm text-slate-400 hover:text-cyan-400">
                 Recursos
               </a>
               <a href="#precos" className="text-sm text-slate-400 hover:text-cyan-400">
                 Preços
+              </a>
+              <a href="#qualificacao" className="text-sm text-slate-400 hover:text-cyan-400">
+                Diagnóstico
               </a>
               <a href="#faq" className="text-sm text-slate-400 hover:text-cyan-400">
                 FAQ
@@ -86,18 +93,17 @@ export default function Home() {
         {/* ========== HERO ========== */}
         <section className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8 lg:py-36">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-400">
-            Precificação, produção e vendas em um só lugar
+            Chega de preço no chute
           </p>
           <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-slate-50 sm:text-5xl lg:text-6xl">
-            Precifique certo.{" "}
+            Calcule o preço certo da sua impressão 3D em minutos.{" "}
             <span className="bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
-              Opere com margem real.
+              Proteja sua margem em cada venda.
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-400">
-            Calculadora completa para Shopee, Mercado Livre e venda direta, mais
-            dashboard operacional, ordens de produção, insumos, vendas, orçamentos
-            em PDF com a sua marca e sincronização na nuvem.
+            O Maph Pro 3D transforma seus custos reais em preço de venda com lucro,
+            considerando material, energia, tempo, depreciação, taxas e impostos.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
@@ -107,11 +113,52 @@ export default function Home() {
               Começar teste grátis
             </Link>
             <a
+              href={LEAD_MAGNET_URL}
+              className="w-full rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-8 py-4 text-center text-base font-medium text-cyan-200 transition hover:bg-cyan-500/15 sm:w-auto"
+            >
+              Baixar checklist grátis
+            </a>
+            <a
               href="#recursos"
               className="w-full rounded-xl border border-slate-600 bg-slate-800/50 px-8 py-4 text-center text-base font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/80 sm:w-auto"
             >
               Ver recursos
             </a>
+          </div>
+        </section>
+
+        {/* ========== OFERTA IRRESISTÍVEL ========== */}
+        <section id="oferta" className="border-t border-slate-800/80 bg-slate-900/30 py-16 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-3xl text-center">
+              <h2 className="text-3xl font-bold text-slate-50 sm:text-4xl">
+                Uma ideia central: vender com lucro previsível
+              </h2>
+              <p className="mt-4 text-slate-400">
+                Em vez de dezenas de promessas, focamos em um resultado: você saber o preço mínimo e o preço ideal antes de anunciar.
+              </p>
+            </div>
+            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                "Calcula custo real por peça (não só filamento).",
+                "Considera energia, embalagem e depreciação.",
+                "Inclui taxa de falha para custo realista.",
+                "Simula Shopee, Mercado Livre, PIX e cartão.",
+                "Mostra lucro líquido e margem final.",
+                "Compara com preço de mercado em segundos.",
+                "Evita vender abaixo do custo sem perceber.",
+                "Organiza produtos, ordens e vendas no mesmo app.",
+                "Gera orçamento em PDF com sua marca.",
+                "Sincroniza na nuvem para continuar de onde parou.",
+              ].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 text-sm text-slate-300"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -310,6 +357,11 @@ export default function Home() {
                   }`}
                 >
                   <p className="text-sm font-medium text-cyan-400">{plan.name}</p>
+                  {plan.highlight ? (
+                    <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
+                      Plano padrão
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-2xl font-bold text-slate-50">{plan.price}</p>
                   <p className="mt-2 text-sm text-slate-400">{plan.detail}</p>
                 </div>
@@ -328,6 +380,37 @@ export default function Home() {
               >
                 Iniciar teste grátis
               </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ========== LEAD MAGNET ========== */}
+        <section className="border-t border-slate-800/80 py-16 sm:py-20">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+            <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-b from-cyan-500/10 to-slate-950/50 p-6 sm:p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+                Lead Magnet
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-slate-50">
+                Checklist grátis: 12 erros que reduzem seu lucro na impressão 3D
+              </h3>
+              <p className="mt-3 text-sm text-slate-300">
+                Material rápido para aplicar hoje e já corrigir precificação, taxa e margem.
+              </p>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href={LEAD_MAGNET_URL}
+                  className="inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:from-cyan-400 hover:to-emerald-400"
+                >
+                  Baixar checklist grátis
+                </a>
+                <Link
+                  href={APP_SIGNUP_URL}
+                  className="inline-block rounded-xl border border-slate-600 bg-slate-900/60 px-6 py-3 text-center text-sm font-medium text-slate-200 transition hover:border-cyan-500/50"
+                >
+                  Criar conta e testar no app
+                </Link>
+              </div>
             </div>
           </div>
         </section>
@@ -484,6 +567,46 @@ export default function Home() {
                   <p className="mt-2 text-sm text-slate-400">{item.description}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ========== QUALIFICAÇÃO (BANT) ========== */}
+        <section id="qualificacao" className="border-t border-slate-800/80 bg-slate-900/30 py-16 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-3xl text-center">
+              <h2 className="text-2xl font-bold text-slate-50 sm:text-3xl">
+                Diagnóstico rápido: o Maph Pro 3D é para você agora?
+              </h2>
+              <p className="mt-3 text-slate-400">
+                Se você marcar “sim” para 3 ou mais pontos, vale iniciar o teste grátis hoje.
+              </p>
+            </div>
+            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <BantCard
+                title="B · Budget"
+                question="Você já vende ou quer vender peças com ticket acima de R$ 30?"
+              />
+              <BantCard
+                title="A · Authority"
+                question="Você decide preço, desconto e canal de venda no seu negócio?"
+              />
+              <BantCard
+                title="N · Need"
+                question="Você já teve dúvida se estava lucrando de verdade em cada venda?"
+              />
+              <BantCard
+                title="T · Timing"
+                question="Você quer organizar sua precificação e operação nas próximas semanas?"
+              />
+            </div>
+            <div className="mt-8 text-center">
+              <Link
+                href={APP_SIGNUP_URL}
+                className="inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-3.5 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-400"
+              >
+                Quero iniciar meu teste grátis
+              </Link>
             </div>
           </div>
         </section>
@@ -687,6 +810,17 @@ function FeatureCard({
       </span>
       <h3 className="mt-4 text-lg font-semibold text-slate-100">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-slate-400">{description}</p>
+    </div>
+  );
+}
+
+function BantCard({ title, question }: { title: string; question: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300">
+        {title}
+      </p>
+      <p className="mt-2 text-sm leading-relaxed text-slate-300">{question}</p>
     </div>
   );
 }
