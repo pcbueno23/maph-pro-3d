@@ -271,10 +271,9 @@ export function AccountForm() {
               Alterar logo
               <input type="file" accept="image/*" className="hidden" onChange={onLogoChange} />
             </label>
-            <p className="mt-1 max-w-[240px] text-center text-[10px] text-slate-500">
-              O logo é enviado ao Storage (URL curta) para aparecer no PDF — rode a migração{" "}
-              <code className="rounded bg-slate-800 px-0.5">20260320_company_logos_storage.sql</code> no
-              Supabase. Depois salve a conta de novo.
+            <p className="mt-1 max-w-[260px] text-center text-[10px] text-slate-500">
+              Usado nos PDFs de orçamento. Escolha a imagem e clique em{" "}
+              <span className="text-slate-400">Salvar alterações</span>.
             </p>
           </div>
 
