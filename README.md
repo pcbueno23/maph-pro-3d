@@ -25,6 +25,17 @@ Precifica3D é uma aplicação SaaS focada em empreendedores de impressão 3D qu
 
 Stripe: se uma chave vazou, **revogue no Dashboard** e gere outra. Ver `docs/STRIPE_SEGURANCA.md`.
 
+### Trial e acesso ao app (sem cartão)
+
+- Cada conta tem **teste grátis** por **`APP_TRIAL_DAYS`** (padrão 7), contado a partir da **data de criação do usuário no Supabase** (`user.created_at`).
+- Durante o teste **não é obrigatório** cartão. Depois do prazo, o app **bloqueia** o uso até existir **assinatura Stripe ativa** (Pro ou Business).
+- Rotas liberadas com trial expirado: **`/pricing`** e **`/trial-expired`**.
+- **`APP_PAYWALL_DISABLED=true`**: desliga o bloqueio (útil só para migração ou debug).
+- Opcional: `user.user_metadata.trial_ends_at` (ISO) **sobrescreve** o fim do teste (para extensões manuais via Supabase).
+- **Contas infinitas** com e-mails diferentes ainda geram trials separados; para reduzir abuso, use **confirmação de e-mail** no Supabase e políticas de uso aceitável.
+
+Checklist de deploy na Vercel (variáveis `APP_TRIAL_DAYS`, Stripe, etc.): **`docs/VERCEL_ENV.md`**.
+
 ## Estrutura principal
 
 - `app/` – rotas (`/dashboard`, `/calculator`, `/products`, `/simulator`, `/settings`)

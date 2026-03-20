@@ -4,10 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Crown, Infinity, Rocket } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
-import {
-  clearTrialInvitePending,
-  hasTrialInvitePending,
-} from "@/lib/trialInvite";
+import { useAccessStore } from "@/store/accessStore";
 
 type PlanEntitlement = "free" | "pro" | "business";
 
@@ -34,6 +31,11 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 
 export function PlansManagement() {
   const { user } = useAuthStore();
+  const bumpAccessCheck = useAccessStore((s) => s.bumpAccessCheck);
+  const accessChecked = useAccessStore((s) => s.checked);
+  const accessPaid = useAccessStore((s) => s.hasPaidPlan);
+  const accessDaysRemaining = useAccessStore((s) => s.daysRemaining);
+  const accessTrialEndsAt = useAccessStore((s) => s.trialEndsAt);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -83,12 +85,9 @@ export function PlansManagement() {
   const isOnTrial = Boolean(status?.isTrialing);
   const plan = status?.plan ?? "free";
 
-  const trialFromUrl = searchParams.get("trial") === "1";
-  const showTrialInviteBanner =
-    (trialFromUrl || hasTrialInvitePending()) &&
-    Boolean(user?.email) &&
-    plan === "free" &&
-    !isOnTrial;
+  useEffect(() => {
+    if (searchParams.get("success") === "1") bumpAccessCheck();
+  }, [searchParams, bumpAccessCheck]);
 
   const trialEnd = useMemo(() => {
     if (!status?.currentPeriodEnd) return null;
@@ -106,8 +105,6 @@ export function PlansManagement() {
         router.push("/login");
         return;
       }
-
-      if (nextPlan === "pro") clearTrialInvitePending();
 
       setError(null);
       setLoadingAction(true);
@@ -129,21 +126,6 @@ export function PlansManagement() {
     },
     [router, user],
   );
-
-  /** Após cadastro pelo link de trial: abre checkout Pro (7 dias no Stripe) uma vez por aba. */
-  useEffect(() => {
-    if (loading || !user?.email || plan !== "free" || isOnTrial) return;
-    if (searchParams.get("trial") !== "1") return;
-    if (searchParams.get("start_checkout") === "0") return;
-    try {
-      if (sessionStorage.getItem("precifica_trial_auto_checkout") === "1")
-        return;
-      sessionStorage.setItem("precifica_trial_auto_checkout", "1");
-    } catch {
-      return;
-    }
-    void handleCheckout("pro");
-  }, [loading, user?.email, plan, isOnTrial, searchParams, handleCheckout]);
 
   async function handlePortal() {
     if (!user) {
@@ -191,27 +173,6 @@ export function PlansManagement() {
           </p>
         ) : null}
 
-        {showTrialInviteBanner ? (
-          <div className="mb-3 rounded-xl border border-cyan-500/40 bg-cyan-500/10 p-3 text-xs text-cyan-100">
-            <p className="font-semibold text-cyan-50">
-              Trial de 7 dias no plano Pro
-            </p>
-            <p className="mt-1 text-cyan-100/90">
-              Você entrou pelo link de convite. Conclua o checkout seguro do
-              Stripe para ativar o período de teste — a cobrança só após os 7
-              dias, conforme configurado no Pro.
-            </p>
-            <button
-              type="button"
-              disabled={loadingAction}
-              onClick={() => void handleCheckout("pro")}
-              className="mt-3 rounded-lg bg-cyan-500/20 px-3 py-1.5 text-[11px] font-semibold text-cyan-100 ring-1 ring-cyan-400/40 hover:bg-cyan-500/30 disabled:opacity-60"
-            >
-              Abrir checkout do trial Pro
-            </button>
-          </div>
-        ) : null}
-
         <div className="space-y-3">
           <div className="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950/40">
@@ -222,7 +183,22 @@ export function PlansManagement() {
                 Plano {plan === "pro" ? "Pro" : plan === "business" ? "Business" : "Free"}
               </p>
               {plan === "free" ? (
-                <p className="text-xs text-slate-400">Acesso básico.</p>
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-400">Acesso básico.</p>
+                  {accessChecked &&
+                  !accessPaid &&
+                  accessDaysRemaining != null &&
+                  accessDaysRemaining > 0 &&
+                  accessTrialEndsAt ? (
+                    <p className="text-xs text-cyan-400">
+                      Teste grátis (sem cartão):{" "}
+                      <strong>{accessDaysRemaining}</strong> dia(s) restante(s).
+                      Encerra em{" "}
+                      {new Date(accessTrialEndsAt).toLocaleDateString("pt-BR")}
+                      .
+                    </p>
+                  ) : null}
+                </div>
               ) : isOnTrial ? (
                 <p className="text-xs text-slate-400">
                   Status: Período de teste (trial). {trialEnd ? `Termina em ${trialEnd}.` : ""}
@@ -325,7 +301,7 @@ export function PlansManagement() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Após 7 dias de trial, você assina Pro ou Business</span>
+                <span>Após o teste grátis do app, assine Pro ou Business para continuar</span>
               </li>
             </ul>
           </div>

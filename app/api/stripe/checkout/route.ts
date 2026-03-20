@@ -88,17 +88,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Trial sem cartão é controlado pelo app (`/api/account/access`). Aqui a cobrança
+    // segue a configuração do preço no Stripe (sem segundo trial no Pro).
     const session = await stripe.checkout.sessions.create({
       mode,
       customer_email: email,
       line_items: [{ price: priceId, quantity: 1 }],
-      ...(plan === "pro"
-        ? {
-            subscription_data: {
-              trial_period_days: 7,
-            },
-          }
-        : {}),
       success_url: `${origin}/pricing?success=1`,
       cancel_url: `${origin}/pricing?canceled=1`,
       metadata: {

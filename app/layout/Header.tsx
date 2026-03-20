@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { useAccessStore } from "@/store/accessStore";
 import { useCalculatorStore } from "@/store/calculatorStore";
 import { supabase } from "@/lib/supabaseClient";
 import { clearUserData } from "@/lib/clearUserData";
@@ -20,6 +21,8 @@ const titles: Record<string, string> = {
   "/tutorial": "Tutorial",
   "/conta": "Conta",
   "/settings": "Configurações",
+  "/pricing": "Planos",
+  "/trial-expired": "Acesso encerrado",
 };
 
 const mobileLinks = [
@@ -46,6 +49,10 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
+  const accessChecked = useAccessStore((s) => s.checked);
+  const accessPaid = useAccessStore((s) => s.hasPaidPlan);
+  const accessDaysRemaining = useAccessStore((s) => s.daysRemaining);
+  const accessTrialEndsAt = useAccessStore((s) => s.trialEndsAt);
   const requestNewSimulation = useCalculatorStore((s) => s.requestNewSimulation);
   const isCalculator = pathname === "/calculator";
    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -98,12 +105,29 @@ export function Header() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-slate-400">
           {user && (
-            <span className="hidden rounded-full bg-slate-900/80 px-3 py-1 md:inline-flex">
+            <span className="hidden max-w-[200px] truncate rounded-full bg-slate-900/80 px-3 py-1 md:inline-flex">
               {user.email}
             </span>
           )}
+          {user &&
+            accessChecked &&
+            !accessPaid &&
+            accessDaysRemaining != null &&
+            accessDaysRemaining > 0 &&
+            accessTrialEndsAt && (
+              <span
+                className="inline-flex max-w-[11rem] truncate rounded-full border border-cyan-500/35 bg-cyan-500/10 px-2 py-1 text-[10px] text-cyan-200 sm:max-w-none sm:px-3 sm:text-xs"
+                title={`Conta criada em ${new Date(user.created_at).toLocaleDateString("pt-BR")}`}
+              >
+                Teste: {accessDaysRemaining}d · até{" "}
+                {new Date(accessTrialEndsAt).toLocaleDateString("pt-BR", {
+                  day: "2-digit",
+                  month: "short",
+                })}
+              </span>
+            )}
           {!user && (
             <span className="rounded-full bg-slate-900/80 px-3 py-1">
               Beta para makers
