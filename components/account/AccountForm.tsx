@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Eye, EyeOff, Lock, Mail, Phone, User, Building2, IdCard, Camera } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
+import { uploadCompanyLogoFromDataUrl } from "@/lib/uploadCompanyLogo";
 
 /** Redimensiona e exporta JPEG para caber no user_metadata do Supabase e no PDF. */
 function fileToCompressedJpegDataUrl(
@@ -94,7 +95,9 @@ export function AccountForm() {
       companyDocument: String(md.company_document ?? ""),
       companyEmail: String(md.company_email ?? ""),
       companyPhone: String(md.company_phone ?? ""),
-      companyLogo: String(md.company_logo ?? md.avatar_url ?? ""),
+      companyLogo: String(
+        md.company_logo_url ?? md.company_logo ?? md.avatar_url ?? "",
+      ).trim(),
     });
   }, [user]);
 
@@ -170,6 +173,20 @@ export function AccountForm() {
         if (pwdError) throw pwdError;
       }
 
+      const rawLogo = fields.companyLogo.trim();
+      let company_logo_url = "";
+      let company_logo = "";
+
+      if (rawLogo.startsWith("data:image/")) {
+        const up = await uploadCompanyLogoFromDataUrl(user.id, rawLogo);
+        if ("error" in up) {
+          throw new Error(up.error);
+        }
+        company_logo_url = up.publicUrl;
+      } else if (rawLogo.startsWith("http://") || rawLogo.startsWith("https://")) {
+        company_logo_url = rawLogo;
+      }
+
       const nextMetadata = {
         ...(user.user_metadata ?? {}),
         full_name: fields.fullName.trim(),
@@ -178,7 +195,8 @@ export function AccountForm() {
         company_document: fields.companyDocument.trim(),
         company_email: fields.companyEmail.trim(),
         company_phone: fields.companyPhone.trim(),
-        company_logo: fields.companyLogo.trim(),
+        company_logo_url,
+        company_logo,
       };
 
       const { error: metaError } = await supabase.auth.updateUser({
@@ -253,8 +271,10 @@ export function AccountForm() {
               Alterar logo
               <input type="file" accept="image/*" className="hidden" onChange={onLogoChange} />
             </label>
-            <p className="mt-1 max-w-[220px] text-center text-[10px] text-slate-500">
-              A imagem é otimizada (JPEG) para o PDF e para salvar na conta. Se o PDF ainda vier sem logo, salve a conta de novo após escolher o arquivo.
+            <p className="mt-1 max-w-[240px] text-center text-[10px] text-slate-500">
+              O logo é enviado ao Storage (URL curta) para aparecer no PDF — rode a migração{" "}
+              <code className="rounded bg-slate-800 px-0.5">20260320_company_logos_storage.sql</code> no
+              Supabase. Depois salve a conta de novo.
             </p>
           </div>
 

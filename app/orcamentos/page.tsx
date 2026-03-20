@@ -15,6 +15,7 @@ import {
 } from "@/lib/supabaseProduction";
 import type { Quote } from "@/types";
 import { rasterizeImageSrcForJsPdf } from "@/lib/pdfLogo";
+import { supabase } from "@/lib/supabaseClient";
 
 function generateUuid() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -52,7 +53,9 @@ function getCompanyBrandingFromMetadata(
   metadata: Record<string, unknown> | undefined | null,
 ): CompanyBrandingPdf | null {
   if (!metadata) return null;
-  const logo = String(metadata.company_logo ?? metadata.avatar_url ?? "").trim();
+  const logo = String(
+    metadata.company_logo_url ?? metadata.company_logo ?? metadata.avatar_url ?? "",
+  ).trim();
   const name = String(metadata.company_name ?? "").trim();
   const document = String(metadata.company_document ?? "").trim();
   const email = String(metadata.company_email ?? "").trim();
@@ -123,11 +126,16 @@ export default function OrcamentosPage() {
       const marginRight = marginX;
       let y = 48;
 
-      const branding = user
-        ? getCompanyBrandingFromMetadata(
-            user.user_metadata as Record<string, unknown> | undefined,
-          )
-        : null;
+      let metaForBranding: Record<string, unknown> | undefined =
+        user?.user_metadata as Record<string, unknown> | undefined;
+      if (supabase) {
+        const { data: fresh } = await supabase.auth.getUser();
+        if (fresh.user?.user_metadata) {
+          metaForBranding = fresh.user.user_metadata as Record<string, unknown>;
+        }
+      }
+
+      const branding = getCompanyBrandingFromMetadata(metaForBranding);
 
       if (branding) {
         let logoRendered = false;
