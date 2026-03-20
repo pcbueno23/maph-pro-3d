@@ -37,6 +37,11 @@ import {
 import { fetchUserProducts } from "@/lib/supabaseProducts";
 import { fetchUserInventory } from "@/lib/supabaseUserData";
 import {
+  PRODUCTION_ORDER_STATUS_COLORS,
+  PRODUCTION_ORDER_STATUS_DISPLAY_ORDER,
+  PRODUCTION_ORDER_STATUS_LABELS,
+} from "@/lib/productionOrderStatus";
+import {
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -53,39 +58,6 @@ import {
 } from "recharts";
 
 type RangeOption = "today" | "7d" | "30d";
-
-const ORDER_STATUS_ORDER: ProductionOrder["status"][] = [
-  "new",
-  "preparing",
-  "queued",
-  "printing",
-  "post_processing",
-  "ready_to_ship",
-  "done",
-  "cancelled",
-];
-
-const STATUS_LABELS: Record<ProductionOrder["status"], string> = {
-  new: "Recebida",
-  preparing: "Em preparação",
-  queued: "Aguardando",
-  printing: "Em impressão",
-  post_processing: "Acabamento",
-  ready_to_ship: "Pronto p/ envio",
-  done: "Concluída",
-  cancelled: "Cancelada",
-};
-
-const STATUS_COLORS: Record<ProductionOrder["status"], string> = {
-  new: "#60a5fa", // blue
-  preparing: "#34d399", // emerald
-  queued: "#fbbf24", // amber
-  printing: "#22c55e", // green
-  post_processing: "#a78bfa", // violet
-  ready_to_ship: "#38bdf8", // sky
-  done: "#10b981", // emerald-600
-  cancelled: "#fb7185", // rose
-};
 
 const CHART_SERIES_COLORS = {
   shopee: "#22d3ee", // cyan
@@ -261,9 +233,9 @@ export default function DashboardPage() {
   );
 
   const ordersStatusChartData = useMemo(() => {
-    return ORDER_STATUS_ORDER.map((status) => ({
+    return PRODUCTION_ORDER_STATUS_DISPLAY_ORDER.map((status) => ({
       status,
-      label: STATUS_LABELS[status],
+      label: PRODUCTION_ORDER_STATUS_LABELS[status],
       count: ordersByStatus[status],
     }));
   }, [ordersByStatus]);
@@ -539,10 +511,10 @@ export default function DashboardPage() {
     for (const o of globalActiveOrders) {
       counts[o.status] = (counts[o.status] ?? 0) + 1;
     }
-    return ORDER_STATUS_ORDER.filter((s) => s !== "done" && s !== "cancelled")
+    return PRODUCTION_ORDER_STATUS_DISPLAY_ORDER.filter((s) => s !== "done" && s !== "cancelled")
       .map((status) => ({
         status,
-        name: STATUS_LABELS[status],
+        name: PRODUCTION_ORDER_STATUS_LABELS[status],
         value: counts[status] ?? 0,
       }))
       .filter((x) => x.value > 0);
@@ -889,7 +861,7 @@ export default function DashboardPage() {
                     />
                     <Bar dataKey="count" radius={[8, 8, 0, 0]}>
                       {ordersStatusChartData.map((entry) => (
-                        <Cell key={entry.status} fill={STATUS_COLORS[entry.status]} />
+                        <Cell key={entry.status} fill={PRODUCTION_ORDER_STATUS_COLORS[entry.status]} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -996,7 +968,7 @@ export default function DashboardPage() {
                         paddingAngle={2}
                       >
                         {pipelinePieData.map((e) => (
-                          <Cell key={e.status} fill={STATUS_COLORS[e.status]} />
+                          <Cell key={e.status} fill={PRODUCTION_ORDER_STATUS_COLORS[e.status]} />
                         ))}
                       </Pie>
                       <Tooltip
@@ -1254,7 +1226,7 @@ export default function DashboardPage() {
                     {recentOrders.map((o) => {
                       const prod = o.productId ? productById.get(o.productId) : undefined;
                       const pName = prod?.name ?? "Produto";
-                      const statusColor = STATUS_COLORS[o.status] ?? "#94a3b8";
+                      const statusColor = PRODUCTION_ORDER_STATUS_COLORS[o.status] ?? "#94a3b8";
                       const printerName = o.printerId ? printerById.get(o.printerId)?.name : null;
                       const dueLabel = o.dueDate ? o.dueDate : new Date(o.createdAt).toLocaleDateString("pt-BR");
                       return (
@@ -1276,7 +1248,7 @@ export default function DashboardPage() {
                           <td className="px-2 py-1">
                             <span className="inline-flex items-center gap-2">
                               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusColor }} />
-                              <span className="text-slate-200">{STATUS_LABELS[o.status]}</span>
+                              <span className="text-slate-200">{PRODUCTION_ORDER_STATUS_LABELS[o.status]}</span>
                             </span>
                           </td>
                           <td className="px-2 py-1 text-right text-slate-200 font-semibold">{o.quantity}</td>

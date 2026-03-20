@@ -18,6 +18,12 @@ import {
 } from "@/lib/supabaseProduction";
 import { fetchUserProducts } from "@/lib/supabaseProducts";
 import { computeOrderTotalCost } from "@/lib/productionCost";
+import {
+  PRODUCTION_ORDER_PIPELINE,
+  PRODUCTION_ORDER_STATUS_DISPLAY_ORDER,
+  PRODUCTION_ORDER_STATUS_LABELS,
+  nextProductionOrderStatus,
+} from "@/lib/productionOrderStatus";
 
 type DraftOrder = {
   id?: string;
@@ -28,35 +34,6 @@ type DraftOrder = {
   status: ProductionOrder["status"];
   notes?: string | null;
 };
-
-const PIPELINE: ProductionOrder["status"][] = [
-  "new",
-  "preparing",
-  "queued",
-  "printing",
-  "post_processing",
-  "ready_to_ship",
-  "done",
-];
-
-// Rótulos pensados para o fluxo da sua operação, em português,
-// mas com textos diferentes do SaaS de referência.
-const STATUS_LABELS: Record<ProductionOrder["status"], string> = {
-  new: "Recebida",
-  preparing: "Em preparação",
-  queued: "Aguardando máquina",
-  printing: "Em impressão",
-  post_processing: "Acabamento",
-  ready_to_ship: "Pronto para envio",
-  done: "Concluída",
-  cancelled: "Cancelada",
-};
-
-function nextStatus(current: ProductionOrder["status"]): ProductionOrder["status"] {
-  const idx = PIPELINE.indexOf(current);
-  if (idx === -1 || idx === PIPELINE.length - 1) return current;
-  return PIPELINE[idx + 1];
-}
 
 export default function OrdersPage() {
   const { user } = useAuthStore();
@@ -380,7 +357,7 @@ export default function OrdersPage() {
   }
 
   async function advance(order: ProductionOrder) {
-    const next = nextStatus(order.status);
+    const next = nextProductionOrderStatus(order.status);
     if (next === order.status || !user) return;
     try {
       // Se o próximo status for "Impressão", validamos o estoque antes de salvar.
@@ -482,7 +459,7 @@ export default function OrdersPage() {
     }
   }
 
-  const columns = PIPELINE;
+  const columns = PRODUCTION_ORDER_PIPELINE;
 
   return (
     <div className="space-y-4">
@@ -513,7 +490,7 @@ export default function OrdersPage() {
       <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-3 md:grid-cols-3 xl:grid-cols-7">
         {columns.map((status) => {
           const colOrders = orders.filter((o) => o.status === status);
-          const label = STATUS_LABELS[status];
+          const label = PRODUCTION_ORDER_STATUS_LABELS[status];
           const color =
             status === "new"
               ? "bg-slate-800 text-slate-100"
@@ -797,12 +774,11 @@ export default function OrdersPage() {
                   }
                   disabled={loading}
                 >
-                  {PIPELINE.map((s) => (
+                  {PRODUCTION_ORDER_STATUS_DISPLAY_ORDER.map((s) => (
                     <option key={s} value={s}>
-                      {STATUS_LABELS[s]}
+                      {PRODUCTION_ORDER_STATUS_LABELS[s]}
                     </option>
                   ))}
-                  <option value="cancelled">{STATUS_LABELS.cancelled}</option>
                 </select>
               </div>
 
