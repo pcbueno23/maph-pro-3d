@@ -139,6 +139,14 @@ export async function upsertSupply(
 
 export async function deleteSupply(userId: string, id: string): Promise<void> {
   const client = mustHaveClient();
+  // product_materials.supply_id → supplies com ON DELETE RESTRICT: precisa limpar o BOM antes.
+  const { error: bomError } = await client
+    .from("product_materials")
+    .delete()
+    .eq("user_id", userId)
+    .eq("supply_id", id);
+  if (bomError) throw bomError;
+
   const { error } = await client.from("supplies").delete().eq("user_id", userId).eq("id", id);
   if (error) throw error;
 }

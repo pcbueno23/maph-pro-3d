@@ -245,7 +245,12 @@ export default function InsumosPage() {
 
   const removeSupply = async (s: SupplyItem) => {
     if (!user) return;
-    const ok = typeof window !== "undefined" ? window.confirm(`Remover "${s.name}"?`) : false;
+    const ok =
+      typeof window !== "undefined"
+        ? window.confirm(
+            `Remover "${s.name}"?\n\nO insumo será retirado da ficha técnica (BOM) de todos os produtos que o utilizam. O histórico de movimentações deste item também será apagado.`,
+          )
+        : false;
     if (!ok) return;
     setLoading(true);
     setError(null);

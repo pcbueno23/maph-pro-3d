@@ -23,6 +23,27 @@ export async function computeProductUnitCost(userId: string, product: Product): 
   }
 
   const settings = useSettingsStore.getState().settings ?? defaultSettings;
+  const packagingCost = settings.defaults.packaging;
+
+  // BOM / materiais — sempre (relatórios e ordens precisam do custo mesmo sem impressora no cadastro).
+  const { data: bomRows } = await supabase
+    .from("product_materials")
+    .select(
+      `
+      qty,
+      supply:supplies (
+        unit_cost
+      )
+    `,
+    )
+    .eq("user_id", userId)
+    .eq("product_id", product.id);
+
+  const materialCost =
+    bomRows?.reduce((acc: number, row: any) => {
+      const unitCost = Number(row.supply?.unit_cost ?? 0);
+      return acc + Number(row.qty ?? 0) * unitCost;
+    }, 0) ?? 0;
 
   // Busca impressora padrão
   let printer: Printer | null = null;
@@ -52,14 +73,16 @@ export async function computeProductUnitCost(userId: string, product: Product): 
     }
   }
 
-  // Se não houver impressora padrão ou tempo estimado, usa custo salvo no produto como fallback.
+  // Sem impressora ou tempo: material (BOM) + embalagem, ou custo salvo no produto se não houver BOM.
   if (!printer || !product.printTimeMinutes || product.printTimeMinutes <= 0) {
+    const totalCost =
+      materialCost > 0 ? materialCost + packagingCost : (product.totalCost ?? 0);
     return {
-      totalCost: product.totalCost ?? 0,
-      materialCost: 0,
+      totalCost,
+      materialCost,
       energyCost: 0,
       depreciationCost: 0,
-      packagingCost: settings.defaults.packaging,
+      packagingCost,
     };
   }
 
@@ -114,27 +137,7 @@ export async function computeProductUnitCost(userId: string, product: Product): 
     },
   } satisfies any;
 
-  // Custo de materiais via BOM
-  const { data: bomRows } = await supabase
-    .from("product_materials")
-    .select(
-      `
-      qty,
-      supply:supplies (
-        unit_cost
-      )
-    `,
-    )
-    .eq("user_id", userId)
-    .eq("product_id", product.id);
-
-  const materialCost =
-    bomRows?.reduce((acc: number, row: any) => {
-      const unitCost = Number(row.supply?.unit_cost ?? 0);
-      return acc + Number(row.qty ?? 0) * unitCost;
-    }, 0) ?? 0;
-
-  // Usamos o motor com impressora para energia/depreciação e substituímos o custo de material.
+  // Usamos o motor com impressora para energia/depreciação; o material vem do BOM acima.
   const result = calculateAllWithPrinter({
     input: {
       ...formValues,
@@ -152,7 +155,6 @@ export async function computeProductUnitCost(userId: string, product: Product): 
 
   const energyCost = result.energyCost;
   const depreciationCost = result.depreciationCost;
-  const packagingCost = formValues.costs.packaging;
   const totalCost = materialCost + energyCost + depreciationCost + packagingCost;
 
   return {

@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import type { SupplyCategory, SupplyItem } from "@/types";
 import type { InventoryItem } from "@/store/inventoryStore";
 import { listSupplies } from "@/lib/supabaseProduction";
 import { fetchUserInventory } from "@/lib/supabaseUserData";
+import { fetchUserProducts } from "@/lib/supabaseProducts";
+import { computeProductUnitCost } from "@/lib/productionCost";
 
 const SUPPLY_CATEGORY_LABEL: Record<SupplyCategory, string> = {
   filament: "Filamento",
@@ -21,6 +23,8 @@ export default function ReportsPage() {
   const user = useAuthStore((s) => s.user);
   const [supplies, setSupplies] = useState<SupplyItem[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
+  /** Custo unitário atual por productId (BOM + energia/dep quando houver ficha técnica). */
+  const [productUnitCosts, setProductUnitCosts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,18 +32,40 @@ export default function ReportsPage() {
     if (!user?.id) {
       setSupplies([]);
       setItems([]);
+      setProductUnitCosts({});
       setLoading(false);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setError(null);
-    Promise.all([listSupplies(user.id), fetchUserInventory(user.id)])
-      .then(([suppliesData, inventoryData]) => {
-        if (!cancelled) {
-          setSupplies(suppliesData ?? []);
-          setItems(inventoryData ?? []);
-        }
+    Promise.all([
+      listSupplies(user.id),
+      fetchUserInventory(user.id),
+      fetchUserProducts(user.id),
+    ])
+      .then(async ([suppliesData, inventoryData, productsData]) => {
+        if (cancelled) return;
+        setSupplies(suppliesData ?? []);
+        const inv = inventoryData ?? [];
+        setItems(inv);
+        const products = productsData ?? [];
+        const pmap = new Map(products.map((p) => [p.id, p] as const));
+        const pids = [...new Set(inv.map((i) => i.productId))];
+        const costs: Record<string, number> = {};
+        await Promise.all(
+          pids.map(async (pid) => {
+            const p = pmap.get(pid);
+            if (!p) return;
+            try {
+              const u = await computeProductUnitCost(user.id, p);
+              costs[pid] = u.totalCost;
+            } catch {
+              costs[pid] = p.totalCost ?? inv.find((x) => x.productId === pid)?.productionCost ?? 0;
+            }
+          }),
+        );
+        if (!cancelled) setProductUnitCosts(costs);
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Erro ao carregar dados");
@@ -74,9 +100,14 @@ export default function ReportsPage() {
     { filament: 0, ink: 0, other: 0 },
   );
 
-  const totalPiecesCost = items.reduce(
-    (acc, i) => acc + (i.productionCost ?? 0) * i.quantity,
-    0,
+  const totalPiecesCost = useMemo(
+    () =>
+      items.reduce(
+        (acc, i) =>
+          acc + (productUnitCosts[i.productId] ?? i.productionCost ?? 0) * i.quantity,
+        0,
+      ),
+    [items, productUnitCosts],
   );
   const totalPiecesValueShopee = items.reduce(
     (acc, i) => acc + (i.suggestedPriceShopee ?? i.price) * i.quantity,
@@ -94,24 +125,37 @@ export default function ReportsPage() {
   const formatBRL = (value: number) =>
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const piecesRows = items.map((i) => {
-    const priceShopee = i.suggestedPriceShopee ?? i.price;
-    const priceML = i.suggestedPriceML ?? i.price;
-    const worstPerUnit = Math.min(priceShopee, priceML);
-    return {
-      ...i,
-      priceShopee,
-      priceML,
-      worstPerUnit,
-      worstTotal: worstPerUnit * i.quantity,
-    };
-  });
+  const piecesRows = useMemo(() => {
+    return items.map((i) => {
+      const priceShopee = i.suggestedPriceShopee ?? i.price;
+      const priceML = i.suggestedPriceML ?? i.price;
+      const worstPerUnit = Math.min(priceShopee, priceML);
+      const unitCost = productUnitCosts[i.productId] ?? i.productionCost ?? 0;
+      const marginPercent =
+        worstPerUnit > 0
+          ? ((worstPerUnit - unitCost) / worstPerUnit) * 100
+          : (i.marginPercent ?? 0);
+      return {
+        ...i,
+        resolvedUnitCost: unitCost,
+        priceShopee,
+        priceML,
+        worstPerUnit,
+        worstTotal: worstPerUnit * i.quantity,
+        displayMarginPercent: marginPercent,
+      };
+    });
+  }, [items, productUnitCosts]);
 
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">
         Relatórios
       </h1>
+      <p className="text-xs text-slate-500">
+        Custo das peças em estoque usa a ficha técnica atual (materiais/BOM + impressora e tempo, quando
+        cadastrados), não só o valor gravado no lançamento.
+      </p>
       {error && (
         <div className="rounded-xl border border-rose-800 bg-rose-950/60 px-4 py-2 text-sm text-rose-200">
           {error}
@@ -358,11 +402,15 @@ export default function ReportsPage() {
                       <td className="px-2 py-2 text-slate-200">{formatBRL(i.priceShopee)}</td>
                       <td className="px-2 py-2 text-slate-200">{formatBRL(i.priceML)}</td>
                       <td className="px-2 py-2 text-slate-200">
-                        {formatBRL(i.productionCost ?? 0)}
+                        {formatBRL(i.resolvedUnitCost)}
                       </td>
                       <td className="px-2 py-2">
-                        <span className={i.marginPercent >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                          {i.marginPercent.toFixed(1)}%
+                        <span
+                          className={
+                            i.displayMarginPercent >= 0 ? "text-emerald-400" : "text-rose-400"
+                          }
+                        >
+                          {i.displayMarginPercent.toFixed(1)}%
                         </span>
                       </td>
                       <td className="px-2 py-2 text-slate-200">
