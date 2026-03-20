@@ -4,6 +4,9 @@ import type { ProductionOrder } from "@/types";
  * Ordem do fluxo de produção (Kanban em /ordens, botão “avançar” e gráficos do dashboard).
  * Edite **apenas este array** para mudar a sequência em todo o app.
  * Não inclui `cancelled` (estado terminal fora do fluxo).
+ *
+ * Arquivo: `lib/productionOrderStatus.ts` (não duplique ordem em `page.tsx`).
+ * Em dev, após mudar a ordem, dê um refresh na página se o gráfico não atualizar.
  */
 export const PRODUCTION_ORDER_PIPELINE: ProductionOrder["status"][] = [
   "new",

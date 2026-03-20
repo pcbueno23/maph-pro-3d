@@ -238,7 +238,7 @@ export default function DashboardPage() {
       label: PRODUCTION_ORDER_STATUS_LABELS[status],
       count: ordersByStatus[status],
     }));
-  }, [ordersByStatus]);
+  }, [ordersByStatus, PRODUCTION_ORDER_STATUS_DISPLAY_ORDER, PRODUCTION_ORDER_STATUS_LABELS]);
 
   const printersUsage = useMemo(() => {
     const map = new Map<string, { printerId: string | null; name: string; orderCount: number; qty: number }>();
@@ -518,7 +518,11 @@ export default function DashboardPage() {
         value: counts[status] ?? 0,
       }))
       .filter((x) => x.value > 0);
-  }, [globalActiveOrders]);
+  }, [
+    globalActiveOrders,
+    PRODUCTION_ORDER_STATUS_DISPLAY_ORDER,
+    PRODUCTION_ORDER_STATUS_LABELS,
+  ]);
 
   const PRINTER_STATUS_LABEL: Record<PrinterType["status"], string> = {
     available: "Disponível",

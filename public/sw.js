@@ -1,5 +1,5 @@
-// Versão do cache para forçar atualização do PWA em celulares já instalados.
-const CACHE_NAME = "precifica3d-cache-v3";
+// Versão do cache — incremente ao mudar estratégia (clientes antigos limpam caches velhos).
+const CACHE_NAME = "precifica3d-cache-v4";
 const OFFLINE_URLS = ["/", "/login"];
 
 self.addEventListener("install", (event) => {
@@ -8,7 +8,6 @@ self.addEventListener("install", (event) => {
       return cache.addAll(OFFLINE_URLS);
     }),
   );
-  // Permite que o novo SW substitua o antigo imediatamente após instalar.
   self.skipWaiting();
 });
 
@@ -22,14 +21,45 @@ self.addEventListener("activate", (event) => {
       ),
     ),
   );
-  // Passa a controlar as páginas abertas imediatamente.
   self.clients.claim();
 });
+
+/** Navegação de página inteira (F5 / abrir URL): rede primeiro, senão cache (offline). */
+function isFullPageNavigation(request) {
+  if (request.method !== "GET") return false;
+  if (request.mode === "navigate") return true;
+  // Alguns browsers / cenários
+  if (request.destination === "document") return true;
+  return false;
+}
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
 
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (isFullPageNavigation(request)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() =>
+          caches
+            .match(request)
+            .then((c) => c || caches.match("/") || caches.match("/login")),
+        ),
+    );
+    return;
+  }
+
+  // Demais recursos: cache primeiro, depois rede (comportamento anterior).
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
@@ -37,4 +67,3 @@ self.addEventListener("fetch", (event) => {
     }),
   );
 });
-

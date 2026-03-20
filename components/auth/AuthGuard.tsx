@@ -81,7 +81,7 @@ export function AuthGuard({ children }: Props) {
   useEffect(() => {
     if (!initialized || isPublic) return;
     if (!user && supabase) {
-      const redirect = encodeURIComponent(pathname || "/dashboard");
+      const redirect = encodeURIComponent(pathname || "/");
       router.replace(`/login?redirect=${redirect}`);
     }
   }, [initialized, isPublic, pathname, router, user]);

@@ -1,15 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-export default function DashboardRedirectPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/");
-  }, [router]);
-
-  return null;
+/** Mesma home que `/` — evita HTML vazio + redirect só no client (login/OAuth usam /dashboard). */
+export default function DashboardPathRedirect() {
+  redirect("/");
 }
-
