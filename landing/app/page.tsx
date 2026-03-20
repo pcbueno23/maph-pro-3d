@@ -114,6 +114,7 @@ export default function Home() {
             </Link>
             <a
               href={LEAD_MAGNET_URL}
+              download="checklist-precificacao-3d.txt"
               className="w-full rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-8 py-4 text-center text-base font-medium text-cyan-200 transition hover:bg-cyan-500/15 sm:w-auto"
             >
               Baixar checklist grátis
@@ -400,6 +401,7 @@ export default function Home() {
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 <a
                   href={LEAD_MAGNET_URL}
+                  download="checklist-precificacao-3d.txt"
                   className="inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:from-cyan-400 hover:to-emerald-400"
                 >
                   Baixar checklist grátis
