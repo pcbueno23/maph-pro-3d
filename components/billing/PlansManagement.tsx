@@ -264,7 +264,7 @@ export function PlansManagement() {
             Plano Pro mensal
           </p>
           <p className="mt-2 text-sm font-medium text-slate-100">
-            Ideal para começar. Todas as funções do app com cobrança mensal.
+            Ideal para começar. Todas as funções do app com cobrança mensal por R$ 29,90.
           </p>
           <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/30 p-3">
             <ul className="space-y-2 text-xs text-slate-200">
@@ -297,9 +297,9 @@ export function PlansManagement() {
                 <span className="text-cyan-200">Economize com o Plano Anual</span>
               </p>
               <h3 className="mt-3 text-2xl font-semibold text-slate-50">
-                R$ 19,90/mês
+                R$ 199,90/ano
               </h3>
-              <p className="text-sm text-slate-400">cobrando anual em 12x de R$ 19,90.</p>
+              <p className="text-sm text-slate-400">equivalente a R$ 16,66/mês no plano anual.</p>
             </div>
           </div>
 
@@ -308,11 +308,11 @@ export function PlansManagement() {
             <ul className="mt-2 space-y-2 text-xs text-slate-200">
               <li className="flex items-start gap-2">
                 <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Mais baixo que o Pro mensal (R$ 24,99/mês)</span>
+                <span>Mensal: R$ 29,90/mês</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Após o teste grátis do app, assine Pro ou Business para continuar</span>
+                <span>Anual: R$ 199,90/ano com economia de 44% em relação ao mensal</span>
               </li>
             </ul>
           </div>
