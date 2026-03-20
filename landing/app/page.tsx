@@ -5,6 +5,9 @@ const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ?? "https://maph-pro-3d-8hgw.vercel.app";
 const DOCS_URL =
   process.env.NEXT_PUBLIC_DOCS_URL ?? null;
+const APP_BASE_URL = APP_URL.replace(/\/$/, "");
+const APP_LOGIN_URL = `${APP_BASE_URL}/login`;
+const APP_SIGNUP_URL = `${APP_BASE_URL}/login?signup=1`;
 
 export default function Home() {
   return (
@@ -65,16 +68,16 @@ export default function Home() {
             </nav>
             <div className="flex items-center gap-3">
               <Link
-                href={APP_URL}
+                href={APP_LOGIN_URL}
                 className="rounded-full border border-slate-700 bg-slate-800/80 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800"
               >
                 Entrar
               </Link>
               <Link
-                href={APP_URL}
+                href={APP_SIGNUP_URL}
                 className="rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-400"
               >
-                Começar agora
+                Teste grátis
               </Link>
             </div>
           </div>
@@ -98,10 +101,10 @@ export default function Home() {
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
-              href={APP_URL}
+              href={APP_SIGNUP_URL}
               className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-4 text-center text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-emerald-400 sm:w-auto"
             >
-              Começar agora
+              Começar teste grátis
             </Link>
             <a
               href="#recursos"
@@ -287,14 +290,14 @@ export default function Home() {
                 },
                 {
                   name: "Pro",
-                  price: "R$ 24,99",
+                  price: "R$ 29,90",
                   detail: "Por mês · precificação e operação completas.",
                   highlight: true,
                 },
                 {
                   name: "Business",
-                  price: "12× R$ 19,90",
-                  detail: "Plano anual · mesmo escopo, melhor custo mensal.",
+                  price: "R$ 199,90/ano",
+                  detail: "Plano anual · economia de 44% em relação ao mensal.",
                   highlight: false,
                 },
               ].map((plan) => (
@@ -314,16 +317,16 @@ export default function Home() {
             </div>
             <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
-                href={`${APP_URL}/pricing`}
+                href={`${APP_BASE_URL}/pricing`}
                 className="inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-3.5 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-400"
               >
                 Ver planos e assinar
               </Link>
               <Link
-                href={APP_URL}
+                href={APP_SIGNUP_URL}
                 className="inline-block rounded-xl border border-slate-600 bg-slate-800/50 px-8 py-3.5 text-base font-medium text-slate-200 transition hover:border-cyan-500/50 hover:bg-slate-800"
               >
-                Abrir o app
+                Iniciar teste grátis
               </Link>
             </div>
           </div>
@@ -350,7 +353,7 @@ export default function Home() {
             </div>
             <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               <Link
-                href={`${APP_URL}/tutorial`}
+                href={`${APP_BASE_URL}/tutorial`}
                 className="group rounded-2xl border border-slate-800 bg-slate-950/80 p-6 transition hover:border-cyan-500/40"
               >
                 <h3 className="text-lg font-semibold text-slate-100 group-hover:text-cyan-400">
@@ -397,7 +400,7 @@ export default function Home() {
                 </a>
               )}
               <Link
-                href={APP_URL}
+                href={APP_SIGNUP_URL}
                 className="group rounded-2xl border border-slate-800 bg-slate-950/80 p-6 transition hover:border-cyan-500/40"
               >
                 <h3 className="text-lg font-semibold text-slate-100 group-hover:text-cyan-400">
@@ -429,16 +432,16 @@ export default function Home() {
             </p>
             <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
-                href={`${APP_URL}/tutorial`}
+                href={`${APP_BASE_URL}/tutorial`}
                 className="inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-400"
               >
                 Abrir tutorial
               </Link>
               <Link
-                href={APP_URL}
+                href={APP_SIGNUP_URL}
                 className="inline-block rounded-xl border border-slate-600 bg-slate-800/50 px-6 py-3 text-sm font-medium text-slate-200 transition hover:border-cyan-500/50 hover:bg-slate-800"
               >
-                Ir para o app
+                Criar conta grátis
               </Link>
             </div>
           </div>
@@ -539,10 +542,10 @@ export default function Home() {
               custos reais.
             </p>
             <Link
-              href={APP_URL}
+              href={APP_SIGNUP_URL}
               className="mt-6 inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-4 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-emerald-400"
             >
-              Abrir o Maph Pro 3D
+              Iniciar teste grátis
             </Link>
           </div>
         </section>
@@ -558,7 +561,7 @@ export default function Home() {
                 <ul className="mt-3 space-y-2">
                   <li>
                     <Link
-                      href={APP_URL}
+                      href={APP_LOGIN_URL}
                       className="text-sm text-slate-400 hover:text-cyan-400"
                     >
                       Entrar
@@ -566,15 +569,15 @@ export default function Home() {
                   </li>
                   <li>
                     <Link
-                      href={APP_URL}
+                      href={APP_SIGNUP_URL}
                       className="text-sm text-slate-400 hover:text-cyan-400"
                     >
-                      Começar agora
+                      Teste grátis
                     </Link>
                   </li>
                   <li>
                     <Link
-                      href={`${APP_URL}/conta`}
+                      href={`${APP_BASE_URL}/conta`}
                       className="text-sm text-slate-400 hover:text-cyan-400"
                     >
                       Conta (app)
@@ -599,7 +602,7 @@ export default function Home() {
                   </li>
                   <li>
                     <Link
-                      href={`${APP_URL}/tutorial`}
+                      href={`${APP_BASE_URL}/tutorial`}
                       className="text-sm text-slate-400 hover:text-cyan-400"
                     >
                       Tutorial (app)
@@ -633,7 +636,7 @@ export default function Home() {
                   </li>
                   <li>
                     <Link
-                      href={APP_URL}
+                      href={APP_BASE_URL}
                       className="text-sm text-slate-400 hover:text-cyan-400"
                     >
                       App
@@ -641,7 +644,7 @@ export default function Home() {
                   </li>
                   <li>
                     <Link
-                      href={`${APP_URL}/pricing`}
+                      href={`${APP_BASE_URL}/pricing`}
                       className="text-sm text-slate-400 hover:text-cyan-400"
                     >
                       Planos (app)
