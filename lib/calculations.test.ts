@@ -7,6 +7,7 @@ function buildInput(overrides: Partial<CalculatorFormValues> = {}): CalculatorFo
     productName: "Teste",
     material: {
       weight: 50,
+      plateWeight: undefined,
       supplyId: "preset-pla-velvet-preto",
       pricePerKg: 139,
       type: "PLA",
@@ -41,6 +42,7 @@ function buildInput(overrides: Partial<CalculatorFormValues> = {}): CalculatorFo
       mlClassic: false,
       freeShipping: false,
       discountPercent: 0,
+      comparePrice: undefined,
       cardFeePercent: 4.99,
       ...(overrides.pricing ?? {}),
     },
@@ -74,9 +76,39 @@ describe("calculateAll", () => {
   });
 
   it("muda custo quando preço de filamento do preset muda (override extremo)", () => {
-    const low = calculateAll(buildInput({ material: { weight: 169, pricePerKg: 1, supplyId: "a", type: "PLA" } }));
-    const mid = calculateAll(buildInput({ material: { weight: 169, pricePerKg: 80, supplyId: "b", type: "PLA" } }));
-    const high = calculateAll(buildInput({ material: { weight: 169, pricePerKg: 139, supplyId: "c", type: "PLA" } }));
+    const low = calculateAll(
+      buildInput({
+        material: {
+          weight: 169,
+          plateWeight: undefined,
+          pricePerKg: 1,
+          supplyId: "a",
+          type: "PLA",
+        },
+      }),
+    );
+    const mid = calculateAll(
+      buildInput({
+        material: {
+          weight: 169,
+          plateWeight: undefined,
+          pricePerKg: 80,
+          supplyId: "b",
+          type: "PLA",
+        },
+      }),
+    );
+    const high = calculateAll(
+      buildInput({
+        material: {
+          weight: 169,
+          plateWeight: undefined,
+          pricePerKg: 139,
+          supplyId: "c",
+          type: "PLA",
+        },
+      }),
+    );
 
     expect(low.filamentCost).toBeLessThan(mid.filamentCost);
     expect(mid.filamentCost).toBeLessThan(high.filamentCost);
@@ -94,7 +126,20 @@ describe("calculateAll", () => {
   it("considera margem real abaixo da meta no alerta", () => {
     const results = calculateAll(
       buildInput({
-        pricing: { desiredMargin: 45, marketplace: "Shopee", personType: "CPF", marketplaceFee: 14, shippingEstimate: 0, taxPercent: 6, taxMode: "gross", mlClassic: false, freeShipping: false, discountPercent: 0, cardFeePercent: 4.99 },
+        pricing: {
+          desiredMargin: 45,
+          marketplace: "Shopee",
+          personType: "CPF",
+          marketplaceFee: 14,
+          shippingEstimate: 0,
+          taxPercent: 6,
+          taxMode: "gross",
+          mlClassic: false,
+          freeShipping: false,
+          discountPercent: 0,
+          comparePrice: undefined,
+          cardFeePercent: 4.99,
+        },
       }),
     );
 

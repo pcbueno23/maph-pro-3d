@@ -3,6 +3,7 @@ import {
   createBilling,
   createCheckoutV2,
   createCustomer,
+  type AbacatePayCreateBillingParams,
 } from "@/lib/abacatepay";
 
 const token = process.env.ABACATEPAY_TOKEN?.trim();
@@ -146,12 +147,13 @@ export async function POST(req: NextRequest) {
 
     const appUserEmailMeta =
       email?.trim() != null && email.trim() !== ""
-        ? ({ metadata: { app_user_email: email.trim().toLowerCase() } } as const)
+        ? { metadata: { app_user_email: email.trim().toLowerCase() } }
         : {};
 
-    const v1BillingParams = () => ({
-      frequency: "ONE_TIME" as const,
-      methods: ["PIX", "CARD"] as const,
+    const v1BillingParams = (): AbacatePayCreateBillingParams => ({
+      frequency: "ONE_TIME",
+      // Tupla readonly não é atribuível a ("PIX" | "CARD")[] — array mutável explícito.
+      methods: ["PIX", "CARD"] as ("PIX" | "CARD")[],
       products: [
         {
           externalId: `precifica3d-${plan}-${Date.now()}`,

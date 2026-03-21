@@ -118,6 +118,11 @@ export async function getAbacatePayPaidEntitlement(
   };
 }
 
+/**
+ * Só retorna true se `APP_PAYMENT_PROVIDER=abacatepay` (trim, case-insensitive).
+ * Qualquer outro valor, vazio ou ausente → **Stripe** como provedor do paywall e do painel Planos.
+ */
 export function isAbacatePayPaymentProvider(): boolean {
-  return process.env.APP_PAYMENT_PROVIDER === "abacatepay";
+  const v = process.env.APP_PAYMENT_PROVIDER?.trim().toLowerCase();
+  return v === "abacatepay";
 }

@@ -3,7 +3,7 @@ import { isAbacatePayPaymentProvider } from "@/lib/abacatepayPaidPlan";
 
 /**
  * Qual provedor o painel Planos deve usar (sem precisar de NEXT_PUBLIC_*).
- * Cliente chama no mount; valor vem de APP_PAYMENT_PROVIDER no servidor.
+ * Padrão: **stripe** — só retorna `abacatepay` se APP_PAYMENT_PROVIDER=abacatepay (ver .env.example).
  */
 export async function GET() {
   return NextResponse.json({
