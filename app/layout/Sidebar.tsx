@@ -41,7 +41,9 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-64 flex-col overflow-hidden border-r border-slate-800 bg-slate-950/80 px-4 py-6 md:flex">
+    <aside
+      className="fixed inset-y-0 left-0 z-40 hidden h-[100dvh] max-h-[100dvh] w-64 flex-col overflow-hidden border-r border-slate-800 bg-slate-950/80 px-4 py-6 md:flex"
+    >
       <div className="mb-8 flex shrink-0 items-center gap-3">
         <div className="h-12 w-12 overflow-hidden rounded-2xl bg-slate-900/80">
           <Image

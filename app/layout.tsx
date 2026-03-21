@@ -28,7 +28,7 @@ export default function RootLayout({
         <AuthGuard>
           <div className="flex min-h-screen">
             <Sidebar />
-            <div className="flex flex-1 flex-col">
+            <div className="flex min-w-0 flex-1 flex-col md:pl-64">
               <Header />
               <main className="flex-1 px-4 pb-6 pt-4 md:px-8 md:pb-8 md:pt-6">
                 <div className="glass-panel rounded-2xl p-4 md:p-6">
