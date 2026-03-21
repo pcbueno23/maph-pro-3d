@@ -13,7 +13,7 @@ import { PersistUserData } from "./PersistUserData";
 const PUBLIC_PATHS = ["/login"];
 
 /** Com trial expirado o usuário só acessa estas rotas até assinar. */
-const PAYWALL_EXCEPTION_PATHS = ["/pricing", "/trial-expired"];
+const PAYWALL_EXCEPTION_PATHS = ["/pricing", "/trial-expired", "/suporte"];
 
 interface Props {
   children: ReactNode;

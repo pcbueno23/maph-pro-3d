@@ -16,6 +16,7 @@ import {
   Bell,
   User,
   GraduationCap,
+  MessageCircle,
 } from "lucide-react";
 
 const links = [
@@ -38,6 +39,7 @@ const links = [
   { href: "/alertas", label: "Alertas", icon: Bell },
   { href: "/reports", label: "Relatórios", icon: LineChart },
   { href: "/tutorial", label: "Tutorial", icon: GraduationCap },
+  { href: "/suporte", label: "Suporte", icon: MessageCircle },
   { href: "/pricing", label: "Planos", icon: CreditCard },
   { href: "/conta", label: "Conta", icon: User },
   { href: "/settings", label: "Configurações", icon: Settings },
