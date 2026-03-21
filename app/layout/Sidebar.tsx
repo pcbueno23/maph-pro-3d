@@ -20,7 +20,12 @@ import {
 
 const links = [
   { href: "/", label: "Dashboard", icon: LineChart },
-  { href: "/calculator", label: "Calculadora", icon: Calculator },
+  { href: "/calculator", label: "Calculadora de markup", icon: Calculator },
+  {
+    href: "/margem-certa",
+    label: "Calculadora margem certa",
+    icon: Calculator,
+  },
   { href: "/products", label: "Produtos", icon: Package },
   { href: "/inventory", label: "Peças produzidas", icon: Package },
   { href: "/ordens", label: "Ordens de produção", icon: Printer },

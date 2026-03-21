@@ -10,6 +10,15 @@ try {
 
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        source: "/calculadora-local",
+        destination: "/margem-certa",
+        permanent: true,
+      },
+    ];
+  },
   // typedRoutes desativado para evitar erro de tipo em Link (href string) no build.
   // typedRoutes: true,
   ...(supabaseHost

@@ -13,7 +13,8 @@ import { clearUserData } from "@/lib/clearUserData";
 
 const titles: Record<string, string> = {
   "/": "Visão geral",
-  "/calculator": "Calculadora de produtos",
+  "/calculator": "Calculadora de markup",
+  "/margem-certa": "Calculadora margem certa",
   "/products": "Produtos salvos",
   "/printer": "Impressora",
   "/fornecedores": "Fornecedores",
@@ -27,7 +28,8 @@ const titles: Record<string, string> = {
 
 const mobileLinks = [
   { href: "/", label: "Dashboard" },
-  { href: "/calculator", label: "Calculadora" },
+  { href: "/calculator", label: "Calculadora de markup" },
+  { href: "/margem-certa", label: "Calculadora margem certa" },
   { href: "/products", label: "Produtos" },
   { href: "/inventory", label: "Peças produzidas" },
   { href: "/ordens", label: "Ordens de produção" },

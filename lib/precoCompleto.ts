@@ -143,24 +143,46 @@ export function calcularImpostos(params: {
   return sellingPrice * rate;
 }
 
-export function calcularPrecoCompleto(input: CalculatorFormValues) {
-  // 1) custo base
+function calcularCustoInterno(input: CalculatorFormValues) {
   const base = calcularCustoBase(input);
-
-  // 2) taxa de falha
   const taxaFalha = input.advanced?.taxaFalha ?? 10;
-  // Importante: a taxa de falha deve incidir apenas sobre
-  // filamento + energia + depreciação, NÃO sobre embalagem.
   const mioloSemEmbalagem = base.filamentCost + base.energyCost + base.depreciationCost;
   const mioloComFalha = aplicarTaxaFalha(mioloSemEmbalagem, taxaFalha);
   const custoComFalha = mioloComFalha + base.packagingCost;
-
-  // 3) mão de obra (somada depois da falha, conforme especificação)
   const maoDeObraTipo = input.advanced?.maoDeObraTipo ?? "fixo";
   const maoDeObraValor = input.advanced?.maoDeObraValor ?? 0;
   const tempoManualMin = input.advanced?.tempoManualMin ?? 0;
   const maoDeObraCusto = calcularMaoDeObra({ maoDeObraTipo, maoDeObraValor, tempoManualMin });
   const custoTotalAjustado = custoComFalha + maoDeObraCusto;
+  return {
+    base,
+    taxaFalha,
+    maoDeObraTipo,
+    maoDeObraValor,
+    tempoManualMin,
+    maoDeObraCusto,
+    custoTotalAjustado,
+  };
+}
+
+/**
+ * Custo total por peça (filamento + energia + depreciação + embalagem + falha + mão de obra),
+ * mesmo motor da calculadora principal — sem precisar rodar preço sugerido / marketplaces.
+ */
+export function calcularCustoTotalAjustadoProduto(input: CalculatorFormValues): number {
+  return calcularCustoInterno(input).custoTotalAjustado;
+}
+
+export function calcularPrecoCompleto(input: CalculatorFormValues) {
+  const {
+    base,
+    taxaFalha,
+    maoDeObraTipo,
+    maoDeObraValor,
+    tempoManualMin,
+    maoDeObraCusto,
+    custoTotalAjustado,
+  } = calcularCustoInterno(input);
 
   // 4) preço sugerido (com margem) usando custo ajustado
   const margemRes = calcularPrecoComMargem({ totalCost: custoTotalAjustado, input });

@@ -10,15 +10,27 @@ import { listPrinters, listSupplies } from "@/lib/supabaseProduction";
 // em ambientes diferentes (local vs Vercel), mantendo a forma principal.
 interface Props {
   form: UseFormReturn<CalculatorFormValues, any, any>;
+  /** Oculta marketplace, margem, frete estimado (ex.: tela só de custos de impressão + margem certa). */
+  hidePricingSection?: boolean;
+  /** Quando o usuário limpa o filamento, mantém um id válido para o schema (placeholder interno). */
+  materialSupplyFallbackId?: string;
 }
 
-export function InputPanel({ form }: Props) {
+export function InputPanel({
+  form,
+  hidePricingSection = false,
+  materialSupplyFallbackId,
+}: Props) {
   const {
     register,
     setValue,
     formState: { errors },
   } = form;
   const selectedFilamentId = form.watch("material.supplyId") ?? "";
+  const filamentSelectValue =
+    materialSupplyFallbackId && selectedFilamentId === materialSupplyFallbackId
+      ? ""
+      : selectedFilamentId;
   const currentFilamentPerKg = Number(form.watch("material.pricePerKg") ?? 0);
 
   const { settings } = useSettingsStore();
@@ -143,12 +155,16 @@ export function InputPanel({ form }: Props) {
               </label>
               <select
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                value={selectedFilamentId}
+                value={filamentSelectValue}
                 onChange={(e) => {
                   const id = e.target.value;
                   const sup = filaments.find((s) => s.id === id);
                   if (!sup) {
-                    setValue("material.supplyId", "", { shouldDirty: true });
+                    setValue(
+                      "material.supplyId",
+                      materialSupplyFallbackId ?? "",
+                      { shouldDirty: true },
+                    );
                     return;
                   }
                   // A calculadora trabalha com R$/kg. Em /insumos (filamento) podemos ter:
@@ -273,19 +289,6 @@ export function InputPanel({ form }: Props) {
               />
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">
-                Tipo de material
-              </label>
-              <select
-                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("material.type")}
-              >
-                <option value="PLA">PLA</option>
-                <option value="ABS">ABS</option>
-                <option value="PETG">PETG</option>
-              </select>
-            </div>
           </div>
         </div>
 
@@ -623,6 +626,8 @@ export function InputPanel({ form }: Props) {
         </div>
       </details>
 
+      {!hidePricingSection ? (
+      <>
       <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2 text-sm">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
@@ -771,6 +776,8 @@ export function InputPanel({ form }: Props) {
               </p>
             </div>
       </div>
+      </>
+      ) : null}
     </div>
   );
 }

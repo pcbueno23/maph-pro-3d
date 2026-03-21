@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { getAppTrialDays, parseTrialEndsAt } from "@/lib/appTrial";
+import { getAbacatePayPaidEntitlement, isAbacatePayPaymentProvider } from "@/lib/abacatepayPaidPlan";
 import { getStripePaidEntitlement } from "@/lib/stripePaidPlan";
 
 export type AccountAccessResponse = {
@@ -63,22 +64,33 @@ export async function GET(req: NextRequest) {
   const trialEndsIso = new Date(trialEndMs).toISOString();
 
   let hasPaidPlan = false;
-  const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
-  const pricePro = process.env.STRIPE_PRICE_PRO_MONTHLY?.trim();
-  const priceBiz = process.env.STRIPE_PRICE_LIFETIME?.trim();
+  const abacateToken = process.env.ABACATEPAY_TOKEN?.trim();
 
-  if (user.email && stripeSecret && pricePro && priceBiz) {
+  if (isAbacatePayPaymentProvider() && user.email && abacateToken) {
     try {
-      const stripe = new Stripe(stripeSecret);
-      const ent = await getStripePaidEntitlement(
-        stripe,
-        user.email,
-        pricePro,
-        priceBiz,
-      );
+      const ent = await getAbacatePayPaidEntitlement(abacateToken, user.email);
       hasPaidPlan = ent.paid;
     } catch {
-      // Se Stripe falhar, ainda permitimos quem está dentro do trial por data.
+      // Falha na listagem: mantém trial por data
+    }
+  } else {
+    const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
+    const pricePro = process.env.STRIPE_PRICE_PRO_MONTHLY?.trim();
+    const priceBiz = process.env.STRIPE_PRICE_LIFETIME?.trim();
+
+    if (user.email && stripeSecret && pricePro && priceBiz) {
+      try {
+        const stripe = new Stripe(stripeSecret);
+        const ent = await getStripePaidEntitlement(
+          stripe,
+          user.email,
+          pricePro,
+          priceBiz,
+        );
+        hasPaidPlan = ent.paid;
+      } catch {
+        // Se Stripe falhar, ainda permitimos quem está dentro do trial por data.
+      }
     }
   }
 
