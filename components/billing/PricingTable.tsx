@@ -60,39 +60,8 @@ const plans: Plan[] = [
 export function PricingTable() {
   const { user } = useAuthStore();
   const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
-  const [loadingAbacatePayPlan, setLoadingAbacatePayPlan] = useState<PlanId | null>(null);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  async function handleAbacatePayCheckout(plan: PlanId) {
-    if (!user) {
-      setError("Faça login para assinar um plano.");
-      return;
-    }
-    if (plan === "free") return;
-    setError(null);
-    setLoadingAbacatePayPlan(plan);
-    try {
-      const res = await fetch("/api/abacatepay/billing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan,
-          email: user.email,
-          name: user.user_metadata?.name ?? user.email?.split("@")[0],
-        }),
-      });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) {
-        throw new Error(data.error ?? "Não foi possível iniciar o checkout AbacatePay.");
-      }
-      window.location.href = data.url;
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erro ao iniciar checkout AbacatePay.");
-    } finally {
-      setLoadingAbacatePayPlan(null);
-    }
-  }
 
   async function handleCheckout(plan: PlanId) {
     if (!user) {
@@ -238,23 +207,11 @@ export function PricingTable() {
                       ? "Redirecionando..."
                       : "Assinar com Stripe"}
                 </button>
-                {plan.id !== "free" && (
-                  <>
-                    <button
-                      type="button"
-                      disabled={loadingAbacatePayPlan === plan.id}
-                      onClick={() => handleAbacatePayCheckout(plan.id)}
-                      className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] text-slate-300 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      {loadingAbacatePayPlan === plan.id
-                        ? "Abrindo AbacatePay..."
-                        : "Pagar com PIX ou Cartão (AbacatePay)"}
-                    </button>
-                    <p className="text-[10px] text-slate-500">
-                      Stripe ou AbacatePay (PIX/Cartão). Pagamento seguro.
-                    </p>
-                  </>
-                )}
+                {plan.id !== "free" ? (
+                  <p className="text-[10px] text-slate-500">
+                    Pagamento seguro via Stripe (cartão).
+                  </p>
+                ) : null}
               </div>
             </article>
           );

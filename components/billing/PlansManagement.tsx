@@ -43,34 +43,8 @@ export function PlansManagement() {
   const [status, setStatus] = useState<StripeStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingAction, setLoadingAction] = useState(false);
-  const [loadingAbacatePay, setLoadingAbacatePay] = useState<"pro" | "lifetime" | null>(
-    null,
-  );
-  /** Lido de GET /api/app/payment-provider (APP_PAYMENT_PROVIDER no .env — sem rebuild). */
-  const [payMode, setPayMode] = useState<"loading" | "stripe" | "abacatepay">("loading");
 
   useEffect(() => {
-    let cancelled = false;
-    void fetch("/api/app/payment-provider")
-      .then((r) => r.json() as Promise<{ provider?: string }>)
-      .then((j) => {
-        if (cancelled) return;
-        // Sempre o que o servidor lê de APP_PAYMENT_PROVIDER (não depende de rebuild do NEXT_PUBLIC_*).
-        setPayMode(j.provider === "abacatepay" ? "abacatepay" : "stripe");
-      })
-      .catch(() => {
-        if (!cancelled) setPayMode("stripe");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const abacatePayOnly = payMode === "abacatepay";
-
-  useEffect(() => {
-    if (payMode === "loading") return;
-
     const run = async () => {
       setLoading(true);
       setError(null);
@@ -87,14 +61,11 @@ export function PlansManagement() {
       }
 
       try {
-        const statusUrl =
-          payMode === "abacatepay" ? "/api/abacatepay/status" : "/api/stripe/status";
-        const data = await postJson<StripeStatusResponse>(statusUrl, {
+        const data = await postJson<StripeStatusResponse>("/api/stripe/status", {
           email: user.email,
         });
         setStatus(data);
       } catch {
-        // Stripe/AbacatePay não configurado ou falha de rede → assume Free no painel.
         setStatus({
           plan: "free",
           subscriptionStatus: null,
@@ -107,7 +78,7 @@ export function PlansManagement() {
     };
 
     void run();
-  }, [user?.email, payMode]);
+  }, [user?.email]);
 
   const isOnTrial = Boolean(status?.isTrialing);
   const plan = status?.plan ?? "free";
@@ -154,42 +125,6 @@ export function PlansManagement() {
     [router, user],
   );
 
-  const handleAbacatePayCheckout = useCallback(
-    async (nextPlan: "pro" | "lifetime") => {
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-
-      setError(null);
-      setLoadingAbacatePay(nextPlan);
-      try {
-        const data = await postJson<{ url?: string; error?: string }>(
-          "/api/abacatepay/billing",
-          {
-            plan: nextPlan,
-            email: user.email,
-            name:
-              (user.user_metadata?.name as string | undefined) ??
-              user.email?.split("@")[0] ??
-              "Cliente",
-          },
-        );
-        if (!data.url) {
-          throw new Error(data.error ?? "URL do checkout AbacatePay não encontrada.");
-        }
-        window.location.href = data.url;
-      } catch (e: unknown) {
-        const msg =
-          e instanceof Error ? e.message : "Erro ao iniciar checkout AbacatePay.";
-        setError(msg);
-      } finally {
-        setLoadingAbacatePay(null);
-      }
-    },
-    [router, user],
-  );
-
   async function handlePortal() {
     if (!user) {
       router.push("/login");
@@ -216,7 +151,7 @@ export function PlansManagement() {
   const businessIcon = <Rocket className="h-4 w-4 text-emerald-300" />;
   const freeIcon = <Infinity className="h-4 w-4 text-slate-300" />;
 
-  if (loading || payMode === "loading") {
+  if (loading) {
     return <p className="text-sm text-slate-400">Carregando planos...</p>;
   }
 
@@ -233,16 +168,6 @@ export function PlansManagement() {
         {error ? (
           <p className="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
             {error}
-          </p>
-        ) : null}
-
-        {abacatePayOnly ? (
-          <p className="mb-3 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-[11px] text-amber-100/95">
-            <strong className="text-amber-200">Modo teste AbacatePay:</strong> pagamento e liberação de acesso usam só a
-            AbacatePay (sem Stripe nesta build). Acesso pago = cobrança{" "}
-            <code className="rounded bg-slate-900/80 px-1">PAID</code> vinculada ao seu e-mail (
-            <code className="rounded bg-slate-900/80 px-1">metadata app_user_email</code> no checkout). Chave precisa de{" "}
-            <code className="rounded bg-slate-900/80 px-1">BILLING:READ</code>.
           </p>
         ) : null}
 
@@ -277,10 +202,7 @@ export function PlansManagement() {
                   Status: Período de teste (trial). {trialEnd ? `Termina em ${trialEnd}.` : ""}
                 </p>
               ) : (
-                <p className="text-xs text-slate-400">
-                  Status: Assinatura ativa
-                  {abacatePayOnly ? " (AbacatePay)" : ""}.
-                </p>
+                <p className="text-xs text-slate-400">Status: Assinatura ativa (Stripe).</p>
               )}
             </div>
           </div>
@@ -319,7 +241,7 @@ export function PlansManagement() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {plan !== "free" && !abacatePayOnly ? (
+            {plan !== "free" ? (
               <button
                 type="button"
                 disabled={loadingAction}
@@ -330,7 +252,6 @@ export function PlansManagement() {
               </button>
             ) : null}
           </div>
-
         </div>
       </div>
 
@@ -350,56 +271,20 @@ export function PlansManagement() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Pagamento mensal</span>
+                <span>Pagamento mensal (cartão)</span>
               </li>
             </ul>
           </div>
-          {!abacatePayOnly ? (
-            <button
-              type="button"
-              disabled={
-                loadingAction ||
-                loadingAbacatePay !== null ||
-                (plan === "pro" && !isOnTrial)
-              }
-              onClick={() => void handleCheckout("pro")}
-              className="mt-4 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan hover:from-cyan-400 hover:to-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {plan === "pro" && !isOnTrial
-                ? "Você já está no Pro"
-                : "Assinar Pro (Stripe)"}
-            </button>
-          ) : null}
           <button
             type="button"
-            disabled={
-              loadingAction ||
-              loadingAbacatePay !== null ||
-              (plan === "pro" && !isOnTrial)
-            }
-            onClick={() => void handleAbacatePayCheckout("pro")}
-            className={`w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-70 ${abacatePayOnly ? "mt-4" : "mt-2"}`}
+            disabled={loadingAction || (plan === "pro" && !isOnTrial)}
+            onClick={() => void handleCheckout("pro")}
+            className="mt-4 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan hover:from-cyan-400 hover:to-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {loadingAbacatePay === "pro"
-              ? "Abrindo AbacatePay..."
-              : abacatePayOnly
-                ? "Pagar Pro (PIX ou cartão — AbacatePay)"
-                : "PIX ou cartão (AbacatePay)"}
+            {plan === "pro" && !isOnTrial
+              ? "Você já está no Pro"
+              : "Assinar Pro (Stripe)"}
           </button>
-          {!abacatePayOnly ? (
-            <p className="mt-1.5 text-[10px] text-slate-500">
-              Token + <code className="rounded bg-slate-800 px-1">ABACATEPAY_DEFAULT_CUSTOMER_ID</code>
-              . Chave só v1:{" "}
-              <code className="rounded bg-slate-800 px-1">ABACATEPAY_USE_V1_BILLING_ONLY=true</code>
-              . Produto da loja: <code className="rounded bg-slate-800 px-1">prod_...</code> + chave v2 —{" "}
-              <code className="rounded bg-slate-800 px-1">docs/ABACATEPAY.md</code>.
-            </p>
-          ) : (
-            <p className="mt-1.5 text-[10px] text-slate-500">
-              Após pagar, o app detecta <code className="rounded bg-slate-800 px-1">PAID</code> na AbacatePay. Veja{" "}
-              <code className="rounded bg-slate-800 px-1">docs/ABACATEPAY.md</code> (modo só AbacatePay).
-            </p>
-          )}
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
@@ -429,41 +314,18 @@ export function PlansManagement() {
             </ul>
           </div>
 
-          {!abacatePayOnly ? (
-            <button
-              type="button"
-              disabled={
-                loadingAction ||
-                loadingAbacatePay !== null ||
-                (plan === "business" && !isOnTrial)
-              }
-              onClick={() => void handleCheckout("lifetime")}
-              className="mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan hover:from-emerald-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {plan === "business" && !isOnTrial
-                ? "Você já está no Business"
-                : "Assinar Plano Anual (Business — Stripe)"}
-            </button>
-          ) : null}
           <button
             type="button"
-            disabled={
-              loadingAction ||
-              loadingAbacatePay !== null ||
-              (plan === "business" && !isOnTrial)
-            }
-            onClick={() => void handleAbacatePayCheckout("lifetime")}
-            className={`w-full rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-70 ${abacatePayOnly ? "mt-4" : "mt-2"}`}
+            disabled={loadingAction || (plan === "business" && !isOnTrial)}
+            onClick={() => void handleCheckout("lifetime")}
+            className="mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan hover:from-emerald-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {loadingAbacatePay === "lifetime"
-              ? "Abrindo AbacatePay..."
-              : abacatePayOnly
-                ? "Pagar Business anual (PIX ou cartão — AbacatePay)"
-                : "PIX ou cartão (AbacatePay)"}
+            {plan === "business" && !isOnTrial
+              ? "Você já está no Business"
+              : "Assinar Plano Anual (Business — Stripe)"}
           </button>
         </div>
       </div>
     </section>
   );
 }
-
