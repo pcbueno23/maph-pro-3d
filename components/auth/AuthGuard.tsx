@@ -117,13 +117,32 @@ export function AuthGuard({ children }: Props) {
     let cancelled = false;
 
     void (async () => {
+      let token: string | undefined;
       const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token || cancelled) return;
+      token = sessionData.session?.access_token;
+      // Após redirect do Stripe o cookie pode atrasar — tenta renovar sessão antes de travar.
+      if (!token && !cancelled) {
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        token = refreshed.session?.access_token;
+      }
+      if (!token) {
+        if (!cancelled) {
+          setAccessError(
+            "Não foi possível obter a sessão após o pagamento. Atualize a página (F5) ou entre novamente.",
+          );
+        }
+        return;
+      }
+      if (cancelled) return;
+
+      const controller = new AbortController();
+      const ms = 25_000;
+      const timeoutId = window.setTimeout(() => controller.abort(), ms);
 
       try {
         const res = await fetch("/api/account/access", {
           headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
         });
         const data = (await res.json()) as {
           allowed?: boolean;
@@ -142,22 +161,62 @@ export function AuthGuard({ children }: Props) {
           return;
         }
 
+        const fromCheckout =
+          typeof window !== "undefined" &&
+          /[?&]success=1(?:&|$)/.test(window.location.search);
+
+        let accessData = data;
+        // Voltando do Stripe, a assinatura pode demorar alguns segundos para listar na API.
+        if (
+          fromCheckout &&
+          !accessData.hasPaidPlan &&
+          !accessData.allowed
+        ) {
+          for (let r = 0; r < 3; r++) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            if (cancelled) return;
+            const c2 = new AbortController();
+            const t2 = window.setTimeout(() => c2.abort(), 20_000);
+            try {
+              const res2 = await fetch("/api/account/access", {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: c2.signal,
+              });
+              const data2 = (await res2.json()) as typeof data;
+              if (res2.ok) accessData = data2;
+              if (accessData.hasPaidPlan || accessData.allowed) break;
+            } catch {
+              break;
+            } finally {
+              window.clearTimeout(t2);
+            }
+          }
+        }
+
         setAccess({
-          allowed: Boolean(data.allowed),
-          reason: (data.reason ?? "trial_expired") as
+          allowed: Boolean(accessData.allowed),
+          reason: (accessData.reason ?? "trial_expired") as
             | "subscriber"
             | "app_trial"
             | "trial_expired"
             | "paywall_disabled",
-          trialEndsAt: data.trialEndsAt ?? new Date().toISOString(),
-          accountCreatedAt: data.accountCreatedAt ?? user.created_at,
-          hasPaidPlan: Boolean(data.hasPaidPlan),
-          daysRemaining: data.daysRemaining ?? 0,
+          trialEndsAt: accessData.trialEndsAt ?? new Date().toISOString(),
+          accountCreatedAt: accessData.accountCreatedAt ?? user.created_at,
+          hasPaidPlan: Boolean(accessData.hasPaidPlan),
+          daysRemaining: accessData.daysRemaining ?? 0,
         });
-      } catch {
-        if (!cancelled) {
-          setAccessError("Erro de rede ao verificar o acesso.");
-        }
+      } catch (e: unknown) {
+        if (cancelled) return;
+        const aborted =
+          (e instanceof DOMException || e instanceof Error) &&
+          e.name === "AbortError";
+        setAccessError(
+          aborted
+            ? "Tempo esgotado ao verificar o acesso. Atualize a página."
+            : "Erro de rede ao verificar o acesso.",
+        );
+      } finally {
+        window.clearTimeout(timeoutId);
       }
     })();
 

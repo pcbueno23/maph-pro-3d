@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Crown, Infinity, Rocket } from "lucide-react";
+import { Check, Crown, Infinity, PartyPopper, Rocket, XCircle } from "lucide-react";
+import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { useAccessStore } from "@/store/accessStore";
 
@@ -15,6 +16,9 @@ type StripeStatusResponse = {
   isTrialing: boolean;
   currentPeriodEnd: string | null;
 };
+
+/** Evita bump duplicado em dev (Strict Mode) ou re-renders rápidos ao voltar do Stripe. */
+let lastBumpAfterStripeMs = 0;
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -83,9 +87,40 @@ export function PlansManagement() {
   const isOnTrial = Boolean(status?.isTrialing);
   const plan = status?.plan ?? "free";
 
+  /** Mantém o aviso visível depois de remover ?success=1 / ?canceled=1 da URL (evita F5 preso na query). */
+  const [stickySuccessBanner, setStickySuccessBanner] = useState(false);
+  const [stickyCanceledBanner, setStickyCanceledBanner] = useState(false);
+  const qpSuccess = searchParams.get("success") === "1";
+  const qpCanceled = searchParams.get("canceled") === "1";
+  const checkoutSuccess = qpSuccess || stickySuccessBanner;
+  const checkoutCanceled = qpCanceled || stickyCanceledBanner;
+
   useEffect(() => {
-    if (searchParams.get("success") === "1") bumpAccessCheck();
-  }, [searchParams, bumpAccessCheck]);
+    if (!qpSuccess && !qpCanceled) {
+      return;
+    }
+
+    if (qpSuccess) {
+      setStickySuccessBanner(true);
+      const now = Date.now();
+      if (now - lastBumpAfterStripeMs > 800) {
+        lastBumpAfterStripeMs = now;
+        bumpAccessCheck();
+      }
+    }
+    if (qpCanceled) {
+      setStickyCanceledBanner(true);
+    }
+
+    // Remove a query na barra de endereço logo — assim F5 não re-dispara o fluxo nem “prende” na URL.
+    router.replace("/pricing", { scroll: false });
+  }, [qpSuccess, qpCanceled, bumpAccessCheck, router]);
+
+  const clearCheckoutQuery = useCallback(() => {
+    setStickySuccessBanner(false);
+    setStickyCanceledBanner(false);
+    router.replace("/pricing", { scroll: false });
+  }, [router]);
 
   const trialEnd = useMemo(() => {
     if (!status?.currentPeriodEnd) return null;
@@ -155,8 +190,97 @@ export function PlansManagement() {
     return <p className="text-sm text-slate-400">Carregando planos...</p>;
   }
 
+  const paidActive =
+    accessChecked && accessPaid && plan !== "free";
+
   return (
-    <section className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2">
+    <div className="mx-auto max-w-6xl space-y-4">
+      {checkoutSuccess ? (
+        <div
+          className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 sm:flex-row sm:items-start sm:justify-between ${
+            paidActive
+              ? "border-emerald-500/50 bg-emerald-500/10"
+              : "border-cyan-500/40 bg-cyan-500/10"
+          }`}
+          role="status"
+        >
+          <div className="flex gap-3">
+            <div
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                paidActive ? "bg-emerald-500/20" : "bg-cyan-500/20"
+              }`}
+            >
+              <PartyPopper
+                className={`h-5 w-5 ${paidActive ? "text-emerald-300" : "text-cyan-300"}`}
+              />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <p className="text-sm font-semibold text-slate-50">
+                {paidActive
+                  ? "Pagamento confirmado — plano ativo"
+                  : "Pagamento recebido"}
+              </p>
+              <p className="text-xs leading-relaxed text-slate-300">
+                {paidActive ? (
+                  <>
+                    Sua assinatura já está liberada no app. Você pode voltar ao{" "}
+                    <Link
+                      href="/dashboard"
+                      className="font-medium text-cyan-400 underline decoration-cyan-500/50 underline-offset-2 hover:text-cyan-300"
+                    >
+                      painel
+                    </Link>{" "}
+                    ou continuar por aqui.
+                  </>
+                ) : (
+                  <>
+                    Obrigado! Estamos confirmando sua assinatura no Stripe — o bloco
+                    &quot;Painel de Assinatura&quot; deve atualizar em alguns segundos. Se
+                    continuar como Free,{" "}
+                    <strong className="text-slate-200">atualize a página (F5)</strong>.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={clearCheckoutQuery}
+            className="shrink-0 self-start rounded-lg border border-slate-600/80 bg-slate-900/60 px-3 py-1.5 text-[11px] font-medium text-slate-300 transition hover:bg-slate-800"
+          >
+            Fechar aviso
+          </button>
+        </div>
+      ) : null}
+
+      {checkoutCanceled ? (
+        <div
+          className="flex flex-col gap-3 rounded-2xl border border-amber-500/35 bg-amber-500/10 px-4 py-4 sm:flex-row sm:items-start sm:justify-between"
+          role="status"
+        >
+          <div className="flex gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20">
+              <XCircle className="h-5 w-5 text-amber-300" />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <p className="text-sm font-semibold text-slate-50">Checkout encerrado</p>
+              <p className="text-xs leading-relaxed text-slate-300">
+                O pagamento não foi concluído. Nada foi cobrado — você pode assinar de novo
+                quando quiser.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={clearCheckoutQuery}
+            className="shrink-0 self-start rounded-lg border border-slate-600/80 bg-slate-900/60 px-3 py-1.5 text-[11px] font-medium text-slate-300 transition hover:bg-slate-800"
+          >
+            Fechar aviso
+          </button>
+        </div>
+      ) : null}
+
+      <section className="grid gap-4 md:grid-cols-2">
       <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5 shadow-[0_0_0_1px_rgba(6,182,212,0.10)]">
         <div className="mb-4 space-y-1">
           <h2 className="text-xl font-semibold text-slate-50">Painel de Assinatura</h2>
@@ -327,5 +451,6 @@ export function PlansManagement() {
         </div>
       </div>
     </section>
+    </div>
   );
 }

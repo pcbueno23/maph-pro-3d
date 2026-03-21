@@ -1,6 +1,7 @@
 "use client";
 
 import type { Resolver } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { settingsSchema, type SettingsValues } from "@/types";
@@ -9,6 +10,7 @@ import { useAuthStore } from "@/store/authStore";
 import { saveUserSettings } from "@/lib/supabaseUserData";
 
 export function SettingsForm() {
+  const router = useRouter();
   const { settings, updateSettings } = useSettingsStore();
   const user = useAuthStore((s) => s.user);
 
@@ -19,7 +21,7 @@ export function SettingsForm() {
 
   // Impressoras agora são gerenciadas em /impressoras (Supabase)
 
-  const onSubmit = (values: SettingsValues) => {
+  const onSubmit = async (values: SettingsValues) => {
     const normalized = settingsSchema.parse(values);
     updateSettings(normalized);
     form.reset(normalized);
@@ -27,8 +29,13 @@ export function SettingsForm() {
       // Importante: SettingsForm não edita o bloco "printer".
       // Precisamos persistir a configuração completa (inclui impressora padrão da calculadora).
       const merged = useSettingsStore.getState().settings;
-      saveUserSettings(user.id, merged).catch(() => {});
+      try {
+        await saveUserSettings(user.id, merged);
+      } catch {
+        /* mantém fluxo: store já atualizado */
+      }
     }
+    router.push("/dashboard");
   };
 
   return (
