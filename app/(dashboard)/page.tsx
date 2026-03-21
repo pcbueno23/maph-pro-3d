@@ -62,8 +62,15 @@ type RangeOption = "today" | "7d" | "30d";
 const CHART_SERIES_COLORS = {
   shopee: "#22d3ee", // cyan
   ml: "#60a5fa", // blue
+  direct: "#a78bfa", // violet
   profit: "#34d399", // green
 };
+
+function formatSalesChannelLabel(ch: Sale["channel"]) {
+  if (ch === "ML") return "Mercado Livre";
+  if (ch === "Direto") return "Direto";
+  return ch;
+}
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -288,9 +295,12 @@ export default function DashboardPage() {
         if (s.channel === "Shopee") {
           acc.shopeeRevenue += s.revenue;
           acc.shopeeProfit += s.netProfit;
-        } else {
+        } else if (s.channel === "ML") {
           acc.mlRevenue += s.revenue;
           acc.mlProfit += s.netProfit;
+        } else if (s.channel === "Direto") {
+          acc.directRevenue += s.revenue;
+          acc.directProfit += s.netProfit;
         }
         return acc;
       },
@@ -299,10 +309,16 @@ export default function DashboardPage() {
         shopeeProfit: 0,
         mlRevenue: 0,
         mlProfit: 0,
+        directRevenue: 0,
+        directProfit: 0,
       },
     );
-    const totalRevenue = totalsByChannel.shopeeRevenue + totalsByChannel.mlRevenue;
-    const totalProfit = totalsByChannel.shopeeProfit + totalsByChannel.mlProfit;
+    const totalRevenue =
+      totalsByChannel.shopeeRevenue +
+      totalsByChannel.mlRevenue +
+      totalsByChannel.directRevenue;
+    const totalProfit =
+      totalsByChannel.shopeeProfit + totalsByChannel.mlProfit + totalsByChannel.directProfit;
     const totalOrders = list.length;
 
     return { list, totalsByChannel, totalRevenue, totalProfit, totalOrders };
@@ -317,16 +333,18 @@ export default function DashboardPage() {
   }, [range, rangeMeta.toDate]);
 
   const salesByDay = useMemo(() => {
-    const revenueByDay: Record<string, { shopee: number; ml: number; profit: number }> = {};
+    const revenueByDay: Record<string, { shopee: number; ml: number; direct: number; profit: number }> =
+      {};
     for (const d of salesDays) {
-      revenueByDay[dayKeyLocal(d)] = { shopee: 0, ml: 0, profit: 0 };
+      revenueByDay[dayKeyLocal(d)] = { shopee: 0, ml: 0, direct: 0, profit: 0 };
     }
     for (const s of rangeSales.list) {
       const d = new Date(s.date);
       const k = dayKeyLocal(d);
       if (!revenueByDay[k]) continue;
       if (s.channel === "Shopee") revenueByDay[k].shopee += s.revenue;
-      else revenueByDay[k].ml += s.revenue;
+      else if (s.channel === "ML") revenueByDay[k].ml += s.revenue;
+      else if (s.channel === "Direto") revenueByDay[k].direct += s.revenue;
       revenueByDay[k].profit += s.netProfit;
     }
     return salesDays.map((d) => {
@@ -336,6 +354,7 @@ export default function DashboardPage() {
         key: k,
         shopee: revenueByDay[k]?.shopee ?? 0,
         ml: revenueByDay[k]?.ml ?? 0,
+        direct: revenueByDay[k]?.direct ?? 0,
         profit: revenueByDay[k]?.profit ?? 0,
       };
     });
@@ -1188,19 +1207,56 @@ export default function DashboardPage() {
                       }}
                       formatter={(value: any, name: any) => {
                         const v = Number(value) || 0;
-                        if (name === "profit") return [formatBRL(v), "Lucro"];
-                        return [formatBRL(v), name === "shopee" ? "Shopee" : "Mercado Livre"];
+                        if (name === "profit" || name === "Lucro") return [formatBRL(v), "Lucro"];
+                        const label =
+                          name === "shopee" || name === "Shopee"
+                            ? "Shopee"
+                            : name === "ml" || name === "Mercado Livre"
+                              ? "Mercado Livre"
+                              : name === "direct" || name === "Venda direta"
+                                ? "Venda direta"
+                                : String(name);
+                        return [formatBRL(v), label];
                       }}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="shopee" stroke={CHART_SERIES_COLORS.shopee} strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="ml" stroke={CHART_SERIES_COLORS.ml} strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="profit" stroke={CHART_SERIES_COLORS.profit} strokeWidth={2} dot={false} />
+                    <Line
+                      type="monotone"
+                      name="Shopee"
+                      dataKey="shopee"
+                      stroke={CHART_SERIES_COLORS.shopee}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      name="Mercado Livre"
+                      dataKey="ml"
+                      stroke={CHART_SERIES_COLORS.ml}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      name="Venda direta"
+                      dataKey="direct"
+                      stroke={CHART_SERIES_COLORS.direct}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      name="Lucro"
+                      dataKey="profit"
+                      stroke={CHART_SERIES_COLORS.profit}
+                      strokeWidth={2}
+                      dot={false}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
 
-              <div className="mt-3 flex items-center justify-between border-t border-slate-800 pt-3 text-sm">
+              <div className="mt-3 grid gap-3 border-t border-slate-800 pt-3 text-sm sm:grid-cols-3">
                 <div className="space-y-1">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Shopee</p>
                   <p className="text-slate-200">
@@ -1208,11 +1264,18 @@ export default function DashboardPage() {
                     <span className="text-emerald-400">• lucro {formatBRL(rangeSales.totalsByChannel.shopeeProfit)}</span>
                   </p>
                 </div>
-                <div className="space-y-1 text-right">
+                <div className="space-y-1 sm:text-center">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Mercado Livre</p>
                   <p className="text-slate-200">
                     {formatBRL(rangeSales.totalsByChannel.mlRevenue)}{" "}
                     <span className="text-emerald-400">• lucro {formatBRL(rangeSales.totalsByChannel.mlProfit)}</span>
+                  </p>
+                </div>
+                <div className="space-y-1 sm:text-right">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Venda direta</p>
+                  <p className="text-slate-200">
+                    {formatBRL(rangeSales.totalsByChannel.directRevenue)}{" "}
+                    <span className="text-emerald-400">• lucro {formatBRL(rangeSales.totalsByChannel.directProfit)}</span>
                   </p>
                 </div>
               </div>
@@ -1322,7 +1385,7 @@ export default function DashboardPage() {
                           {s.productName}
                         </div>
                       </td>
-                      <td className="px-2 py-1 text-slate-300">{s.channel}</td>
+                      <td className="px-2 py-1 text-slate-300">{formatSalesChannelLabel(s.channel)}</td>
                       <td className="px-2 py-1 text-right text-slate-100">
                         {formatBRL(s.revenue)}
                       </td>

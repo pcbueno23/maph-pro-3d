@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useInventoryStore } from "@/store/inventoryStore";
+import { useAuthStore } from "@/store/authStore";
+import { fetchUserProducts } from "@/lib/supabaseProducts";
 
 export default function InventoryPage() {
+  const { user } = useAuthStore();
   const {
     items,
     hydrateFromStorage: hydrateInventory,
@@ -11,9 +14,46 @@ export default function InventoryPage() {
     removeItem,
   } = useInventoryStore();
 
+  /** Só reexecuta quando mudam linhas ou custo salvo (evita loop com o array inteiro). */
+  const inventoryCostKey = useMemo(
+    () => items.map((i) => `${i.id}:${i.productionCost ?? 0}`).join("|"),
+    [items],
+  );
+
   useEffect(() => {
     hydrateInventory();
   }, [hydrateInventory]);
+
+  /** Preenche custo/preços a partir do cadastro do produto (após migração no Supabase ou re-salvamento). */
+  useEffect(() => {
+    if (!user?.id || items.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const prods = await fetchUserProducts(user.id);
+        if (cancelled) return;
+        const update = useInventoryStore.getState().updateItem;
+        const snapshot = useInventoryStore.getState().items;
+        for (const i of snapshot) {
+          const p = prods.find((x) => x.id === i.productId);
+          if (!p?.totalCost || p.totalCost <= 0) continue;
+          if (i.productionCost != null && i.productionCost > 0) continue;
+          update({
+            ...i,
+            productionCost: p.totalCost,
+            suggestedPriceShopee: p.suggestedPriceShopee ?? i.suggestedPriceShopee,
+            suggestedPriceML: p.suggestedPriceML ?? i.suggestedPriceML,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      } catch {
+        // colunas novas ainda não aplicadas no banco ou offline
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, items.length, inventoryCostKey]);
 
   return (
     <div className="space-y-4">

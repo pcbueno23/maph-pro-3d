@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type SalesChannel = "Shopee" | "ML";
+export type SalesChannel = "Shopee" | "ML" | "Direto";
 
 export interface Sale {
   id: string;

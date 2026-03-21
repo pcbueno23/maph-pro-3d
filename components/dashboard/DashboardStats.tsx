@@ -30,9 +30,12 @@ export function DashboardStats({ products }: Props) {
       if (s.channel === "Shopee") {
         acc.shopeeRevenue += s.revenue;
         acc.shopeeProfit += s.netProfit;
-      } else {
+      } else if (s.channel === "ML") {
         acc.mlRevenue += s.revenue;
         acc.mlProfit += s.netProfit;
+      } else if (s.channel === "Direto") {
+        acc.directRevenue += s.revenue;
+        acc.directProfit += s.netProfit;
       }
       return acc;
     },
@@ -41,11 +44,15 @@ export function DashboardStats({ products }: Props) {
       shopeeProfit: 0,
       mlRevenue: 0,
       mlProfit: 0,
+      directRevenue: 0,
+      directProfit: 0,
     },
   );
 
-  const totalRevenue = totalsByChannel.shopeeRevenue + totalsByChannel.mlRevenue;
-  const totalProfit = totalsByChannel.shopeeProfit + totalsByChannel.mlProfit;
+  const totalRevenue =
+    totalsByChannel.shopeeRevenue + totalsByChannel.mlRevenue + totalsByChannel.directRevenue;
+  const totalProfit =
+    totalsByChannel.shopeeProfit + totalsByChannel.mlProfit + totalsByChannel.directProfit;
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -96,6 +103,22 @@ export function DashboardStats({ products }: Props) {
               | Lucro:{" "}
               <span className="font-semibold text-emerald-400">
                 {totalsByChannel.mlProfit.toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
+              </span>
+            </p>
+            <p>
+              Venda direta —{" "}
+              <span className="font-semibold">
+                {totalsByChannel.directRevenue.toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
+              </span>{" "}
+              | Lucro:{" "}
+              <span className="font-semibold text-emerald-400">
+                {totalsByChannel.directProfit.toLocaleString("pt-BR", {
                   style: "currency",
                   currency: "BRL",
                 })}

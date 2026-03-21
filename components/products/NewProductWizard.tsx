@@ -7,7 +7,14 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { useProductsStore } from "@/store/productsStore";
 import type { Printer, Product, SupplyItem } from "@/types";
 import type { Marketplace } from "@/types";
-import { listPrinters, listSupplies, uploadProductFile, upsertProductMaterial } from "@/lib/supabaseProduction";
+import {
+  listPrinters,
+  listSupplies,
+  listProductMaterials,
+  uploadProductFile,
+  upsertProductMaterial,
+  deleteProductMaterial,
+} from "@/lib/supabaseProduction";
 import { upsertProductsForUser } from "@/lib/supabaseProducts";
 import {
   calcEnergyCostFromPrinter,
@@ -30,6 +37,9 @@ const STEPS = [
 ] as const;
 
 type BomLine = {
+  /** ID da linha em `product_materials` ao editar produto existente */
+  materialRowId?: string;
+  materialCreatedAt?: string;
   supplyId: string;
   name: string;
   unit: string;
@@ -53,12 +63,47 @@ function formatBRL(value: number) {
 interface NewProductWizardProps {
   open: boolean;
   onClose: () => void;
+  /** Se informado, abre o mesmo fluxo do novo produto com dados preenchidos (ex.: vindo da calculadora). */
+  initialProduct?: Product | null;
 }
 
-export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
+function resetWizardForm(params: {
+  defaultMargin: number;
+  setStep: (n: number) => void;
+  setName: (s: string) => void;
+  setSku: (s: string) => void;
+  setDescription: (s: string) => void;
+  setPrintHours: (v: number | "") => void;
+  setPrintMinutes: (v: number | "") => void;
+  setDefaultPrinterId: (v: string | null) => void;
+  setMaterials: (m: BomLine[]) => void;
+  setMainImage: (f: File | null) => void;
+  setExtraFiles: (f: File[]) => void;
+  setMarginPercent: (v: number | "") => void;
+  setPrice: (n: number) => void;
+  setMarketplace: (m: Marketplace) => void;
+  setError: (e: string | null) => void;
+}) {
+  params.setStep(1);
+  params.setName("");
+  params.setSku("");
+  params.setDescription("");
+  params.setPrintHours(0);
+  params.setPrintMinutes(0);
+  params.setDefaultPrinterId(null);
+  params.setMaterials([]);
+  params.setMainImage(null);
+  params.setExtraFiles([]);
+  params.setMarginPercent(params.defaultMargin);
+  params.setPrice(0);
+  params.setMarketplace("Shopee");
+  params.setError(null);
+}
+
+export function NewProductWizard({ open, onClose, initialProduct = null }: NewProductWizardProps) {
   const user = useAuthStore((s) => s.user);
   const { settings } = useSettingsStore();
-  const { addProduct } = useProductsStore();
+  const { addProduct, updateProduct } = useProductsStore();
   const [mounted, setMounted] = useState(false);
 
   const [step, setStep] = useState(1);
@@ -79,6 +124,9 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
   const [marketplace, setMarketplace] = useState<Marketplace>("Shopee");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingInitial, setLoadingInitial] = useState(false);
+
+  const isEditMode = Boolean(initialProduct?.id);
 
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [supplies, setSupplies] = useState<SupplyItem[]>([]);
@@ -105,6 +153,93 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
       alive = false;
     };
   }, [user?.id, open]);
+
+  /** Novo produto (vazio) ou edição (preencher a partir do produto + BOM). */
+  useEffect(() => {
+    if (!open || !mounted) return;
+
+    if (!initialProduct) {
+      resetWizardForm({
+        defaultMargin,
+        setStep,
+        setName,
+        setSku,
+        setDescription,
+        setPrintHours,
+        setPrintMinutes,
+        setDefaultPrinterId,
+        setMaterials,
+        setMainImage,
+        setExtraFiles,
+        setMarginPercent,
+        setPrice,
+        setMarketplace,
+        setError,
+      });
+      setLoadingInitial(false);
+      return;
+    }
+
+    if (!user) {
+      setError("Faça login para editar o produto com materiais e uploads.");
+      setLoadingInitial(false);
+      return;
+    }
+
+    let alive = true;
+    setLoadingInitial(true);
+    setError(null);
+
+    void (async () => {
+      try {
+        const p = initialProduct;
+        const mins = p.printTimeMinutes ?? 0;
+        setStep(1);
+        setName(p.name);
+        setSku(p.sku ?? "");
+        setDescription(p.description ?? "");
+        setPrintHours(Math.floor(mins / 60));
+        setPrintMinutes(mins % 60);
+        setDefaultPrinterId(p.defaultPrinterId ?? null);
+        setPrice(p.price);
+        setMarketplace(p.marketplace);
+        setMarginPercent(
+          p.margin != null && Number.isFinite(p.margin) ? p.margin : defaultMargin,
+        );
+        setMainImage(null);
+        setExtraFiles([]);
+
+        const [supRows, mats] = await Promise.all([
+          listSupplies(user.id),
+          listProductMaterials(user.id, p.id),
+        ]);
+        if (!alive) return;
+        const supMap = new Map(supRows.map((s) => [s.id, s] as const));
+        const bom: BomLine[] = mats.map((m) => {
+          const s = supMap.get(m.supplyId);
+          return {
+            materialRowId: m.id,
+            materialCreatedAt: m.createdAt,
+            supplyId: m.supplyId,
+            name: s?.name ?? "Insumo",
+            unit: s?.unit ?? "un",
+            unitCost: s?.unitCost ?? 0,
+            qty: m.qty,
+          };
+        });
+        setMaterials(bom);
+      } catch (e) {
+        if (!alive) return;
+        setError(e instanceof Error ? e.message : "Falha ao carregar o produto.");
+      } finally {
+        if (alive) setLoadingInitial(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [open, mounted, initialProduct?.id, user?.id, defaultMargin]);
 
   const selectedPrinter = useMemo(
     () => (defaultPrinterId ? printers.find((p) => p.id === defaultPrinterId) ?? null : null),
@@ -363,21 +498,28 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
 
     setSaving(true);
     const nowIso = new Date().toISOString();
-    const productId = generateUuid();
+    const productId = initialProduct?.id ?? generateUuid();
 
     const product: Product = {
       id: productId,
       name: name.trim(),
       sku: sku.trim() || null,
       description: description.trim() || null,
-      weight: materials.reduce((acc, m) => acc + (m.unit === "kg" ? m.qty * 1000 : m.unit === "g" ? m.qty : 0), 0) || 0,
+      weight:
+        materials.reduce(
+          (acc, m) => acc + (m.unit === "kg" ? m.qty * 1000 : m.unit === "g" ? m.qty : 0),
+          0,
+        ) || 0,
       price,
-      // A calculadora salva a margem "conservadora" baseada no preço final.
-      // Isso evita divergência quando o preço recomendado é o máximo entre Shopee/ML.
-      margin: null,
+      margin:
+        initialProduct &&
+        typeof marginPercent === "number" &&
+        Number.isFinite(marginPercent)
+          ? marginPercent
+          : null,
       marketplace,
       currency: "BRL",
-      createdAt: nowIso,
+      createdAt: initialProduct?.createdAt ?? nowIso,
       updatedAt: nowIso,
       totalCost,
       suggestedPriceShopee: pricingFromMargin.shopeeSuggested,
@@ -386,26 +528,50 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
       defaultPrinterId: defaultPrinterId ?? null,
     };
 
-    addProduct(product);
+    if (initialProduct) {
+      updateProduct(product);
+    } else {
+      addProduct(product);
+    }
 
     if (user) {
       try {
         const list = useProductsStore.getState().products;
         await upsertProductsForUser(user.id, list);
-        for (const m of materials) {
-          await upsertProductMaterial(user.id, {
-            id: generateUuid(),
-            productId,
-            supplyId: m.supplyId,
-            qty: m.qty,
-            unit: m.unit,
-            createdAt: nowIso,
-            updatedAt: nowIso,
-          });
+
+        if (initialProduct) {
+          const existing = await listProductMaterials(user.id, productId);
+          for (const ex of existing) {
+            if (!materials.some((m) => m.materialRowId === ex.id)) {
+              await deleteProductMaterial(user.id, ex.id);
+            }
+          }
+          for (const m of materials) {
+            await upsertProductMaterial(user.id, {
+              id: m.materialRowId,
+              productId,
+              supplyId: m.supplyId,
+              qty: m.qty,
+              unit: m.unit,
+              createdAt: m.materialCreatedAt ?? nowIso,
+              updatedAt: nowIso,
+            });
+          }
+        } else {
+          for (const m of materials) {
+            await upsertProductMaterial(user.id, {
+              id: generateUuid(),
+              productId,
+              supplyId: m.supplyId,
+              qty: m.qty,
+              unit: m.unit,
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            });
+          }
         }
 
-        // Uploads (imagem principal + arquivos)
-        const uploads: Array<Promise<any>> = [];
+        const uploads: Array<Promise<unknown>> = [];
         if (mainImage) {
           uploads.push(
             uploadProductFile({
@@ -438,18 +604,23 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
 
     setSaving(false);
     onClose();
-    setStep(1);
-    setName("");
-    setSku("");
-    setDescription("");
-    setPrintHours(0);
-    setPrintMinutes(0);
-    setDefaultPrinterId(null);
-    setMaterials([]);
-    setMainImage(null);
-    setExtraFiles([]);
-    setMarginPercent(0);
-    setPrice(0);
+    resetWizardForm({
+      defaultMargin,
+      setStep,
+      setName,
+      setSku,
+      setDescription,
+      setPrintHours,
+      setPrintMinutes,
+      setDefaultPrinterId,
+      setMaterials,
+      setMainImage,
+      setExtraFiles,
+      setMarginPercent,
+      setPrice,
+      setMarketplace,
+      setError,
+    });
   }
 
   if (!open || !mounted) return null;
@@ -458,7 +629,9 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
     <div className="fixed inset-0 z-[999] grid place-items-center bg-slate-950/80 p-4">
       <div className="flex h-[min(90dvh,820px)] w-full max-w-2xl min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-          <h2 className="text-lg font-semibold text-slate-50">Novo Produto</h2>
+          <h2 className="text-lg font-semibold text-slate-50">
+            {isEditMode ? "Editar produto" : "Novo produto"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -497,7 +670,12 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
           ))}
         </div>
 
-        <div className="p-4">
+        <div className="relative p-4">
+          {loadingInitial && initialProduct ? (
+            <div className="absolute inset-0 z-10 grid place-items-center rounded-xl bg-slate-950/70 backdrop-blur-sm">
+              <p className="text-sm text-slate-300">Carregando produto…</p>
+            </div>
+          ) : null}
           {error && (
             <div className="mb-4 rounded-xl border border-rose-800 bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
               {error}
@@ -831,7 +1009,7 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
               <button
                 type="button"
                 onClick={() => setStep((s) => s + 1)}
-                disabled={step === 1 && !name.trim()}
+                disabled={(step === 1 && !name.trim()) || loadingInitial}
                 className="rounded-xl bg-cyan-600 px-4 py-2 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
               >
                 Próximo
@@ -840,10 +1018,10 @@ export function NewProductWizard({ open, onClose }: NewProductWizardProps) {
               <button
                 type="button"
                 onClick={handleCreate}
-                disabled={saving || materials.length === 0}
+                disabled={saving || materials.length === 0 || loadingInitial}
                 className="rounded-xl bg-cyan-600 px-4 py-2 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
               >
-                {saving ? "Salvando…" : "Criar Produto"}
+                {saving ? "Salvando…" : isEditMode ? "Salvar alterações" : "Criar produto"}
               </button>
             )}
           </div>

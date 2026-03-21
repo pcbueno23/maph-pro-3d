@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { Printer, Product, ProductAsset } from "@/types";
-import { MARKETPLACES } from "@/lib/constants";
 import { useProductsStore } from "@/store/productsStore";
 import { useAuthStore } from "@/store/authStore";
 import { deleteProduct, upsertProductsForUser } from "@/lib/supabaseProducts";
@@ -15,14 +14,12 @@ import type { ProductMaterial, SupplyItem } from "@/types";
 import {
   deleteProductMaterial,
   listProductMaterials,
-  listProductAssets,
   listProductAssetsByProductIds,
   getProductAssetViewUrl,
   uploadProductFile,
   listSupplies,
   upsertProductMaterial,
 } from "@/lib/supabaseProduction";
-import { computeProductUnitCost } from "@/lib/productionCost";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -30,6 +27,8 @@ function formatBRL(value: number) {
 
 interface Props {
   products: Product[];
+  /** Abre o fluxo completo (wizard) com dados do produto — foto, STL, materiais, preço. */
+  onOpenProductWizard?: (product: Product) => void;
 }
 
 function newId(prefix: string) {
@@ -38,7 +37,7 @@ function newId(prefix: string) {
     : `${prefix}_${Date.now()}`;
 }
 
-export function ProductTable({ products }: Props) {
+export function ProductTable({ products, onOpenProductWizard }: Props) {
   const router = useRouter();
   const removeProduct = useProductsStore((s) => s.removeProduct);
   const updateProduct = useProductsStore((s) => s.updateProduct);
@@ -62,19 +61,6 @@ export function ProductTable({ products }: Props) {
   const [techSku, setTechSku] = useState("");
   const [techTimeMinutes, setTechTimeMinutes] = useState<number | null>(null);
   const [techDefaultPrinterId, setTechDefaultPrinterId] = useState<string>("");
-
-  // Modal "Abrir" com todas as informações do produto (sem ir para /calculator)
-  const [infoOpen, setInfoOpen] = useState(false);
-  const [infoProduct, setInfoProduct] = useState<Product | null>(null);
-  const [infoLoading, setInfoLoading] = useState(false);
-  const [infoError, setInfoError] = useState<string | null>(null);
-  const [infoSupplies, setInfoSupplies] = useState<SupplyItem[]>([]);
-  const [infoMaterials, setInfoMaterials] = useState<ProductMaterial[]>([]);
-  const [infoAssets, setInfoAssets] = useState<ProductAsset[]>([]);
-  const [infoUploadBusy, setInfoUploadBusy] = useState(false);
-  const [infoEditOpen, setInfoEditOpen] = useState(false);
-  const [infoDraft, setInfoDraft] = useState<Partial<Product> | null>(null);
-  const [infoSaveBusy, setInfoSaveBusy] = useState(false);
 
   const [productThumbById, setProductThumbById] = useState<Record<string, string>>({});
 
@@ -118,158 +104,6 @@ export function ProductTable({ products }: Props) {
       alive = false;
     };
   }, [products, user?.id]);
-  const [
-    infoCost,
-    setInfoCost,
-  ] = useState<{
-    totalCost: number;
-    materialCost: number;
-    energyCost: number;
-    depreciationCost: number;
-    packagingCost: number;
-  } | null>(null);
-
-  async function openProductInfo(product: Product) {
-    if (!user) {
-      if (typeof window !== "undefined") {
-        window.alert("Faça login para abrir as informações do produto.");
-      }
-      return;
-    }
-
-    setInfoOpen(true);
-    setInfoProduct(product);
-    setInfoLoading(true);
-    setInfoError(null);
-    setInfoSupplies([]);
-    setInfoMaterials([]);
-    setInfoAssets([]);
-    setInfoCost(null);
-    setInfoEditOpen(false);
-    setInfoDraft(null);
-
-    try {
-      const [sups, mats, assets, cost] = await Promise.all([
-        listSupplies(user.id),
-        listProductMaterials(user.id, product.id),
-        listProductAssets(user.id, product.id),
-        computeProductUnitCost(user.id, product),
-      ]);
-      setInfoSupplies(sups);
-      setInfoMaterials(mats);
-      setInfoAssets(assets);
-      setInfoCost(cost);
-    } catch (e: any) {
-      setInfoError(e?.message ?? "Falha ao carregar informações do produto.");
-    } finally {
-      setInfoLoading(false);
-    }
-  }
-
-  async function uploadMainImageForInfo(file: File) {
-    if (!user || !infoProduct) return;
-    setInfoUploadBusy(true);
-    setInfoError(null);
-    try {
-      await uploadProductFile({ userId: user.id, productId: infoProduct.id, kind: "image", file });
-      const assets = await listProductAssets(user.id, infoProduct.id);
-      setInfoAssets(assets);
-      const newest = assets.find((a) => a.kind === "image") ?? null;
-      if (newest) {
-        const url = await getProductAssetViewUrl(newest);
-        if (url) setProductThumbById((prev) => ({ ...prev, [infoProduct.id]: url }));
-      }
-    } catch (e: any) {
-      setInfoError(e?.message ?? "Falha ao enviar imagem do produto.");
-    } finally {
-      setInfoUploadBusy(false);
-    }
-  }
-
-  function closeProductInfo() {
-    setInfoOpen(false);
-    setInfoProduct(null);
-    setInfoLoading(false);
-    setInfoError(null);
-    setInfoSupplies([]);
-    setInfoMaterials([]);
-    setInfoAssets([]);
-    setInfoCost(null);
-    setInfoEditOpen(false);
-    setInfoDraft(null);
-  }
-
-  function startEditInfo() {
-    if (!infoProduct) return;
-    setInfoEditOpen(true);
-    setInfoError(null);
-    setInfoDraft({
-      name: infoProduct.name,
-      sku: infoProduct.sku ?? null,
-      description: infoProduct.description ?? null,
-      weight: infoProduct.weight,
-      price: infoProduct.price,
-      currency: infoProduct.currency,
-      marketplace: infoProduct.marketplace,
-      printTimeMinutes: infoProduct.printTimeMinutes ?? null,
-      defaultPrinterId: infoProduct.defaultPrinterId ?? null,
-    });
-  }
-
-  function cancelEditInfo() {
-    setInfoEditOpen(false);
-    setInfoDraft(null);
-    setInfoError(null);
-  }
-
-  async function saveEditInfo() {
-    if (!user || !infoProduct || !infoDraft) return;
-    const nowIso = new Date().toISOString();
-    const updated: Product = {
-      ...infoProduct,
-      name: String(infoDraft.name ?? infoProduct.name).trim() || infoProduct.name,
-      sku: (infoDraft.sku ?? null) as any,
-      description: (infoDraft.description ?? null) as any,
-      weight: Number(infoDraft.weight ?? infoProduct.weight) || 0,
-      price: Number(infoDraft.price ?? infoProduct.price) || 0,
-      currency: (infoDraft.currency ?? infoProduct.currency) as any,
-      marketplace: (infoDraft.marketplace ?? infoProduct.marketplace) as any,
-      printTimeMinutes:
-        infoDraft.printTimeMinutes == null
-          ? null
-          : Number(infoDraft.printTimeMinutes),
-      defaultPrinterId: (infoDraft.defaultPrinterId ?? null) as any,
-      updatedAt: nowIso,
-    };
-
-    if (!updated.name) {
-      setInfoError("O nome do produto é obrigatório.");
-      return;
-    }
-    if (!Number.isFinite(updated.weight) || updated.weight < 0) {
-      setInfoError("Peso inválido.");
-      return;
-    }
-    if (!Number.isFinite(updated.price) || updated.price < 0) {
-      setInfoError("Preço inválido.");
-      return;
-    }
-
-    setInfoSaveBusy(true);
-    setInfoError(null);
-    try {
-      await upsertProductsForUser(user.id, [updated]);
-      updateProduct(updated);
-      setInfoProduct(updated);
-      setInfoEditOpen(false);
-      setInfoDraft(null);
-    } catch (e: any) {
-      setInfoError(e?.message ?? "Falha ao salvar produto.");
-    } finally {
-      setInfoSaveBusy(false);
-    }
-  }
-
   const materialCost = useMemo(() => {
     if (!bomProduct) return 0;
     const map = new Map(supplies.map((s) => [s.id, s] as const));
@@ -534,7 +368,15 @@ export function ProductTable({ products }: Props) {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => openProductInfo(product)}
+                    onClick={() => {
+                      if (!user) {
+                        if (typeof window !== "undefined") {
+                          window.alert("Faça login para abrir e editar o produto.");
+                        }
+                        return;
+                      }
+                      onOpenProductWizard?.(product);
+                    }}
                     className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-3 py-2 text-[11px] font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
                     title="Abrir informações do produto"
                   >
@@ -716,434 +558,6 @@ export function ProductTable({ products }: Props) {
         </div>
       ) : null}
 
-      {infoOpen && infoProduct ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4">
-          <div className="flex h-[min(90dvh,860px)] w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/95 shadow-neon-cyan">
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 px-4 py-3">
-              <div className="min-w-[220px]">
-                <p className="text-sm font-semibold text-slate-50">
-                  Informações — {infoProduct.name}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-400">
-                  SKU: {infoProduct.sku ?? "—"} · Tempo:{" "}
-                  {infoProduct.printTimeMinutes != null && Number.isFinite(infoProduct.printTimeMinutes)
-                    ? `${infoProduct.printTimeMinutes} min`
-                    : "—"}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {!infoEditOpen ? (
-                  <button
-                    type="button"
-                    onClick={startEditInfo}
-                    className="rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
-                    disabled={infoLoading || infoSaveBusy}
-                    title="Editar dados do produto"
-                  >
-                    Editar
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={cancelEditInfo}
-                      className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-900 disabled:opacity-60"
-                      disabled={infoSaveBusy}
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={saveEditInfo}
-                      className="rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
-                      disabled={infoSaveBusy}
-                    >
-                      {infoSaveBusy ? "Salvando..." : "Salvar"}
-                    </button>
-                  </>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => openTechnical(infoProduct)}
-                  className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
-                  title="Editar ficha técnica"
-                >
-                  Ficha técnica
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openBom(infoProduct)}
-                  className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
-                  title="Editar materiais (BOM)"
-                >
-                  Materiais
-                </button>
-                <button
-                  type="button"
-                  onClick={closeProductInfo}
-                  className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              {infoError ? (
-                <div className="mb-4 rounded-xl border border-rose-600/30 bg-rose-500/10 p-3 text-sm text-rose-200">
-                  {infoError}
-                </div>
-              ) : null}
-
-              {infoLoading ? (
-                <p className="text-sm text-slate-400">Carregando...</p>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        Preços e custo
-                      </p>
-
-                      {infoEditOpen ? (
-                        <div className="mt-3 space-y-3">
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <div>
-                              <label className="mb-1 block text-[11px] text-slate-300">Nome</label>
-                              <input
-                                value={String(infoDraft?.name ?? "")}
-                                onChange={(e) => setInfoDraft((d) => ({ ...(d ?? {}), name: e.target.value }))}
-                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                                disabled={infoSaveBusy}
-                              />
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-[11px] text-slate-300">SKU (opcional)</label>
-                              <input
-                                value={String(infoDraft?.sku ?? "")}
-                                onChange={(e) =>
-                                  setInfoDraft((d) => ({
-                                    ...(d ?? {}),
-                                    sku: e.target.value ? e.target.value : null,
-                                  }))
-                                }
-                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                                disabled={infoSaveBusy}
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="mb-1 block text-[11px] text-slate-300">Descrição (opcional)</label>
-                            <textarea
-                              rows={3}
-                              value={String(infoDraft?.description ?? "")}
-                              onChange={(e) =>
-                                setInfoDraft((d) => ({
-                                  ...(d ?? {}),
-                                  description: e.target.value ? e.target.value : null,
-                                }))
-                              }
-                              className="w-full resize-none rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                              disabled={infoSaveBusy}
-                            />
-                          </div>
-
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <div>
-                              <label className="mb-1 block text-[11px] text-slate-300">Peso (g)</label>
-                              <input
-                                type="number"
-                                min={0}
-                                step="0.1"
-                                value={Number(infoDraft?.weight ?? 0)}
-                                onChange={(e) =>
-                                  setInfoDraft((d) => ({ ...(d ?? {}), weight: Number(e.target.value) }))
-                                }
-                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                                disabled={infoSaveBusy}
-                              />
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-[11px] text-slate-300">Preço (R$)</label>
-                              <input
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                value={Number(infoDraft?.price ?? 0)}
-                                onChange={(e) =>
-                                  setInfoDraft((d) => ({ ...(d ?? {}), price: Number(e.target.value) }))
-                                }
-                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                                disabled={infoSaveBusy}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <div>
-                              <label className="mb-1 block text-[11px] text-slate-300">Marketplace</label>
-                              <select
-                                value={String(infoDraft?.marketplace ?? infoProduct.marketplace)}
-                                onChange={(e) =>
-                                  setInfoDraft((d) => ({ ...(d ?? {}), marketplace: e.target.value as any }))
-                                }
-                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                                disabled={infoSaveBusy}
-                              >
-                                {MARKETPLACES.map((m) => (
-                                  <option key={m} value={m}>
-                                    {m}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-[11px] text-slate-300">Moeda</label>
-                              <select
-                                value={String(infoDraft?.currency ?? infoProduct.currency)}
-                                onChange={(e) =>
-                                  setInfoDraft((d) => ({ ...(d ?? {}), currency: e.target.value as any }))
-                                }
-                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                                disabled={infoSaveBusy}
-                              >
-                                <option value="BRL">BRL</option>
-                                <option value="USD">USD</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <div>
-                              <label className="mb-1 block text-[11px] text-slate-300">Tempo (min, opcional)</label>
-                              <input
-                                type="number"
-                                min={0}
-                                step="1"
-                                value={
-                                  infoDraft?.printTimeMinutes == null ? "" : Number(infoDraft?.printTimeMinutes)
-                                }
-                                onChange={(e) =>
-                                  setInfoDraft((d) => ({
-                                    ...(d ?? {}),
-                                    printTimeMinutes: e.target.value === "" ? null : Number(e.target.value),
-                                  }))
-                                }
-                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                                disabled={infoSaveBusy}
-                              />
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-[11px] text-slate-300">
-                                Impressora padrão (opcional)
-                              </label>
-                              <input
-                                value={String(infoDraft?.defaultPrinterId ?? "")}
-                                onChange={(e) =>
-                                  setInfoDraft((d) => ({
-                                    ...(d ?? {}),
-                                    defaultPrinterId: e.target.value ? e.target.value : null,
-                                  }))
-                                }
-                                placeholder="ID (ou use Ficha técnica)"
-                                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                                disabled={infoSaveBusy}
-                              />
-                            </div>
-                          </div>
-
-                        </div>
-                      ) : null}
-
-                      {(() => {
-                        const mainImage = infoAssets.find((a) => a.kind === "image");
-                        const url =
-                          (infoProduct?.id && productThumbById[infoProduct.id]) || mainImage?.publicUrl || null;
-                        return url ? (
-                          <div className="mt-3 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/50">
-                            <img
-                              src={url}
-                              alt={`Imagem de ${infoProduct.name}`}
-                              className="h-44 w-full object-cover"
-                              loading="lazy"
-                            />
-                          </div>
-                        ) : null;
-                      })()}
-                      <div className="mt-3 space-y-2">
-                        <p className="text-[11px] text-slate-300">Foto do produto</p>
-                        <label className="flex min-h-[150px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-700 bg-slate-900/40 text-center transition hover:border-cyan-500 hover:bg-slate-900/70">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            disabled={infoUploadBusy || infoSaveBusy}
-                            onChange={(e) => {
-                              const f = e.target.files?.[0] ?? null;
-                              e.currentTarget.value = "";
-                              if (!f) return;
-                              uploadMainImageForInfo(f);
-                            }}
-                          />
-                          {(() => {
-                            const mainImage = infoAssets.find((a) => a.kind === "image");
-                            const url =
-                              (infoProduct?.id && productThumbById[infoProduct.id]) || mainImage?.publicUrl || null;
-                            if (url) {
-                              return (
-                                <img
-                                  src={url}
-                                  alt={`Imagem de ${infoProduct?.name ?? "produto"}`}
-                                  className="h-[150px] w-full object-cover"
-                                  loading="lazy"
-                                />
-                              );
-                            }
-                            return (
-                              <div className="px-4 py-5">
-                                <p className="text-sm font-semibold text-slate-200">
-                                  {infoUploadBusy ? "Enviando..." : "Clique para adicionar foto"}
-                                </p>
-                                <p className="mt-1 text-[11px] text-slate-500">
-                                  PNG/JPG/WEBP. A imagem enviada vira a principal do produto.
-                                </p>
-                              </div>
-                            );
-                          })()}
-                        </label>
-                      </div>
-                      <div className="mt-2 space-y-1.5 text-sm">
-                        <p className="text-slate-300">
-                          Preço de venda:{" "}
-                          <span className="text-slate-50">
-                            {formatBRL(infoProduct.price)}
-                          </span>
-                        </p>
-                        <p className="text-slate-300">
-                          Preço de custo:{" "}
-                          <span className="text-emerald-200">
-                            {formatBRL(infoCost?.totalCost ?? infoProduct.totalCost ?? 0)}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        Quebra do custo (por peça)
-                      </p>
-                      <div className="mt-2 space-y-1.5 text-sm text-slate-300">
-                        <p>
-                          Materiais:{" "}
-                          <span className="text-slate-50">
-                            {formatBRL(infoCost?.materialCost ?? 0)}
-                          </span>
-                        </p>
-                        <p>
-                          Energia:{" "}
-                          <span className="text-slate-50">
-                            {formatBRL(infoCost?.energyCost ?? 0)}
-                          </span>
-                        </p>
-                        <p>
-                          Depreciação:{" "}
-                          <span className="text-slate-50">
-                            {formatBRL(infoCost?.depreciationCost ?? 0)}
-                          </span>
-                        </p>
-                        <p>
-                          Embalagem:{" "}
-                          <span className="text-slate-50">
-                            {formatBRL(infoCost?.packagingCost ?? 0)}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Arquivos anexos
-                    </p>
-                    {infoAssets.filter((a) => a.kind === "file").length === 0 ? (
-                      <p className="mt-2 text-sm text-slate-400">Nenhum arquivo anexado.</p>
-                    ) : (
-                      <ul className="mt-2 space-y-1 text-sm">
-                        {infoAssets
-                          .filter((a) => a.kind === "file")
-                          .map((a) => (
-                            <li key={a.id} className="flex items-center justify-between gap-2">
-                              <span className="truncate text-slate-200">{a.fileName}</span>
-                              {a.publicUrl ? (
-                                <a
-                                  href={a.publicUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-xs text-cyan-300 hover:text-cyan-200"
-                                >
-                                  Baixar
-                                </a>
-                              ) : (
-                                <span className="text-xs text-slate-500">—</span>
-                              )}
-                            </li>
-                          ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Materiais necessários (BOM)
-                    </p>
-
-                    {infoMaterials.length === 0 ? (
-                      <p className="mt-2 text-sm text-slate-400">
-                        Nenhum material cadastrado para este produto.
-                      </p>
-                    ) : (
-                      <div className="mt-3 overflow-x-auto">
-                        <table className="min-w-full text-left text-xs">
-                          <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                            <tr>
-                              <th className="px-2 py-2">Insumo</th>
-                              <th className="px-2 py-2">Qtd</th>
-                              <th className="px-2 py-2">Custo</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-800">
-                            {infoMaterials.map((m) => {
-                              const s = infoSupplies.find((x) => x.id === m.supplyId);
-                              const lineCost = (m.qty ?? 0) * (s?.unitCost ?? 0);
-                              return (
-                                <tr key={m.id} className="hover:bg-slate-900/60">
-                                  <td className="px-2 py-2 text-slate-100">
-                                    {s?.name ?? m.supplyId}
-                                  </td>
-                                  <td className="px-2 py-2 text-slate-300">
-                                    {Number(m.qty ?? 0).toLocaleString("pt-BR")}
-                                    {s?.unit ? ` ${s.unit}` : ""}
-                                  </td>
-                                  <td className="px-2 py-2 text-emerald-200">
-                                    {formatBRL(lineCost)}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {techOpen && techProduct ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4">

@@ -19,6 +19,9 @@ export async function fetchUserProducts(userId: string): Promise<Product[]> {
         margin,
         marketplace,
         currency,
+        total_cost,
+        suggested_price_shopee,
+        suggested_price_ml,
         created_at,
         updated_at
       `,
@@ -44,6 +47,11 @@ export async function fetchUserProducts(userId: string): Promise<Product[]> {
     margin: row.margin,
     marketplace: row.marketplace,
     currency: row.currency,
+    totalCost: row.total_cost != null ? Number(row.total_cost) : undefined,
+    suggestedPriceShopee:
+      row.suggested_price_shopee != null ? Number(row.suggested_price_shopee) : undefined,
+    suggestedPriceML:
+      row.suggested_price_ml != null ? Number(row.suggested_price_ml) : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   })) as Product[];
@@ -68,6 +76,9 @@ export async function upsertProductsForUser(
     margin: p.margin,
     marketplace: p.marketplace,
     currency: p.currency,
+    total_cost: p.totalCost ?? null,
+    suggested_price_shopee: p.suggestedPriceShopee ?? null,
+    suggested_price_ml: p.suggestedPriceML ?? null,
     created_at: p.createdAt,
     updated_at: p.updatedAt,
   }));

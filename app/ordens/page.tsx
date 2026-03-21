@@ -17,7 +17,7 @@ import {
   listProductMaterials,
 } from "@/lib/supabaseProduction";
 import { fetchUserProducts } from "@/lib/supabaseProducts";
-import { computeOrderTotalCost } from "@/lib/productionCost";
+import { computeOrderTotalCost, computeProductUnitCost } from "@/lib/productionCost";
 import {
   PRODUCTION_ORDER_PIPELINE,
   PRODUCTION_ORDER_STATUS_DISPLAY_ORDER,
@@ -63,6 +63,25 @@ function getEffectivePrinterIdForOrder(
 
 function isOrderActiveForPrinterConflict(o: ProductionOrder): boolean {
   return o.status !== "done" && o.status !== "cancelled";
+}
+
+/** Garante custo (e preços sugeridos, se faltarem) antes de lançar em Peças produzidas. */
+async function ensureProductPricingForInventory(
+  userId: string,
+  product: Product,
+): Promise<Product> {
+  let next = { ...product };
+  try {
+    if (next.totalCost == null || next.totalCost <= 0) {
+      const computed = await computeProductUnitCost(userId, next);
+      if (computed.totalCost > 0) {
+        next = { ...next, totalCost: computed.totalCost };
+      }
+    }
+  } catch {
+    // mantém produto como veio do banco
+  }
+  return next;
 }
 
 /**
@@ -429,7 +448,8 @@ export default function OrdersPage() {
       if (!cameFromDone && goesToDone) {
         const prod = productsById.get(draft.productId);
         if (prod) {
-          upsertFromProduct(prod, saved.quantity, (prod.sku ?? "") || undefined);
+          const ready = await ensureProductPricingForInventory(user.id, prod);
+          upsertFromProduct(ready, saved.quantity, (ready.sku ?? "") || undefined);
         }
         router.push("/inventory");
       }
@@ -531,7 +551,10 @@ export default function OrdersPage() {
       const goesToDone = saved.status === "done";
       if (!cameFromDone && goesToDone) {
         const prod = productsById.get(order.productId);
-        if (prod) upsertFromProduct(prod, saved.quantity, (prod.sku ?? "") || undefined);
+        if (prod) {
+          const ready = await ensureProductPricingForInventory(user.id, prod);
+          upsertFromProduct(ready, saved.quantity, (ready.sku ?? "") || undefined);
+        }
 
         router.push("/inventory");
       }

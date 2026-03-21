@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useInventoryStore } from "@/store/inventoryStore";
-import { useSalesStore } from "@/store/salesStore";
+import { useSalesStore, type SalesChannel } from "@/store/salesStore";
+
+function formatChannelHistory(ch: SalesChannel) {
+  if (ch === "ML") return "Mercado Livre";
+  return ch;
+}
 
 export default function SalesPage() {
   const { items, hydrateFromStorage: hydrateInventory, updateItem } = useInventoryStore();
@@ -20,7 +25,7 @@ export default function SalesPage() {
     hydrateSales();
   }, [hydrateInventory, hydrateSales]);
 
-  const handleSell = (itemId: string, channel: "Shopee" | "ML") => {
+  const handleSell = (itemId: string, channel: SalesChannel) => {
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
     const defaultQty = quantities[itemId] ?? 1;
@@ -29,12 +34,21 @@ export default function SalesPage() {
     const defaultPrice =
       channel === "Shopee"
         ? item.suggestedPriceShopee ?? item.price
-        : item.suggestedPriceML ?? item.price;
+        : channel === "ML"
+          ? item.suggestedPriceML ?? item.price
+          : item.price;
+
+    const channelLabel =
+      channel === "ML"
+        ? "Mercado Livre"
+        : channel === "Direto"
+          ? "venda direta"
+          : channel;
 
     const priceStr =
       typeof window !== "undefined"
         ? window.prompt(
-            `Preço de venda unitário (${channel})`,
+            `Preço de venda unitário (${channelLabel})`,
             defaultPrice.toFixed(2),
           )
         : null;
@@ -103,6 +117,7 @@ export default function SalesPage() {
                 <th className="px-2 py-2">Qtd a vender</th>
                 <th className="px-2 py-2">Preço Shopee</th>
                 <th className="px-2 py-2">Preço ML</th>
+                <th className="px-2 py-2">Preço direto</th>
                 <th className="px-2 py-2 text-right">Ações</th>
               </tr>
             </thead>
@@ -139,6 +154,12 @@ export default function SalesPage() {
                       currency: "BRL",
                     })}
                   </td>
+                  <td className="px-2 py-2 text-slate-100">
+                    {i.price.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </td>
                   <td className="px-2 py-2 text-right">
                     <button
                       type="button"
@@ -150,9 +171,16 @@ export default function SalesPage() {
                     <button
                       type="button"
                       onClick={() => handleSell(i.id, "ML")}
-                      className="rounded-lg bg-cyan-500/10 px-2 py-1.5 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/20"
+                      className="mr-2 rounded-lg bg-cyan-500/10 px-2 py-1.5 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/20"
                     >
                       Vender ML
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSell(i.id, "Direto")}
+                      className="rounded-lg bg-violet-500/10 px-2 py-1.5 text-[11px] font-semibold text-violet-300 hover:bg-violet-500/20"
+                    >
+                      Venda direta
                     </button>
                   </td>
                 </tr>
@@ -204,7 +232,7 @@ export default function SalesPage() {
                       {new Date(s.date).toLocaleDateString("pt-BR")}
                     </td>
                     <td className="px-2 py-1 text-slate-100">{s.productName}</td>
-                    <td className="px-2 py-1 text-slate-300">{s.channel}</td>
+                    <td className="px-2 py-1 text-slate-300">{formatChannelHistory(s.channel)}</td>
                     <td className="px-2 py-1 text-slate-100">{s.quantity}</td>
                     <td className="px-2 py-1 text-slate-100">
                       {s.revenue.toLocaleString("pt-BR", {

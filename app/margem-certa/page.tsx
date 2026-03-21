@@ -103,12 +103,6 @@ export default function MargemCertaPage() {
         <h1 className="text-xl font-semibold text-slate-50 md:text-2xl">
           Calculadora margem certa
         </h1>
-        <p className="mt-1 max-w-3xl text-sm text-slate-400">
-          Margem de contribuição sobre o <strong>preço de venda</strong> (não markup): taxas de
-          marketplace, frete e impostos. Os custos vêm da impressão abaixo (mesma lógica da{" "}
-          <strong className="text-cyan-400">Calculadora de markup</strong>) ou você pode ajustar
-          manualmente.
-        </p>
       </div>
 
       <div className="space-y-3 rounded-2xl border border-cyan-900/40 bg-slate-950/70 p-4">
@@ -126,15 +120,6 @@ export default function MargemCertaPage() {
             <span>Atualizar custo do produto e embalagem automaticamente</span>
           </label>
         </div>
-        <p className="text-[11px] leading-relaxed text-slate-500">
-          <strong>Mesma conta</strong> da Calculadora de markup. A taxa de falha aumenta
-          só o custo de <strong>material + energia + uso da máquina</strong> (não entra
-          embalagem). Depois somam-se <strong>embalagem</strong> e{" "}
-          <strong>mão de obra</strong>. Mais abaixo, <strong>Custo produto</strong> é o
-          custo da peça <strong>sem</strong> embalagem; <strong>Embalagem</strong> repete o
-          valor do campo “Embalagem (R$)” deste bloco — só para a margem tratar os dois
-          separados.
-        </p>
         <InputPanel
           form={printingForm}
           hidePricingSection
