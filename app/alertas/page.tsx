@@ -39,6 +39,17 @@ function diffDaysLocal(from: Date, to: Date) {
   return Math.round((to.getTime() - from.getTime()) / msDay);
 }
 
+function notificationPermissionLabel(permission: string) {
+  switch (permission) {
+    case "granted":
+      return "Concedida";
+    case "denied":
+      return "Negada";
+    default:
+      return "Não solicitada";
+  }
+}
+
 export default function AlertasPage() {
   const { user } = useAuthStore();
 
@@ -51,7 +62,6 @@ export default function AlertasPage() {
 
   const [daysUntilDue, setDaysUntilDue] = useState(3);
 
-  // Notificações (mvp): browser Notifications (não é "push" real em background).
   const [notifPermission, setNotifPermission] = useState<string>("default");
   const [notifEnabled, setNotifEnabled] = useState(false);
 
@@ -161,8 +171,6 @@ export default function AlertasPage() {
   function maybeShowNotifications(opts?: { force?: boolean }) {
     const force = opts?.force ?? false;
     if (!supportsNotification) return;
-    // "Testar agora" deve funcionar mesmo se o usuário ainda não clicou para habilitar
-    // (ou se o valor do localStorage não estiver sincronizado).
     if (!notifEnabled && !force) return;
     if (Notification.permission !== "granted") {
       if (force) setError(`Permissão do navegador: ${Notification.permission}. Ative e permita nas configurações do site.`);
@@ -180,7 +188,6 @@ export default function AlertasPage() {
       // ignore
     }
 
-    // evita spam: 1 notificação por hora quando o usuário estiver no `/alertas`
     if (!force && now - lastAt < 60 * 60 * 1000) return;
 
     const body = buildNotificationBody();
@@ -190,7 +197,6 @@ export default function AlertasPage() {
     }
 
     try {
-      // Tag única para garantir que o navegador não substitua silenciosamente.
       // eslint-disable-next-line no-new
       new Notification("MAPH PRO 3D - Alertas", {
         body: buildNotificationBody(),
@@ -204,7 +210,6 @@ export default function AlertasPage() {
   }
 
   useEffect(() => {
-    // Ao navegar/abrir a página, mostra no máximo 1 notificação por hora.
     if (!loading) maybeShowNotifications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, lowStock.length, overdueOrders.length, dueSoonOrders.length, notifEnabled, notifPermission]);
@@ -428,10 +433,10 @@ export default function AlertasPage() {
 
       <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-          Notificações no navegador (opcional)
+          Notificações no navegador
         </p>
-        <p className="mt-2 text-sm text-slate-300">
-          Usa a API `Notification` do navegador. Para push real em background, precisaríamos de Web Push + backend/worker.
+        <p className="mt-2 text-sm text-slate-400">
+          Receba um lembrete quando houver alertas de estoque ou prazos (enquanto o app estiver aberto).
         </p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -475,14 +480,12 @@ export default function AlertasPage() {
 
           <div className="mt-1 space-y-1">
             <p className="text-xs text-slate-500">
-              Permissão do navegador: <span className="text-slate-300">{notifPermission}</span>
+              Permissão:{" "}
+              <span className="text-slate-300">{notificationPermissionLabel(notifPermission)}</span>
             </p>
             <p className="text-xs text-slate-500">
               Notificações no app:{" "}
               <span className={notifEnabled ? "text-emerald-300" : "text-slate-300"}>{notifEnabled ? "Ativado" : "Desativado"}</span>
-            </p>
-            <p className="text-[11px] text-slate-500">
-              Observação: o navegador não permite revogar automaticamente a permissão via código; para mudar, use as configurações do site no navegador.
             </p>
           </div>
         </div>
