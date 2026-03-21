@@ -3,13 +3,42 @@
 import { ExternalLink, Store } from "lucide-react";
 
 export default function FornecedoresPage() {
-  // Lista de parceiros – no futuro preencher com links de fornecedores
   const parceiros: { nome: string; url?: string; descricao?: string }[] = [
+    {
+      nome: "Multfila",
+      url: "https://multfila.com.br/",
+      descricao: "Loja online — filamentos PLA, PETG, ABS, TPU, resinas e acessórios.",
+    },
+    {
+      nome: "3D Fila",
+      url: "https://3dfila.com.br/",
+      descricao: "Filamentos, resinas, impressoras e ecossistema para impressão 3D no Brasil.",
+    },
+    {
+      nome: "Fusionx",
+      url: "https://fusionx3d.com.br/",
+      descricao: "Filamentos PLA, PETG, ABS, engenharia, marcas e impressoras 3D.",
+    },
+    {
+      nome: "Loja 3D",
+      url: "https://loja3d.com.br/",
+      descricao: "Impressoras, filamentos, resinas, scanners e acessórios — loja especializada.",
+    },
+    {
+      nome: "National 3D",
+      url: "https://www.lojanational3d.com.br/",
+      descricao: "Loja de fábrica — PLA Max High Speed, ABS, PETG, TPU e mais.",
+    },
+    {
+      nome: "GTMax3D",
+      url: "https://www.gtmax3d.com.br/",
+      descricao: "Impressoras (incl. Bambu Lab), filamentos ABS/PLA/PETG e linha própria.",
+    },
     {
       nome: "Voolt3D",
       url: "https://voolt3d.com.br/",
-      descricao: "Filamentos e insumos 3D – maior fabricante nacional, PLA, PETG, ABS, resinas e impressoras.",
-    },  
+      descricao: "Filamentos e insumos 3D — fabricante nacional, PLA, PETG, ABS, resinas e impressoras.",
+    },
   ];
 
   return (
@@ -19,7 +48,7 @@ export default function FornecedoresPage() {
           Fornecedores
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          Parceiros da plataforma. Em breve, links para fornecedores que fizerem parceria com o Maph Pro 3D.
+          Lojas e fornecedores de referência para filamentos, resinas e equipamentos — abre em nova aba.
         </p>
       </div>
 
