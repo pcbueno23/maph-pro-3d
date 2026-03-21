@@ -40,17 +40,6 @@ export default function SuportePage() {
               <p className="text-xs text-slate-500">
                 Horário de resposta: em geral no mesmo dia útil.
               </p>
-              <p className="pt-1 text-[11px] text-slate-500">
-                Link direto:{" "}
-                <a
-                  href={chatLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="break-all text-cyan-400/90 underline decoration-cyan-500/40 underline-offset-2 hover:text-cyan-300"
-                >
-                  {chatLink}
-                </a>
-              </p>
             </div>
           </div>
 
@@ -63,18 +52,6 @@ export default function SuportePage() {
             Abrir WhatsApp
           </a>
         </div>
-      </div>
-
-      <div className="rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
-        <p className="font-medium text-slate-300">Sobre o link</p>
-        <p className="mt-1 leading-relaxed">
-          O atalho oficial abre o WhatsApp com uma mensagem de boas-vindas do MAPH PRO 3D.
-          Para trocar o link em produção, use{" "}
-          <code className="rounded bg-slate-950 px-1 py-0.5 text-[11px] text-cyan-300">
-            NEXT_PUBLIC_WHATSAPP_SUPPORT_LINK
-          </code>{" "}
-          no ambiente.
-        </p>
       </div>
 
       <p className="text-center text-xs text-slate-500">

@@ -10,6 +10,7 @@ import { useAccessStore } from "@/store/accessStore";
 import { useCalculatorStore } from "@/store/calculatorStore";
 import { supabase } from "@/lib/supabaseClient";
 import { clearUserData } from "@/lib/clearUserData";
+import { mobileNavLinksFlat } from "./navLinks";
 
 const titles: Record<string, string> = {
   "/": "Visão geral",
@@ -23,31 +24,11 @@ const titles: Record<string, string> = {
   "/suporte": "Suporte",
   "/conta": "Conta",
   "/settings": "Configurações",
-  "/pricing": "Planos",
+  "/pricing": "Assinaturas",
   "/trial-expired": "Acesso encerrado",
 };
 
-const mobileLinks = [
-  { href: "/", label: "Dashboard" },
-  { href: "/calculator", label: "Calculadora de markup" },
-  { href: "/margem-certa", label: "Calculadora margem certa" },
-  { href: "/products", label: "Produtos" },
-  { href: "/inventory", label: "Peças produzidas" },
-  { href: "/ordens", label: "Ordens de produção" },
-  { href: "/impressoras", label: "Impressoras" },
-  { href: "/insumos", label: "Insumos" },
-  { href: "/fornecedores", label: "Fornecedores" },
-  { href: "/orcamentos", label: "Orçamentos" },
-  { href: "/sales", label: "Vendas" },
-  { href: "/promocoes", label: "Promoções" },
-  { href: "/alertas", label: "Alertas" },
-  { href: "/reports", label: "Relatórios" },
-  { href: "/tutorial", label: "Tutorial" },
-  { href: "/suporte", label: "Suporte" },
-  { href: "/pricing", label: "Planos" },
-  { href: "/conta", label: "Conta" },
-  { href: "/settings", label: "Configurações" },
-];
+const mobileLinks = mobileNavLinksFlat;
 
 export function Header() {
   const pathname = usePathname();

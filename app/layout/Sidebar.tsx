@@ -1,56 +1,48 @@
 "use client";
 
+import type { ComponentType } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Calculator,
-  LineChart,
-  Package,
-  Settings,
-  CreditCard,
-  Store,
-  Percent,
-  Printer,
-  FileText,
-  Bell,
-  User,
-  GraduationCap,
-  MessageCircle,
-} from "lucide-react";
+  primaryNavLinks,
+  secondaryNavLinksAfterDivider,
+  secondaryNavLinksBeforeDivider,
+} from "./navLinks";
 
-const links = [
-  { href: "/", label: "Dashboard", icon: LineChart },
-  { href: "/calculator", label: "Calculadora de markup", icon: Calculator },
-  {
-    href: "/margem-certa",
-    label: "Calculadora margem certa",
-    icon: Calculator,
-  },
-  { href: "/products", label: "Produtos", icon: Package },
-  { href: "/inventory", label: "Peças produzidas", icon: Package },
-  { href: "/ordens", label: "Ordens de produção", icon: Printer },
-  { href: "/impressoras", label: "Impressoras", icon: Printer },
-  { href: "/insumos", label: "Insumos", icon: Package },
-  { href: "/fornecedores", label: "Fornecedores", icon: Store },
-  { href: "/orcamentos", label: "Orçamentos", icon: FileText },
-  { href: "/sales", label: "Vendas", icon: Package },
-  { href: "/promocoes", label: "Promoções", icon: Percent },
-  { href: "/alertas", label: "Alertas", icon: Bell },
-  { href: "/reports", label: "Relatórios", icon: LineChart },
-  { href: "/tutorial", label: "Tutorial", icon: GraduationCap },
-  { href: "/suporte", label: "Suporte", icon: MessageCircle },
-  { href: "/pricing", label: "Planos", icon: CreditCard },
-  { href: "/conta", label: "Conta", icon: User },
-  { href: "/settings", label: "Configurações", icon: Settings },
-];
+function NavLinkRow({
+  href,
+  label,
+  icon: Icon,
+  pathname,
+}: {
+  href: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  pathname: string;
+}) {
+  const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+  return (
+    <Link
+      href={href as Parameters<typeof Link>[0]["href"]}
+      className={`group flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
+        active
+          ? "bg-slate-900 text-cyan-400 shadow-neon-cyan"
+          : "text-slate-400 hover:bg-slate-900/70 hover:text-slate-100"
+      }`}
+    >
+      <Icon className="h-4 w-4" />
+      <span>{label}</span>
+    </Link>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
     <aside className="hidden w-64 flex-col overflow-hidden border-r border-slate-800 bg-slate-950/80 px-4 py-6 md:flex">
-      <div className="mb-8 flex items-center gap-3">
+      <div className="mb-8 flex shrink-0 items-center gap-3">
         <div className="h-12 w-12 overflow-hidden rounded-2xl bg-slate-900/80">
           <Image
             src="/logo-maph-pro-3d.png"
@@ -69,26 +61,45 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto">
-        {links.map(({ href, label, icon: Icon }) => {
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-          return (
-            <Link
+      <nav className="flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+          {primaryNavLinks.map(({ href, label, icon }) => (
+            <NavLinkRow
               key={href}
-              href={href as Parameters<typeof Link>[0]["href"]}
-              className={`group flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
-                active
-                  ? "bg-slate-900 text-cyan-400 shadow-neon-cyan"
-                  : "text-slate-400 hover:bg-slate-900/70 hover:text-slate-100"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{label}</span>
-            </Link>
-          );
-        })}
+              href={href}
+              label={label}
+              icon={icon}
+              pathname={pathname}
+            />
+          ))}
+        </div>
+
+        <div className="mt-4 shrink-0 space-y-1 border-t border-slate-800/90 pt-4">
+          {secondaryNavLinksBeforeDivider.map(({ href, label, icon }) => (
+            <NavLinkRow
+              key={href}
+              href={href}
+              label={label}
+              icon={icon}
+              pathname={pathname}
+            />
+          ))}
+          <div
+            className="my-2 border-t border-slate-800/80"
+            role="separator"
+            aria-hidden
+          />
+          {secondaryNavLinksAfterDivider.map(({ href, label, icon }) => (
+            <NavLinkRow
+              key={href}
+              href={href}
+              label={label}
+              icon={icon}
+              pathname={pathname}
+            />
+          ))}
+        </div>
       </nav>
     </aside>
   );
 }
-
