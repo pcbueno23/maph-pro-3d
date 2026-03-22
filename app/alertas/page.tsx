@@ -135,19 +135,33 @@ export default function AlertasPage() {
   }, [relevantOrders, today, dueSoonEnd]);
 
   const supportsNotification =
-    typeof window !== "undefined" && "Notification" in window && typeof window.Notification === "function";
+    typeof window !== "undefined" && "Notification" in window;
 
   useEffect(() => {
-    if (!supportsNotification) return;
-    setNotifPermission(Notification.permission);
-
-    try {
-      const raw = window.localStorage.getItem("precifica3d-alerts-notif-enabled");
-      setNotifEnabled(raw === "true");
-    } catch {
-      // ignore
-    }
-  }, [supportsNotification]);
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    const sync = () => {
+      setNotifPermission(Notification.permission);
+      try {
+        const raw = window.localStorage.getItem("precifica3d-alerts-notif-enabled");
+        const stored = raw === "true";
+        // Se o navegador já concedeu antes (ex.: outra tela), não forçar “desativado” só por localStorage vazio.
+        if (Notification.permission === "granted" && raw == null) {
+          setNotifEnabled(true);
+          window.localStorage.setItem("precifica3d-alerts-notif-enabled", "true");
+        } else {
+          setNotifEnabled(stored);
+        }
+      } catch {
+        setNotifEnabled(Notification.permission === "granted");
+      }
+    };
+    sync();
+    const onVis = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
 
   function buildNotificationBody() {
     const lowTop = lowStock.slice(0, 3).map((s) => `${s.name} (${s.stockQty} ${s.unit})`).join(", ");
@@ -215,10 +229,30 @@ export default function AlertasPage() {
   }, [loading, lowStock.length, overdueOrders.length, dueSoonOrders.length, notifEnabled, notifPermission]);
 
   async function requestNotificationPermission() {
-    if (!supportsNotification) return;
+    if (!supportsNotification) {
+      setError("Este navegador não suporta notificações.");
+      return;
+    }
+    if (typeof window !== "undefined" && !window.isSecureContext && !window.location.hostname.includes("localhost")) {
+      setError("Notificações exigem HTTPS (site seguro).");
+      return;
+    }
+    setError(null);
     try {
       const perm = await Notification.requestPermission();
       setNotifPermission(perm);
+      if (perm === "denied") {
+        setError(
+          "Permissão negada. No Chrome/Edge: clique no ícone de cadeado na barra de endereços → Configurações do site → Notificações → Permitir. Depois recarregue a página.",
+        );
+        setNotifEnabled(false);
+        try {
+          window.localStorage.setItem("precifica3d-alerts-notif-enabled", "false");
+        } catch {
+          // ignore
+        }
+        return;
+      }
       const enabled = perm === "granted";
       setNotifEnabled(enabled);
       try {
@@ -227,7 +261,7 @@ export default function AlertasPage() {
         // ignore
       }
     } catch {
-      // ignore
+      setError("Não foi possível solicitar permissão. Tente outro navegador ou verifique se o site está em HTTPS.");
     }
   }
 
@@ -461,7 +495,6 @@ export default function AlertasPage() {
               <button
                 type="button"
                 onClick={() => maybeShowNotifications({ force: true })}
-                disabled={loading}
                 className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
               >
                 Testar agora
@@ -471,7 +504,6 @@ export default function AlertasPage() {
             <button
               type="button"
               onClick={requestNotificationPermission}
-              disabled={loading}
               className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
             >
               Ativar notificações
