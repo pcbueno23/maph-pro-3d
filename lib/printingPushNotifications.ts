@@ -48,7 +48,6 @@ export async function showPrintingPushNotification(
     icon: "/logo.png",
     badge: "/logo.png",
     tag: `printing-${orderId}-${phase}`,
-    renotify: true,
   };
 
   try {
