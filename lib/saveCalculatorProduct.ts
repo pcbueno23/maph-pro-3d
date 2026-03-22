@@ -142,7 +142,8 @@ export async function saveCalculatorProductFromSnapshot(
     updatedAt: new Date().toISOString(),
     suggestedPriceShopee: lastResults.suggestedPriceShopee,
     suggestedPriceML: lastResults.suggestedPriceML,
-    totalCost: lastResults.totalCost,
+    /** Mesmo em qualquer canal salvo: custo real ajustado da simulação (base dos preços sugeridos). */
+    totalCost: lastResults.custoTotalAjustado,
     printTimeMinutes: minutesFromHours,
     defaultPrinterId:
       (lastInput.time as { printerId?: string }).printerId ||

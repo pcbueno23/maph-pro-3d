@@ -358,8 +358,11 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                       })}
                     </span>
                   </p>
-                  <p className="text-slate-300">
-                    Custo:{" "}
+                  <p
+                    className="text-slate-300"
+                    title="Custo de fabricação (material, energia, depreciação, embalagem e ajustes da calculadora). É o mesmo para Shopee, Mercado Livre e venda direta; só o preço de venda muda com taxas de marketplace e margem por canal."
+                  >
+                    Custo de produção:{" "}
                     <span className="text-slate-100">
                       {formatBRL(unitCost)}
                     </span>

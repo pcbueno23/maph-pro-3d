@@ -18,13 +18,13 @@ import { upsertProductsForUser } from "@/lib/supabaseProducts";
 import {
   calcEnergyCostFromPrinter,
   calcDepreciationFromPrinter,
+  calcSuggestedPrice,
 } from "@/lib/calculations";
 import {
   getShopeeSuggestedPrice,
   getMLSuggestedPrice,
   getShopeeFeeBreakdown,
   getMLFeeBreakdown,
-  getEffectiveMarketplaceFeePercent,
 } from "@/lib/marketplaceFees";
 const STEPS = [
   { id: 1, label: "Informações" },
@@ -294,6 +294,37 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
     const classic = settings?.defaults?.mlClassic ?? false;
     const personType = "CPF" as const;
 
+    if (marketplace === "Venda Direta") {
+      const directSuggested = calcSuggestedPrice({
+        totalCost,
+        marketplaceFeePercent: 0,
+        desiredMarginPercent: margin,
+        shippingAmount,
+        taxPercent,
+      });
+      const shopeeSuggested = getShopeeSuggestedPrice({
+        totalCost,
+        shippingAmount,
+        taxPercent,
+        desiredMarginPercent: margin,
+        freeShipping,
+        personType,
+      });
+      const mlSuggested = getMLSuggestedPrice({
+        totalCost,
+        shippingAmount,
+        taxPercent,
+        desiredMarginPercent: margin,
+        personType,
+        classic,
+      });
+      return {
+        shopeeSuggested,
+        mlSuggested,
+        worstSuggested: directSuggested,
+      };
+    }
+
     const shopeeSuggested = getShopeeSuggestedPrice({
       totalCost,
       shippingAmount,
@@ -317,14 +348,16 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
       mlSuggested,
       worstSuggested: Math.max(shopeeSuggested, mlSuggested),
     };
-  }, [totalCost, marginPercent, settings?.defaults]);
+  }, [totalCost, marginPercent, settings?.defaults, marketplace]);
 
   useEffect(() => {
     if (step !== 4) return;
     if (totalCost <= 0) return;
     if (lastEditedByRef.current === "price") return;
+    // Produto salvo como venda direta: mantém o preço gravado (evita recalcular com taxas de marketplace).
+    if (marketplace === "Venda Direta" && isEditMode) return;
     setPrice(pricingFromMargin.worstSuggested);
-  }, [pricingFromMargin.worstSuggested, step, totalCost]);
+  }, [pricingFromMargin.worstSuggested, step, totalCost, marketplace, isEditMode]);
 
   useEffect(() => {
     if (step === 4 && totalCost > 0 && (marginPercent === "" || marginPercent === 0)) {
@@ -351,6 +384,12 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
       }
       return priceForTax * rate;
     };
+
+    if (marketplace === "Venda Direta") {
+      const taxAmt = computeTaxAmount(sellingPrice, 0);
+      const netProfit = sellingPrice - shippingAmount - taxAmt - totalCost;
+      return sellingPrice > 0 ? (netProfit / sellingPrice) * 100 : 0;
+    }
 
     const sh = getShopeeFeeBreakdown(sellingPrice, personType, freeShipping);
     const shTax = computeTaxAmount(sellingPrice, sh.commissionRateDecimal);
@@ -387,6 +426,11 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
       return priceForTax * rate;
     };
 
+    if (marketplace === "Venda Direta") {
+      const taxAmt = computeTaxAmount(price, 0);
+      return shippingAmount + taxAmt;
+    }
+
     const sh = getShopeeFeeBreakdown(price, personType, freeShipping);
     const shTax = computeTaxAmount(price, sh.commissionRateDecimal);
     const shOther = (sh.commissionAmount + sh.fixedFeeAmount) + shippingAmount + shTax;
@@ -396,50 +440,7 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
     const mlOther = (ml.commissionAmount + ml.fixedFeeAmount) + shippingAmount + mlTax;
 
     return Math.max(shOther, mlOther);
-  }, [price, settings?.defaults]);
-
-  const marginFromChannelSuggestedPrices = useMemo(() => {
-    // Replica a forma do motor: margem final = min(margem Shopee, margem ML),
-    // usando os preços sugeridos de cada canal (não o preço "máximo").
-    if (totalCost <= 0) return 0;
-
-    const shippingAmount = Number(settings?.defaults?.shippingEstimateDefault ?? 0);
-    const freeShipping = settings?.defaults?.shopeeFreeShippingDefault ?? false;
-    const classic = settings?.defaults?.mlClassic ?? false;
-    const personType = "CPF" as const;
-
-    // Como no motor a taxa (taxPercent) está em 0 no wizard, margem depende só de:
-    // preço sugerido - taxa efetiva - frete - custo.
-    const shFeePercent = getEffectiveMarketplaceFeePercent(
-      "Shopee",
-      personType,
-      pricingFromMargin.shopeeSuggested,
-      { freeShipping },
-    );
-    const shFeeAmount = (pricingFromMargin.shopeeSuggested * shFeePercent) / 100;
-    const shNetProfit =
-      pricingFromMargin.shopeeSuggested - shFeeAmount - shippingAmount - totalCost;
-    const shMargin =
-      pricingFromMargin.shopeeSuggested > 0
-        ? (shNetProfit / pricingFromMargin.shopeeSuggested) * 100
-        : 0;
-
-    const mlFeePercent = getEffectiveMarketplaceFeePercent(
-      "Mercado Livre",
-      personType,
-      pricingFromMargin.mlSuggested,
-      { classicML: classic },
-    );
-    const mlFeeAmount = (pricingFromMargin.mlSuggested * mlFeePercent) / 100;
-    const mlNetProfit =
-      pricingFromMargin.mlSuggested - mlFeeAmount - shippingAmount - totalCost;
-    const mlMargin =
-      pricingFromMargin.mlSuggested > 0
-        ? (mlNetProfit / pricingFromMargin.mlSuggested) * 100
-        : 0;
-
-    return Math.min(shMargin, mlMargin);
-  }, [pricingFromMargin, totalCost, settings?.defaults]);
+  }, [price, settings?.defaults, marketplace]);
 
   function handleAddMaterial() {
     const supply = supplies.find((s) => s.id === addSupplyId);
@@ -941,7 +942,9 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
                   {formatBRL(outrosCustosFromPrice)}
                 </p>
                 <p className="mt-0.5 text-[10px] text-slate-500">
-                  Taxas de marketplace + frete + impostos (conforme configurações).
+                  {marketplace === "Venda Direta"
+                    ? "Venda direta: sem comissão de marketplace — frete e impostos conforme configurações."
+                    : "Taxas de marketplace + frete + impostos (conforme configurações)."}
                 </p>
               </div>
               <div className="rounded-xl border border-amber-600/40 bg-slate-900/60 p-3">
@@ -965,7 +968,11 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
                   </p>
                 </div>
                 <div className="rounded-xl border border-emerald-600/40 bg-emerald-950/20 p-3">
-                  <p className="text-xs text-slate-400">Preço sugerido de venda</p>
+                  <p className="text-xs text-slate-400">
+                    {marketplace === "Venda Direta"
+                      ? "Preço de venda (venda direta)"
+                      : "Preço sugerido de venda"}
+                  </p>
                   <p className="mt-1 text-lg font-semibold text-emerald-200">
                     {formatBRL(price)}
                   </p>
