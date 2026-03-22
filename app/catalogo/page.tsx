@@ -168,17 +168,24 @@ export default function CatalogoPage() {
     }
   };
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
     const included = products.filter((p) => p.catalogVisible);
     if (included.length === 0) {
       setMsg("Marque ao menos um produto no catálogo.");
       return;
     }
-    downloadCatalogPdfFromProducts({
-      title: "Catálogo MAPH PRO 3D",
-      showPrices: settings?.showPrices ?? true,
-      products: included,
-    });
+    setMsg("Gerando PDF com imagens…");
+    try {
+      await downloadCatalogPdfFromProducts({
+        title: "Catálogo MAPH PRO 3D",
+        showPrices: settings?.showPrices ?? true,
+        products: included,
+        imageUrlByProductId: thumbById,
+      });
+      setMsg("PDF gerado.");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Falha ao gerar o PDF.");
+    }
   };
 
   if (!user) {

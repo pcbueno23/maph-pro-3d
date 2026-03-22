@@ -52,8 +52,8 @@ export default function PublicCatalogPage() {
     };
   }, [slug]);
 
-  const downloadPdf = () => {
-    downloadCatalogPdfPublic({
+  const downloadPdf = async () => {
+    await downloadCatalogPdfPublic({
       title: "Catálogo",
       showPrices,
       items,
