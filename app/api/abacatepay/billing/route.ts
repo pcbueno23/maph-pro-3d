@@ -78,18 +78,31 @@ const PLAN_PRODUCTS: Record<
   { name: string; description: string; priceCents: number }
 > = {
   pro: {
-    name: "Precifica3D Pro",
+    name: "MAPH PRO 3D — Plano Pro (mensal)",
     description:
-      "Assinatura mensal – produtos ilimitados, sync nuvem, taxas 2026.",
-    priceCents: 2990, // R$ 29,90 (fallback v1; com prod_ na loja usa preço do painel AbacatePay)
+      "Assinatura mensal com acesso completo ao MAPH PRO 3D: calculadora de precificação 3D, taxas Shopee e Mercado Livre, produtos e peças, estoque e insumos, ordens, vendas e relatórios. Cobrança via PIX ou cartão.",
+    priceCents: 2990, // R$ 29,90 (v1; com prod_ + v2 vem do painel AbacatePay)
   },
   lifetime: {
-    name: "Precifica3D Business anual",
+    name: "MAPH PRO 3D — Plano anual (economia)",
     description:
-      "Plano anual – precificação completa, estoque, insumos, vendas e relatórios.",
-    priceCents: 19990, // R$ 199,90/ano (fallback v1)
+      "Plano anual com as mesmas funções do Pro: precificação completa, gestão de produção, estoque, vendas e relatórios. Valor anual com desconto em relação ao mensal. Pagamento via PIX ou cartão.",
+    priceCents: 19990, // R$ 199,90/ano (v1)
   },
 };
+
+/** URL https pública do logotipo no item do checkout (billing v1). Opcional por plano. */
+function checkoutProductImageUrl(plan: "pro" | "lifetime"): string | undefined {
+  const specific =
+    plan === "pro"
+      ? process.env.ABACATEPAY_CHECKOUT_PRODUCT_IMAGE_URL_PRO?.trim()
+      : process.env.ABACATEPAY_CHECKOUT_PRODUCT_IMAGE_URL_LIFETIME?.trim();
+  const fallback = process.env.ABACATEPAY_CHECKOUT_PRODUCT_IMAGE_URL?.trim();
+  const raw = specific || fallback;
+  if (!raw) return undefined;
+  if (!/^https:\/\//i.test(raw)) return undefined;
+  return raw;
+}
 
 export async function POST(req: NextRequest) {
   if (!token) {
@@ -167,7 +180,9 @@ export async function POST(req: NextRequest) {
         ? { metadata: { app_user_email: email.trim().toLowerCase() } }
         : {};
 
-    const v1BillingParams = (): AbacatePayCreateBillingParams => ({
+    const v1BillingParams = (): AbacatePayCreateBillingParams => {
+      const img = checkoutProductImageUrl(plan);
+      return {
       frequency: "ONE_TIME",
       // Tupla readonly não é atribuível a ("PIX" | "CARD")[] — array mutável explícito.
       methods: ["PIX", "CARD"] as ("PIX" | "CARD")[],
@@ -178,6 +193,7 @@ export async function POST(req: NextRequest) {
           description: product.description,
           quantity: 1,
           price: product.priceCents,
+          ...(img ? { imageUrl: img } : {}),
         },
       ],
       returnUrl: `${base}/pricing?canceled=1`,
@@ -193,7 +209,8 @@ export async function POST(req: NextRequest) {
             },
           }
         : { customerId: defaultCustomerId }),
-    });
+      };
+    };
 
     if (storeProductId) {
       /** Checkout v2 só aceita customerId; sem cust_ criamos cliente via v1 antes. */

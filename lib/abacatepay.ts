@@ -19,6 +19,8 @@ export interface AbacatePayBillingProduct {
   description?: string;
   quantity: number;
   price: number; // centavos
+  /** Se a API aceitar, aparece no checkout; use URL https pública (ex.: logo no /public do app). */
+  imageUrl?: string;
 }
 
 export interface AbacatePayCreateBillingParams {
