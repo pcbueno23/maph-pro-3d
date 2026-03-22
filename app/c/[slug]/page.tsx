@@ -131,9 +131,6 @@ export default function PublicCatalogPage() {
               {p.description ? (
                 <p className="line-clamp-4 text-xs text-slate-400">{p.description}</p>
               ) : null}
-              {p.printTimeMinutes != null ? (
-                <p className="text-[11px] text-slate-500">Tempo: ~{p.printTimeMinutes} min</p>
-              ) : null}
             </div>
           </li>
         ))}

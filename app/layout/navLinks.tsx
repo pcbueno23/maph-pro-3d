@@ -32,7 +32,6 @@ export const primaryNavLinks: NavLinkItem[] = [
     icon: Calculator,
   },
   { href: "/products", label: "Produtos", icon: Package },
-  { href: "/catalogo", label: "Catálogo", icon: LayoutGrid },
   { href: "/inventory", label: "Peças produzidas", icon: Package },
   { href: "/ordens", label: "Ordens de produção", icon: Printer },
   { href: "/impressoras", label: "Impressoras", icon: Printer },
@@ -41,6 +40,7 @@ export const primaryNavLinks: NavLinkItem[] = [
   { href: "/sales", label: "Vendas", icon: Package },
   { href: "/alertas", label: "Alertas", icon: Bell },
   { href: "/reports", label: "Relatórios", icon: LineChart },
+  { href: "/catalogo", label: "Catálogo", icon: LayoutGrid },
 ];
 
 /**
