@@ -71,16 +71,34 @@ function LoginFormContent() {
           setLoading(false);
           return;
         }
-        const { error: signUpError } = await supabase.auth.signUp({
+        /**
+         * Metadados: use `contact_phone` — a coluna "Phone" do painel Supabase é só para login SMS
+         * (`auth.users.phone`), não para WhatsApp. A chave `phone` em metadata às vezes não aparece
+         * como esperado; `contact_phone` + espelho em `phone` cobre Conta e integrações.
+         */
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
+              contact_phone: phoneTrim,
               phone: phoneTrim,
             },
           },
         });
         if (signUpError) throw signUpError;
+        if (signUpData.session?.user) {
+          try {
+            await supabase.auth.updateUser({
+              data: {
+                contact_phone: phoneTrim,
+                phone: phoneTrim,
+              },
+            });
+          } catch {
+            /* metadados já vêm do signUp; sessão imediata só reforça o salvamento */
+          }
+        }
         setMessage(
           "Conta criada. Verifique seu e-mail para confirmar o acesso, se necessário.",
         );
@@ -200,7 +218,8 @@ function LoginFormContent() {
                 />
               </div>
               <p className="text-[11px] text-slate-500">
-                Usamos para contato e fica disponível em Conta, junto com seus dados.
+                Fica em <span className="text-slate-400">User metadata</span> no Supabase (a coluna
+                &quot;Phone&quot; da lista é só para login por SMS). Também aparece em Conta.
               </p>
             </div>
           ) : null}

@@ -90,7 +90,7 @@ export function AccountForm() {
     const md = (user.user_metadata ?? {}) as Record<string, unknown>;
     setFields({
       fullName: String(md.full_name ?? md.name ?? ""),
-      phone: String(md.phone ?? ""),
+      phone: String(md.phone ?? md.contact_phone ?? ""),
       companyName: String(md.company_name ?? ""),
       companyDocument: String(md.company_document ?? ""),
       companyEmail: String(md.company_email ?? ""),
@@ -195,6 +195,7 @@ export function AccountForm() {
         ...(user.user_metadata ?? {}),
         full_name: fields.fullName.trim(),
         phone: fields.phone.trim(),
+        contact_phone: fields.phone.trim(),
         company_name: fields.companyName.trim(),
         company_document: fields.companyDocument.trim(),
         company_email: fields.companyEmail.trim(),
