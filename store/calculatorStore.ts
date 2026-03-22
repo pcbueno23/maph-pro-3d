@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { SaveProductChannel } from "@/lib/productMarketplace";
 import type { CalculatorResults, CalculatorFormValues } from "@/types";
 import type { Product } from "@/types";
 
@@ -8,6 +9,8 @@ interface CalculatorState {
   saveRequested: boolean;
   /** Timestamp (ms) da última vez que o usuário pediu para salvar. */
   saveRequestedAt: number | null;
+  /** Canal escolhido no modal (Shopee / ML / venda direta). */
+  saveChannel: SaveProductChannel | null;
   /** Timestamp (ms) da última vez que o usuário pediu para nova simulação (zerar formulário). */
   newSimulationRequestedAt: number | null;
   productToLoad: Product | null;
@@ -16,7 +19,7 @@ interface CalculatorState {
     input: CalculatorFormValues,
     results: CalculatorResults,
   ) => void;
-  requestSave: () => void;
+  requestSave: (channel: SaveProductChannel) => void;
   clearSaveRequested: () => void;
   requestNewSimulation: () => void;
   clearNewSimulationRequested: () => void;
@@ -31,6 +34,7 @@ export const useCalculatorStore = create<CalculatorState>((set) => ({
   lastResults: null,
   saveRequested: false,
   saveRequestedAt: null,
+  saveChannel: null,
   newSimulationRequestedAt: null as number | null,
   productToLoad: null,
   stlPreset: null,
@@ -40,20 +44,25 @@ export const useCalculatorStore = create<CalculatorState>((set) => ({
       lastResults: null,
       productToLoad: null,
       stlPreset: null,
+      saveRequested: false,
+      saveRequestedAt: null,
+      saveChannel: null,
     }),
   setLastCalculation: (input, results) =>
     set({
       lastInput: input,
       lastResults: results,
     }),
-  requestSave: () =>
+  requestSave: (channel) =>
     set({
       saveRequested: true,
       saveRequestedAt: Date.now(),
+      saveChannel: channel,
     }),
   clearSaveRequested: () =>
     set({
       saveRequested: false,
+      saveChannel: null,
     }),
   requestNewSimulation: () =>
     set({

@@ -20,6 +20,7 @@ import {
   listSupplies,
   upsertProductMaterial,
 } from "@/lib/supabaseProduction";
+import { productChannelBadgeLabel } from "@/lib/productMarketplace";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -334,7 +335,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                   </div>
 
                   <span className="rounded-full border border-slate-800 bg-slate-900/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-                    {product.marketplace}
+                    {productChannelBadgeLabel(product.marketplace)}
                   </span>
                 </div>
 

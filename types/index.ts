@@ -3,6 +3,9 @@ import { MARKETPLACES } from "@/lib/constants";
 
 export type Marketplace = (typeof MARKETPLACES)[number];
 
+/** Canal usado no card do produto (inclui venda direta, salva pela calculadora). */
+export type ProductMarketplaceChannel = Marketplace | "Venda Direta";
+
 /** Padrões globais (Configurações) e fallback da calculadora — mesma forma do bloco `advanced` do formulário. */
 export const CALCULATOR_ADVANCED_DEFAULTS = {
   taxaFalha: 10,
@@ -266,7 +269,7 @@ export interface Product {
   weight: number;
   price: number;
   margin: number | null;
-  marketplace: Marketplace;
+  marketplace: ProductMarketplaceChannel;
   currency: "BRL" | "USD";
   createdAt: string;
   updatedAt: string;

@@ -21,6 +21,8 @@ import {
   computePricingFromFormValues,
   safeParseCalculatorValues,
 } from "@/lib/pricingEngine";
+import { SaveProductChannelDialog } from "@/components/calculator/SaveProductChannelDialog";
+import type { SaveProductChannel } from "@/lib/productMarketplace";
 import { saveCalculatorProductFromSnapshot } from "@/lib/saveCalculatorProduct";
 import { useAuthStore } from "@/store/authStore";
 import { useProductsStore } from "@/store/productsStore";
@@ -33,6 +35,7 @@ export default function MargemCertaPage() {
   const { user } = useAuthStore();
   const addProduct = useProductsStore((s) => s.addProduct);
   const [savingProduct, setSavingProduct] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const printerSettings = useMemo(() => getPrinterSettingsSlice(settings), [settings]);
   const printingDefaults = useMemo(
     () => buildLabPrintingFormDefaults(settings),
@@ -90,7 +93,7 @@ export default function MargemCertaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
 
-  const handleSaveProduct = async () => {
+  const runSaveWithChannel = async (channel: SaveProductChannel) => {
     const parsed = safeParseCalculatorValues(printingForm.getValues());
     if (!parsed) {
       window.alert(
@@ -114,10 +117,28 @@ export default function MargemCertaPage() {
         user,
         addProduct,
         router,
+        channel,
       });
     } finally {
       setSavingProduct(false);
     }
+  };
+
+  const handleSaveProduct = () => {
+    const parsed = safeParseCalculatorValues(printingForm.getValues());
+    if (!parsed) {
+      window.alert(
+        "Não foi possível usar os dados da impressão. Verifique peso, tempo e custos e tente de novo.",
+      );
+      return;
+    }
+    if (isPlaceholderSupplyId(parsed.material.supplyId)) {
+      window.alert(
+        "Selecione um filamento em «Filamento (preset de insumo)» nos parâmetros da impressão para salvar o material e a quantidade de insumo (gramas) no produto.",
+      );
+      return;
+    }
+    setSaveDialogOpen(true);
   };
 
   return (
@@ -151,7 +172,7 @@ export default function MargemCertaPage() {
         <div className="flex justify-end pt-1">
           <button
             type="button"
-            onClick={() => void handleSaveProduct()}
+            onClick={() => handleSaveProduct()}
             disabled={savingProduct}
             className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -179,6 +200,15 @@ export default function MargemCertaPage() {
             plataforma). Impostos e frete seguem o que você informar.
           </p>
         }
+      />
+
+      <SaveProductChannelDialog
+        open={saveDialogOpen}
+        onCancel={() => setSaveDialogOpen(false)}
+        onConfirm={(channel) => {
+          setSaveDialogOpen(false);
+          void runSaveWithChannel(channel);
+        }}
       />
     </div>
   );

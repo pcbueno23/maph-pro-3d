@@ -1,4 +1,8 @@
 import type { CalculatorFormValues, CalculatorResults, Product, SettingsValues } from "@/types";
+import {
+  productMarketplaceFromSaveChannel,
+  type SaveProductChannel,
+} from "@/lib/productMarketplace";
 import { refreshProductsFromCloud } from "@/lib/productSync";
 import { upsertProductsForUser } from "@/lib/supabaseProducts";
 import { listSupplies, upsertProductMaterial } from "@/lib/supabaseProduction";
@@ -24,7 +28,23 @@ export type SaveCalculatorProductDeps = {
   user: { id: string } | null;
   addProduct: (p: Product) => void;
   router: { push: (path: string) => void };
+  /** Canal cujo preço e margem serão gravados no produto. */
+  channel: SaveProductChannel;
 };
+
+function netMarginPercentDirectPix(
+  lastResults: CalculatorResults,
+  lastInput: CalculatorFormValues,
+): number {
+  const price = lastResults.suggestedPriceDirectCash ?? 0;
+  if (price <= 0) return 0;
+  const shipping = lastInput.pricing.shippingEstimate ?? 0;
+  const taxRate = (lastInput.pricing.taxPercent ?? 0) / 100;
+  const taxAmount = price * taxRate;
+  const custo = lastResults.custoTotalAjustado;
+  const net = price - shipping - taxAmount - custo;
+  return (net / price) * 100;
+}
 
 /**
  * Mesmo fluxo do botão "Salvar produto" da Calculadora de markup:
@@ -33,7 +53,7 @@ export type SaveCalculatorProductDeps = {
 export async function saveCalculatorProductFromSnapshot(
   deps: SaveCalculatorProductDeps,
 ): Promise<SaveCalculatorProductResult> {
-  const { lastInput, lastResults, settings, user, addProduct, router } = deps;
+  const { lastInput, lastResults, settings, user, addProduct, router, channel } = deps;
 
   const desiredMargin = lastInput.pricing.desiredMargin ?? settings.defaults.desiredMargin;
   const adjustedCost = lastResults.custoTotalAjustado;
@@ -96,13 +116,27 @@ export async function saveCalculatorProductFromSnapshot(
       ? Math.max(0, Math.round(lastInput.time.hours * 60))
       : null;
 
+  const marketplaceLabel = productMarketplaceFromSaveChannel(channel);
+  const priceForChannel =
+    channel === "shopee"
+      ? lastResults.suggestedPriceShopee
+      : channel === "mercado_livre"
+        ? lastResults.suggestedPriceML
+        : (lastResults.suggestedPriceDirectCash ?? lastResults.suggestedPrice);
+  const marginForChannel =
+    channel === "shopee"
+      ? lastResults.cascataShopee.marginPercent
+      : channel === "mercado_livre"
+        ? lastResults.cascataML.marginPercent
+        : netMarginPercentDirectPix(lastResults, lastInput);
+
   const product: Product = {
     id: generateUuid(),
     name,
     weight: effectiveWeightPerUnit,
-    price: lastResults.suggestedPrice,
-    margin: Math.min(lastResults.cascataShopee.marginPercent, lastResults.cascataML.marginPercent),
-    marketplace: "Shopee",
+    price: priceForChannel,
+    margin: marginForChannel,
+    marketplace: marketplaceLabel,
     currency: settings.currency ?? "BRL",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

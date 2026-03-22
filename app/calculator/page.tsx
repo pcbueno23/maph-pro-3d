@@ -1,14 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import { InputPanel } from "@/components/calculator/InputPanel";
 import { ResultsPanel } from "@/components/calculator/ResultsPanel";
+import { SaveProductChannelDialog } from "@/components/calculator/SaveProductChannelDialog";
 import { useCalculator } from "@/hooks/useCalculator";
+import type { SaveProductChannel } from "@/lib/productMarketplace";
 import { useCalculatorStore } from "@/store/calculatorStore";
 
 export default function CalculatorPage() {
   const { form, results, isDirty } = useCalculator();
   const requestSave = useCalculatorStore((s) => s.requestSave);
   const requestNewSimulation = useCalculatorStore((s) => s.requestNewSimulation);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+
+  const handleConfirmSave = (channel: SaveProductChannel) => {
+    setSaveDialogOpen(false);
+    requestSave(channel);
+  };
 
   return (
     <div className="space-y-4">
@@ -27,7 +36,7 @@ export default function CalculatorPage() {
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={() => requestSave()}
+              onClick={() => setSaveDialogOpen(true)}
               className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
             >
               Salvar produto
@@ -36,6 +45,12 @@ export default function CalculatorPage() {
         </div>
         <ResultsPanel results={results} isDirty={isDirty} />
       </div>
+
+      <SaveProductChannelDialog
+        open={saveDialogOpen}
+        onCancel={() => setSaveDialogOpen(false)}
+        onConfirm={handleConfirmSave}
+      />
     </div>
   );
 }

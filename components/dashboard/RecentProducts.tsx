@@ -1,3 +1,4 @@
+import { productChannelBadgeLabel } from "@/lib/productMarketplace";
 import type { Product } from "@/types";
 
 interface Props {
@@ -49,7 +50,7 @@ export function RecentProducts({ products }: Props) {
                   {(product.margin ?? 0).toFixed(1)}%
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  {product.marketplace}
+                  {productChannelBadgeLabel(product.marketplace)}
                 </p>
               </div>
             </li>

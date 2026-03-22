@@ -5,8 +5,7 @@ import { createPortal } from "react-dom";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useProductsStore } from "@/store/productsStore";
-import type { Printer, Product, SupplyItem } from "@/types";
-import type { Marketplace } from "@/types";
+import type { Printer, Product, ProductMarketplaceChannel, SupplyItem } from "@/types";
 import {
   listPrinters,
   listSupplies,
@@ -27,8 +26,6 @@ import {
   getMLFeeBreakdown,
   getEffectiveMarketplaceFeePercent,
 } from "@/lib/marketplaceFees";
-import { MARKETPLACES } from "@/lib/constants";
-
 const STEPS = [
   { id: 1, label: "Informações" },
   { id: 2, label: "Materiais" },
@@ -81,7 +78,7 @@ function resetWizardForm(params: {
   setExtraFiles: (f: File[]) => void;
   setMarginPercent: (v: number | "") => void;
   setPrice: (n: number) => void;
-  setMarketplace: (m: Marketplace) => void;
+  setMarketplace: (m: ProductMarketplaceChannel) => void;
   setError: (e: string | null) => void;
 }) {
   params.setStep(1);
@@ -121,7 +118,7 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
   const defaultMargin = Number(settings?.defaults?.desiredMargin ?? 45);
   const [marginPercent, setMarginPercent] = useState<number | "">(defaultMargin);
   const [price, setPrice] = useState<number>(0);
-  const [marketplace, setMarketplace] = useState<Marketplace>("Shopee");
+  const [marketplace, setMarketplace] = useState<ProductMarketplaceChannel>("Shopee");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(false);

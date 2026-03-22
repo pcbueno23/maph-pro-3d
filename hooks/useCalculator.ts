@@ -20,6 +20,7 @@ import { useCalculatorStore } from "@/store/calculatorStore";
 import { useProductsStore } from "@/store/productsStore";
 import { useAuthStore } from "@/store/authStore";
 import { useDebounce } from "./useDebounce";
+import { calculatorMarketplaceFromProductChannel } from "@/lib/productMarketplace";
 import { saveCalculatorProductFromSnapshot } from "@/lib/saveCalculatorProduct";
 import { useRouter } from "next/navigation";
 
@@ -31,6 +32,7 @@ export function useCalculator() {
     setLastCalculation,
     saveRequested,
     saveRequestedAt,
+    saveChannel,
     clearSaveRequested,
     newSimulationRequestedAt,
     clearNewSimulationRequested,
@@ -76,7 +78,7 @@ export function useCalculator() {
   }, [debouncedValues, results, setLastCalculation]);
 
   useEffect(() => {
-    if (!saveRequested || !lastInput || !lastResults || !saveRequestedAt) {
+    if (!saveRequested || !lastInput || !lastResults || !saveRequestedAt || !saveChannel) {
       if (saveRequested) clearSaveRequested();
       return;
     }
@@ -97,6 +99,7 @@ export function useCalculator() {
           user,
           addProduct,
           router,
+          channel: saveChannel,
         });
       } finally {
         clearSaveRequested();
@@ -105,6 +108,7 @@ export function useCalculator() {
   }, [
     saveRequested,
     saveRequestedAt,
+    saveChannel,
     lastInput,
     lastResults,
     clearSaveRequested,
@@ -135,9 +139,9 @@ export function useCalculator() {
 
   useEffect(() => {
     if (productToLoad) {
+      const mp = calculatorMarketplaceFromProductChannel(productToLoad.marketplace);
       const fee =
-        DEFAULT_MARKETPLACE_FEES[productToLoad.marketplace]?.CPF ??
-        defaultValues.pricing.marketplaceFee;
+        DEFAULT_MARKETPLACE_FEES[mp]?.CPF ?? defaultValues.pricing.marketplaceFee;
       form.reset({
         ...defaultValues,
         productName: productToLoad.name ?? "",
@@ -147,7 +151,7 @@ export function useCalculator() {
         },
         pricing: {
           ...defaultValues.pricing,
-          marketplace: productToLoad.marketplace,
+          marketplace: mp,
           desiredMargin: productToLoad.margin ?? defaultValues.pricing.desiredMargin,
           marketplaceFee: fee,
         },
