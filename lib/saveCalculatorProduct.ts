@@ -2,7 +2,6 @@ import type { CalculatorFormValues, CalculatorResults, Product, SettingsValues }
 import { upsertProductsForUser } from "@/lib/supabaseProducts";
 import { listSupplies, upsertProductMaterial } from "@/lib/supabaseProduction";
 import { isPlaceholderSupplyId } from "@/lib/supplyPlaceholders";
-import { useProductsStore } from "@/store/productsStore";
 
 function generateUuid() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -119,8 +118,8 @@ export async function saveCalculatorProductFromSnapshot(
   addProduct(product);
 
   if (user && typeof window !== "undefined") {
-    const list = useProductsStore.getState().products;
-    const syncResult = await upsertProductsForUser(user.id, list);
+    // Sincroniza só o produto novo (evita upsert em massa do catálogo inteiro neste fluxo).
+    const syncResult = await upsertProductsForUser(user.id, [product]);
 
     const supplyId = lastInput.material.supplyId;
     const productIdIsUuid = /^[0-9a-fA-F-]{36}$/.test(product.id);
@@ -173,9 +172,12 @@ export async function saveCalculatorProductFromSnapshot(
           );
         }
       }
-    } else if (!syncResult.ok && canPersistBom && typeof window !== "undefined") {
+    } else if (!syncResult.ok && typeof window !== "undefined") {
+      const detail = syncResult.message ? ` ${syncResult.message}` : "";
       window.alert(
-        `O produto não foi sincronizado com o servidor (${syncResult.message}).\n\nPor isso o vínculo com o filamento não pôde ser gravado. Verifique a conexão e se você está logado.`,
+        `Ocorreu um erro ao sincronizar com o servidor.${detail}\n\nPor favor, verifique sua conexão e tente novamente.${
+          canPersistBom ? "\n\nO vínculo com o filamento não pôde ser gravado enquanto o produto não existir na nuvem." : ""
+        }`,
       );
     }
   }
