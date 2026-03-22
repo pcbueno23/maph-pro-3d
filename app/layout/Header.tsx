@@ -17,6 +17,7 @@ const titles: Record<string, string> = {
   "/calculator": "Calculadora de markup",
   "/margem-certa": "Calculadora margem certa",
   "/products": "Produtos salvos",
+  "/catalogo": "Catálogo",
   "/printer": "Impressora",
   "/fornecedores": "Fornecedores",
   "/promocoes": "Promoções",

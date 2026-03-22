@@ -285,6 +285,32 @@ export interface Product {
   printTimeMinutes?: number | null;
   /** Impressora padrão (entidade) para custos em ordens. */
   defaultPrinterId?: string | null;
+  /** Incluído no catálogo público compartilhável. */
+  catalogVisible?: boolean;
+  /** Ordem no catálogo (menor primeiro). */
+  catalogSort?: number | null;
+}
+
+/** Configuração do catálogo público (link + exibir preços). */
+export interface CatalogSettings {
+  userId: string;
+  publicSlug: string;
+  showPrices: boolean;
+  updatedAt: string;
+}
+
+/** Item retornado pela RPC pública `get_catalog_public`. */
+export interface PublicCatalogItem {
+  id: string;
+  name: string;
+  sku: string | null;
+  description: string | null;
+  weight: number;
+  price: number | null;
+  currency: string;
+  printTimeMinutes: number | null;
+  marketplace: string;
+  imageUrl: string | null;
 }
 
 export const settingsSchema = z.object({

@@ -12,6 +12,10 @@ import { PersistUserData } from "./PersistUserData";
 
 const PUBLIC_PATHS = ["/login"];
 
+function isPublicCatalogPath(pathname: string | null): boolean {
+  return Boolean(pathname?.startsWith("/c/"));
+}
+
 /** Com trial expirado o usuário só acessa estas rotas até assinar. */
 const PAYWALL_EXCEPTION_PATHS = ["/pricing", "/trial-expired", "/suporte"];
 
@@ -34,7 +38,7 @@ export function AuthGuard({ children }: Props) {
   /** Id do último usuário que passou pelo sync (SPA). No refresh da página o ref zera — não limpamos dados nesse caso. */
   const previousSyncedUserIdRef = useRef<string | null>(null);
 
-  const isPublic = PUBLIC_PATHS.includes(pathname);
+  const isPublic = PUBLIC_PATHS.includes(pathname) || isPublicCatalogPath(pathname);
   const isPaywallException = PAYWALL_EXCEPTION_PATHS.includes(pathname);
 
   useEffect(() => {

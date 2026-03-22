@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Sidebar } from "./layout/Sidebar";
-import { Header } from "./layout/Header";
+import { AppShell } from "./layout/AppShell";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { PrintingTimerAlertsHost } from "@/components/orders/PrintingTimerAlertsHost";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
@@ -27,17 +26,7 @@ export default function RootLayout({
     <html lang="pt-BR" className="dark">
       <body className="min-h-screen bg-slate-950 text-slate-100">
         <AuthGuard>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <div className="flex min-w-0 flex-1 flex-col md:pl-64">
-              <Header />
-              <main className="flex-1 px-4 pb-6 pt-4 md:px-8 md:pb-8 md:pt-6">
-                <div className="glass-panel rounded-2xl p-4 md:p-6">
-                  {children}
-                </div>
-              </main>
-            </div>
-          </div>
+          <AppShell>{children}</AppShell>
           <PrintingTimerAlertsHost />
           <PwaInstallPrompt />
           <ServiceWorkerRegister />
