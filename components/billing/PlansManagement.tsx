@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Crown, Infinity, PartyPopper, Rocket, XCircle } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +25,21 @@ function initialPaymentProviderFromEnv(): "stripe" | "abacatepay" {
   return v === "abacatepay" ? "abacatepay" : "stripe";
 }
 
+function digitsOnly(s: string): string {
+  return s.replace(/\D/g, "");
+}
+
+/** Mesmas regras do backend (`canSendCustomer`): CPF 11 / CNPJ 14, celular com DDD. */
+function isValidAbacatePayer(name: string, taxId: string, cellphone: string): boolean {
+  const n = name.trim();
+  const td = digitsOnly(taxId);
+  const ph = digitsOnly(cellphone);
+  if (n.length < 3) return false;
+  if (td.length !== 11 && td.length !== 14) return false;
+  if (ph.length < 10 || ph.length > 13) return false;
+  return true;
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
@@ -39,7 +54,14 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return data;
 }
 
-export function PlansManagement() {
+type PlansManagementProps = {
+  /** Definido no servidor (`/pricing`) a partir de `APP_PAYMENT_PROVIDER` — necessário na Vercel sem `NEXT_PUBLIC_*`. */
+  defaultPaymentProvider?: "stripe" | "abacatepay";
+};
+
+export function PlansManagement({
+  defaultPaymentProvider,
+}: PlansManagementProps = {}) {
   const { user } = useAuthStore();
   const bumpAccessCheck = useAccessStore((s) => s.bumpAccessCheck);
   const accessChecked = useAccessStore((s) => s.checked);
@@ -51,11 +73,36 @@ export function PlansManagement() {
 
   const [loading, setLoading] = useState(true);
   const [paymentProvider, setPaymentProvider] = useState<"stripe" | "abacatepay">(
-    initialPaymentProviderFromEnv,
+    () =>
+      defaultPaymentProvider === "abacatepay" ||
+      defaultPaymentProvider === "stripe"
+        ? defaultPaymentProvider
+        : initialPaymentProviderFromEnv(),
   );
   const [status, setStatus] = useState<StripeStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingAction, setLoadingAction] = useState(false);
+
+  /** Dados do pagador — exigidos pela AbacatePay em produção (objeto `customer` na cobrança). */
+  const [payerName, setPayerName] = useState("");
+  const [payerTaxId, setPayerTaxId] = useState("");
+  const [payerCellphone, setPayerCellphone] = useState("");
+
+  const abacatePayerValid = useMemo(() => {
+    if (paymentProvider !== "abacatepay") return true;
+    return isValidAbacatePayer(payerName, payerTaxId, payerCellphone);
+  }, [paymentProvider, payerName, payerTaxId, payerCellphone]);
+
+  useEffect(() => {
+    if (paymentProvider !== "abacatepay" || !user) return;
+    setPayerName((prev) => {
+      if (prev.trim()) return prev;
+      const meta = user.user_metadata as Record<string, unknown> | undefined;
+      const fn = meta?.full_name ?? meta?.name ?? meta?.display_name;
+      if (typeof fn === "string" && fn.trim()) return fn.trim();
+      return prev;
+    });
+  }, [paymentProvider, user]);
 
   useEffect(() => {
     const run = async () => {
@@ -73,13 +120,28 @@ export function PlansManagement() {
         return;
       }
 
-      let provider: "stripe" | "abacatepay" = "stripe";
-      try {
-        const pr = await fetch("/api/app/payment-provider", { cache: "no-store" });
-        const pj = (await pr.json()) as { provider?: string };
-        if (pj.provider === "abacatepay") provider = "abacatepay";
-      } catch {
-        /* mantém stripe */
+      let provider: "stripe" | "abacatepay" =
+        defaultPaymentProvider === "abacatepay" ||
+        defaultPaymentProvider === "stripe"
+          ? defaultPaymentProvider
+          : "stripe";
+
+      if (
+        defaultPaymentProvider !== "abacatepay" &&
+        defaultPaymentProvider !== "stripe"
+      ) {
+        try {
+          const pr = await fetch("/api/app/payment-provider", {
+            cache: "no-store",
+          });
+          if (pr.ok) {
+            const pj = (await pr.json()) as { provider?: string };
+            if (pj.provider === "abacatepay") provider = "abacatepay";
+            else provider = "stripe";
+          }
+        } catch {
+          /* mantém stripe */
+        }
       }
       setPaymentProvider(provider);
 
@@ -103,7 +165,7 @@ export function PlansManagement() {
     };
 
     void run();
-  }, [user?.email]);
+  }, [user?.email, defaultPaymentProvider]);
 
   const isOnTrial = Boolean(status?.isTrialing);
   const plan = status?.plan ?? "free";
@@ -161,16 +223,31 @@ export function PlansManagement() {
       }
 
       setError(null);
+      if (paymentProvider === "abacatepay" && !isValidAbacatePayer(payerName, payerTaxId, payerCellphone)) {
+        setError(
+          "Preencha nome completo, CPF ou CNPJ válido e celular com DDD para pagar com AbacatePay.",
+        );
+        return;
+      }
       setLoadingAction(true);
       try {
         const checkoutPath =
           paymentProvider === "abacatepay"
             ? "/api/abacatepay/billing"
             : "/api/stripe/checkout";
-        const data = await postJson<{ url?: string; error?: string }>(checkoutPath, {
+        const payload: Record<string, unknown> = {
           plan: nextPlan,
           email: user.email,
-        });
+        };
+        if (paymentProvider === "abacatepay") {
+          payload.name = payerName.trim();
+          payload.taxId = payerTaxId.trim();
+          payload.cellphone = payerCellphone.trim();
+        }
+        const data = await postJson<{ url?: string; error?: string }>(
+          checkoutPath,
+          payload,
+        );
         if (!data.url)
           throw new Error(data.error ?? "URL do checkout não encontrada.");
         window.location.href = data.url;
@@ -182,7 +259,7 @@ export function PlansManagement() {
         setLoadingAction(false);
       }
     },
-    [router, user, paymentProvider],
+    [router, user, paymentProvider, payerName, payerTaxId, payerCellphone],
   );
 
   async function handlePortal() {
@@ -420,6 +497,66 @@ export function PlansManagement() {
       </div>
 
       <div className="space-y-4">
+        {paymentProvider === "abacatepay" ? (
+          <div className="rounded-2xl border border-cyan-500/25 bg-slate-950/50 p-5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
+              Dados do pagador
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+              A AbacatePay exige <strong className="text-slate-300">nome, CPF ou CNPJ e celular</strong>{" "}
+              reais do titular do pagamento (PIX ou cartão). Usamos o e-mail da sua conta abaixo; nada
+              disso é enviado ao Stripe.
+            </p>
+            {user?.email ? (
+              <p className="mt-2 text-[11px] text-slate-500">
+                E-mail da conta: <span className="text-slate-400">{user.email}</span>
+              </p>
+            ) : null}
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="text-[11px] font-medium text-slate-400">Nome completo</span>
+                <input
+                  type="text"
+                  autoComplete="name"
+                  value={payerName}
+                  onChange={(e) => setPayerName(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/60 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
+                  placeholder="Como no documento"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[11px] font-medium text-slate-400">CPF ou CNPJ</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={payerTaxId}
+                  onChange={(e) => setPayerTaxId(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/60 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
+                  placeholder="Somente números ou com pontuação"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[11px] font-medium text-slate-400">Celular (com DDD)</span>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={payerCellphone}
+                  onChange={(e) => setPayerCellphone(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/60 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
+                  placeholder="Ex.: 11999998888"
+                />
+              </label>
+            </div>
+            {!abacatePayerValid ? (
+              <p className="mt-3 text-[11px] text-amber-400/90">
+                Preencha os três campos corretamente para habilitar os botões de pagamento.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
             Plano Pro mensal
@@ -435,13 +572,21 @@ export function PlansManagement() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Pagamento mensal (cartão)</span>
+                <span>
+                  {paymentProvider === "abacatepay"
+                    ? "Pagamento mensal (PIX ou cartão)"
+                    : "Pagamento mensal (cartão)"}
+                </span>
               </li>
             </ul>
           </div>
           <button
             type="button"
-            disabled={loadingAction || (plan === "pro" && !isOnTrial)}
+            disabled={
+              loadingAction ||
+              (plan === "pro" && !isOnTrial) ||
+              (paymentProvider === "abacatepay" && !abacatePayerValid)
+            }
             onClick={() => void handleCheckout("pro")}
             className="mt-4 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan hover:from-cyan-400 hover:to-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
           >
@@ -482,7 +627,11 @@ export function PlansManagement() {
 
           <button
             type="button"
-            disabled={loadingAction || (plan === "business" && !isOnTrial)}
+            disabled={
+              loadingAction ||
+              (plan === "business" && !isOnTrial) ||
+              (paymentProvider === "abacatepay" && !abacatePayerValid)
+            }
             onClick={() => void handleCheckout("lifetime")}
             className="mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan hover:from-emerald-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
           >

@@ -19,8 +19,9 @@ Authorization: Bearer {SEU_TOKEN_AQUI}
 ## Uso no Precifica3D
 
 - **Variáveis de ambiente:** `ABACATEPAY_TOKEN`. **`ABACATEPAY_DEFAULT_CUSTOMER_ID`** (`cust_...`) — obrigatório para o fluxo normal no app quando o usuário não envia CPF/celular. Opcional: **`ABACATEPAY_STORE_PRODUCT_ID_PRO`** / **`_LIFETIME`** (`prod_...`) — ativa checkout **v2** (preço do painel); exige chave **API v2** + **`CHECKOUT:CREATE`**. Se a chave for só **v1**, defina **`ABACATEPAY_USE_V1_BILLING_ONLY=true`** para ignorar `prod_` sem apagar a linha, e mantenha **`ABACATEPAY_DEFAULT_CUSTOMER_ID`**. O app também tenta **fallback** v1 após *"API key version mismatch"* se houver `cust_` ou dados completos no body.
-- **Fluxo:** Na página **Planos**, o usuário escolhe Pro ou Lifetime e clica em **"Pagar com PIX ou Cartão (AbacatePay)"**. O backend chama a API da AbacatePay para criar uma cobrança e redireciona o cliente para a URL de pagamento.
-- **Cliente na cobrança:** (1) Com **email**, **name**, **cellphone** e **taxId** válidos, o body da cobrança envia o objeto **`customer`** (a AbacatePay cria/vincula o cliente no checkout). (2) Sem esses dados, use **`ABACATEPAY_DEFAULT_CUSTOMER_ID`** no `.env.local` com um `cust_...` existente (painel ou `GET /v1/customer/list`). (3) Sem os dois → **400** com instruções. CPF fictício continua inválido (`Invalid taxId`).
+- **Fluxo (produção):** Na página **Planos** (modo AbacatePay), o usuário preenche **nome completo, CPF ou CNPJ e celular (DDD)** — dados reais do pagador. O app envia isso no JSON para **`POST /api/abacatepay/billing`** e o backend monta o objeto **`customer`** na AbacatePay (PIX/cartão). O e-mail usado é o da conta logada.
+- **Fallback opcional:** **`ABACATEPAY_DEFAULT_CUSTOMER_ID`** (`cust_...`) só é necessário se você **não** coletar CPF/celular no app (ex.: testes automatizados). Em uso real, prefira sempre o formulário de pagador na UI.
+- **Sem dados completos e sem `cust_` no env:** a API responde **400** com instruções. CPF fictício continua inválido (`Invalid taxId`).
 - **Metadata para acesso:** cada checkout envia `metadata.app_user_email` com o e-mail do usuário logado (quando disponível), para o backend cruzar com **`GET /v1/billing/list`** e liberar o app no modo só AbacatePay.
 
 ### Modo teste: só AbacatePay (mesma lógica do Stripe no paywall)
@@ -33,7 +34,7 @@ Para **não usar Stripe** na checagem de assinatura e espelhar a ideia “tem pl
    - `ABACATEPAY_TOKEN` (com **`BILLING:READ`** para listar cobranças)
    - Opcional: `ABACATEPAY_ACCESS_PRO_PRODUCT_IDS` e `ABACATEPAY_ACCESS_BUSINESS_PRODUCT_IDS` (lista separada por vírgula de `prod_...`); se vazio, o plano é inferido por `externalId` `precifica3d-pro-*` / `precifica3d-lifetime-*` ou pelos mesmos env `ABACATEPAY_STORE_PRODUCT_ID_*`.
 
-2. **Planos (UI)** — a página chama **`GET /api/app/payment-provider`**, que lê `APP_PAYMENT_PROVIDER` no servidor. **Não é obrigatório** `NEXT_PUBLIC_APP_PAYMENT_PROVIDER`; basta reiniciar o `npm run dev` após mudar o `.env.local`.
+2. **Planos (UI)** — a rota **`/pricing`** é um Server Component com `dynamic = force-dynamic`: o servidor lê **`APP_PAYMENT_PROVIDER`** em cada request e repassa ao cliente. Na **Vercel** basta definir essa variável no painel (Production e Preview, se usar) — **não depende** de `NEXT_PUBLIC_APP_PAYMENT_PROVIDER` para mostrar AbacatePay. `GET /api/app/payment-provider` continua disponível para outros usos.
 
 3. **Comportamento:**
    - `/api/account/access` usa **`getAbacatePayPaidEntitlement`**: cobranças com **`status: PAID`** e e-mail igual a `metadata.app_user_email` **ou** e-mail no cliente AbacatePay.
@@ -46,13 +47,33 @@ Para **não usar Stripe** na checagem de assinatura e espelhar a ideia “tem pl
 
 ---
 
+## Vercel (produção)
+
+1. **Project → Settings → Environment Variables** — adicione para **Production** (e **Preview** se testar PR/preview: se `APP_PAYMENT_PROVIDER` estiver só em Production, o preview continuará em modo Stripe até você repetir as variáveis para Preview ou “All Environments”):
+
+   | Nome | Exemplo / notas |
+   |------|------------------|
+   | `APP_PAYMENT_PROVIDER` | `abacatepay` |
+   | `ABACATEPAY_TOKEN` | token **live** com `BILLING:READ` (e `CHECKOUT:CREATE` se usar produtos `prod_...`) |
+   | `ABACATEPAY_DEFAULT_CUSTOMER_ID` | **Opcional** se os usuários preenchem pagador na página Planos. Use `cust_...` live só como fallback (testes / integrações sem formulário). |
+   | `NEXT_PUBLIC_APP_URL` | `https://seu-dominio.vercel.app` ou domínio customizado |
+   | Demais `ABACATEPAY_*` | conforme `.env.example` se usar checkout v2 / mapeamento de planos |
+
+2. **Redeploy** depois de salvar as variáveis (**Deployments → … → Redeploy**). Só alterar env não atualiza o build antigo.
+
+3. **Confirme** abrindo `https://SEU_SITE/api/app/payment-provider` — deve retornar `{"provider":"abacatepay"}`.
+
+4. `NEXT_PUBLIC_APP_PAYMENT_PROVIDER` é **opcional** na Vercel; a página `/pricing` já recebe o provedor do servidor.
+
+---
+
 ## Checklist rápido (`.env.local`)
 
 | Variável | Obrigatório? | Notas |
 |----------|----------------|-------|
 | `APP_PAYMENT_PROVIDER=abacatepay` | Sim (modo só AbacatePay) | Reinicie `npm run dev` ou o processo em produção após alterar. |
 | `ABACATEPAY_TOKEN` | Sim | Precisa de **`BILLING:READ`** para `/api/account/access` e status. Checkout v2 com produto da loja exige chave **v2** + **`CHECKOUT:CREATE`**. |
-| `ABACATEPAY_DEFAULT_CUSTOMER_ID` | Quase sempre (v1) | `cust_...` quando o usuário não envia CPF/celular no checkout. Sem isso e sem dados completos → **400** na criação da cobrança. |
+| `ABACATEPAY_DEFAULT_CUSTOMER_ID` | Opcional | Só se não usar o formulário de pagador na página Planos. Com nome+CPF/CNPJ+celular no checkout, pode omitir. |
 | `ABACATEPAY_STORE_PRODUCT_ID_PRO` / `_LIFETIME` | Opcional | Checkout v2 com preço do painel AbacatePay. |
 | `ABACATEPAY_USE_V1_BILLING_ONLY` | Opcional | `true` se a chave for só v1 — ignora `prod_...` sem apagar as linhas. |
 | `ABACATEPAY_ACCESS_PRO_PRODUCT_IDS` / `BUSINESS` | Opcional | Mapeia plano ao listar cobranças para acesso pago. |
@@ -63,6 +84,7 @@ Para **não usar Stripe** na checagem de assinatura e espelhar a ideia “tem pl
 
 ## Problemas comuns
 
+- **“Customer not found”** — o `cust_...` em **ABACATEPAY_DEFAULT_CUSTOMER_ID** não existe para **esta** chave API (conta ou modo dev/live diferente). Confira no painel **Clientes** ou `GET /v1/customer/list` com o mesmo token; não reaproveite `cust_` de outra loja ou de dev com token live. Com **prod_** no checkout v2, o mesmo `cust_` válido na conta continua obrigatório quando o app não envia CPF/celular no body.
 - **400 na cobrança (“defina ABACATEPAY_DEFAULT_CUSTOMER_ID…”)** — cadastre um cliente no painel (ou API), copie o `cust_...` para o `.env.local`, ou colete **nome, e-mail, celular e CPF/CNPJ válidos** no fluxo (sem CPF fictício).
 - **“API key version mismatch” / checkout v2** — use chave v2 com `CHECKOUT:CREATE`, ou remova/ignore `ABACATEPAY_STORE_PRODUCT_ID_*` com `ABACATEPAY_USE_V1_BILLING_ONLY=true` + `cust_...`.
 - **Ainda aparece “Assinar … (Stripe)” na página Planos** — (1) Reinicie o servidor de dev ou redeploy; (2) confira `APP_PAYMENT_PROVIDER=abacatepay` no ambiente que **roda o Node** (Vercel → Environment Variables); (3) adicione `NEXT_PUBLIC_APP_PAYMENT_PROVIDER=abacatepay` e reinicie/rebuild; (4) no navegador, abra `/api/app/payment-provider` — deve retornar `{"provider":"abacatepay"}`.

@@ -58,6 +58,21 @@ function isAbacatePayV2KeyRejected(err: unknown): boolean {
   );
 }
 
+/** Resposta típica da API quando `customerId` / cust_ não existe nessa conta ou não combina com o token. */
+function isAbacatePayCustomerNotFoundError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /customer not found|cliente não encontrado|customer_id.*not found/i.test(
+    msg,
+  );
+}
+
+function customerNotFoundUserMessage(): string {
+  return (
+    "AbacatePay não encontrou esse cliente (cust_…). O ABACATEPAY_DEFAULT_CUSTOMER_ID precisa existir na mesma conta da sua chave API: abra o painel AbacatePay → Clientes e copie o ID, ou use GET /v1/customer/list com o mesmo Bearer. " +
+    "Chave de teste (abc_dev_…) e chave live têm cadastros diferentes. Se você usa produtos prod_… no checkout v2, o cust_ também tem que ser válido nessa conta."
+  );
+}
+
 const PLAN_PRODUCTS: Record<
   string,
   { name: string; description: string; priceCents: number }
@@ -207,6 +222,12 @@ export async function POST(req: NextRequest) {
         });
         return NextResponse.json({ url: billing.url, id: billing.id });
       } catch (v2Err) {
+        if (isAbacatePayCustomerNotFoundError(v2Err)) {
+          return NextResponse.json(
+            { error: customerNotFoundUserMessage() },
+            { status: 400 },
+          );
+        }
         if (!isAbacatePayV2KeyRejected(v2Err)) throw v2Err;
         // eslint-disable-next-line no-console
         console.warn(
@@ -242,6 +263,12 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("AbacatePay billing error:", err);
+    if (isAbacatePayCustomerNotFoundError(err)) {
+      return NextResponse.json(
+        { error: customerNotFoundUserMessage() },
+        { status: 400 },
+      );
+    }
     const raw = err instanceof Error ? err.message : "Erro ao criar cobrança AbacatePay.";
     const hint = isAbacatePayV2KeyRejected(err)
       ? " Crie uma chave API v2 com CHECKOUT:CREATE ou use só billing v1 (sem ABACATEPAY_STORE_PRODUCT_ID_* + cust_ no .env)."
