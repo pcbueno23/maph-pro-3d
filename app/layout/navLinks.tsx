@@ -25,6 +25,7 @@ export type NavLinkItem = {
 /** Ferramentas principais — topo do menu */
 export const primaryNavLinks: NavLinkItem[] = [
   { href: "/", label: "Dashboard", icon: LineChart },
+  { href: "/sales", label: "Vendas", icon: Package },
   { href: "/calculator", label: "Calculadora de markup", icon: Calculator },
   {
     href: "/margem-certa",
@@ -36,11 +37,10 @@ export const primaryNavLinks: NavLinkItem[] = [
   { href: "/ordens", label: "Ordens de produção", icon: Printer },
   { href: "/impressoras", label: "Impressoras", icon: Printer },
   { href: "/insumos", label: "Insumos", icon: Package },
-  { href: "/orcamentos", label: "Orçamentos", icon: FileText },
-  { href: "/sales", label: "Vendas", icon: Package },
   { href: "/alertas", label: "Alertas", icon: Bell },
   { href: "/reports", label: "Relatórios", icon: LineChart },
   { href: "/catalogo", label: "Catálogo", icon: LayoutGrid },
+  { href: "/orcamentos", label: "Orçamentos", icon: FileText },
 ];
 
 /**

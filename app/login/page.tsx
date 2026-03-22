@@ -3,7 +3,7 @@
 import { Suspense, useEffect } from "react";
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LogIn, Mail, Lock, Chrome } from "lucide-react";
+import { LogIn, Mail, Lock, Chrome, Phone } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 function LoginFormContent() {
@@ -12,6 +12,7 @@ function LoginFormContent() {
   const redirectTo = searchParams.get("redirect") || "/";
 
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [loading, setLoading] = useState(false);
@@ -64,9 +65,20 @@ function LoginFormContent() {
         if (signInError) throw signInError;
         router.replace(redirectTo as Parameters<typeof router.replace>[0]);
       } else {
+        const phoneTrim = phone.trim();
+        if (!phoneTrim) {
+          setError("Informe seu telefone (WhatsApp).");
+          setLoading(false);
+          return;
+        }
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              phone: phoneTrim,
+            },
+          },
         });
         if (signUpError) throw signUpError;
         setMessage(
@@ -168,6 +180,30 @@ function LoginFormContent() {
               />
             </div>
           </div>
+
+          {mode === "signup" ? (
+            <div className="space-y-2 text-sm">
+              <label className="mb-1 block text-xs text-slate-300">
+                Telefone (WhatsApp)
+              </label>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2">
+                <Phone className="h-4 w-4 shrink-0 text-slate-500" />
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+                  placeholder="(11) 99999-9999"
+                />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Usamos para contato e fica disponível em Conta, junto com seus dados.
+              </p>
+            </div>
+          ) : null}
 
           <div className="space-y-2 text-sm">
             <label className="mb-1 block text-xs text-slate-300">
