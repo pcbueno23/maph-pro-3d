@@ -37,7 +37,7 @@ export function getCalculatorFormDefaults(
   return {
     productName: "",
     material: {
-      weight: 50,
+      weight: 0,
       pricePerKg: 120,
       type: "PLA",
       // Schema exige string não vazia; margem certa usa id fictício, calculadora principal usa placeholder até o usuário escolher filamento.

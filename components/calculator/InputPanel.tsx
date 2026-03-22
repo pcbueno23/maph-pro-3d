@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import type { CalculatorFormValues, Printer, SupplyItem } from "@/types";
+import { FormNumericInput } from "@/components/calculator/FormNumericInput";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useAuthStore } from "@/store/authStore";
 import { listPrinters, listSupplies } from "@/lib/supabaseProduction";
@@ -57,6 +58,15 @@ export function InputPanel({
     Math.abs(presetFilamentPerKg - currentFilamentPerKg) > 0.01;
 
   const selectedPrinterId = form.watch("time.printerId") ?? "";
+  const totalHoursRaw = form.watch("time.hours") ?? 0;
+  const totalHoursNonNeg = Math.max(0, totalHoursRaw);
+  const durationHWhole = Math.floor(totalHoursNonNeg);
+  const durationMPart = Math.min(
+    59,
+    Math.max(0, Math.round((totalHoursNonNeg % 1) * 60)),
+  );
+  const [durationHourDraft, setDurationHourDraft] = useState<string | null>(null);
+  const [durationMinDraft, setDurationMinDraft] = useState<string | null>(null);
   const [cep, setCep] = useState("");
   const [isFetchingCep, setIsFetchingCep] = useState(false);
 
@@ -233,11 +243,10 @@ export function InputPanel({
               <label className="mb-1 block text-xs text-slate-300">
                 Peso da peça (g)
               </label>
-              <input
-                type="number"
-                step="0.1"
+              <FormNumericInput
+                form={form}
+                name="material.weight"
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("material.weight", { valueAsNumber: true })}
               />
               {errors.material?.weight && (
                 <p className="mt-1 text-xs text-rose-400">
@@ -248,12 +257,12 @@ export function InputPanel({
                 <label className="mb-1 block text-xs text-slate-300">
                   Peças por impressão (na mesma mesa)
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
+                <FormNumericInput
+                  form={form}
+                  name="time.unitsPerBatch"
+                  integerOnly
+                  emptyFallback={1}
                   className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                  {...register("time.unitsPerBatch", { valueAsNumber: true })}
                 />
               </div>
             </div>
@@ -261,11 +270,10 @@ export function InputPanel({
               <label className="mb-1 block text-xs text-slate-300">
                 Peso da placa (g) – opcional
               </label>
-              <input
-                type="number"
-                step="0.1"
+              <FormNumericInput
+                form={form}
+                name="material.plateWeight"
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("material.plateWeight", { valueAsNumber: true })}
               />
               {errors.material?.plateWeight && (
                 <p className="mt-1 text-xs text-rose-400">
@@ -281,11 +289,10 @@ export function InputPanel({
               <label className="mb-1 block text-xs text-slate-300">
                 Custo do filamento (R$/kg)
               </label>
-              <input
-                type="number"
-                step="0.1"
+              <FormNumericInput
+                form={form}
+                name="material.pricePerKg"
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("material.pricePerKg", { valueAsNumber: true })}
               />
             </div>
 
@@ -303,17 +310,45 @@ export function InputPanel({
               </label>
               <div className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2">
                 <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  className="w-16 bg-transparent text-sm text-slate-100 outline-none"
-                  value={Math.floor(Math.max(0, form.watch("time.hours") ?? 0))}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="w-16 min-w-0 bg-transparent text-sm text-slate-100 outline-none"
+                  value={
+                    durationHourDraft !== null
+                      ? durationHourDraft
+                      : String(durationHWhole)
+                  }
+                  onFocus={() => setDurationHourDraft(String(durationHWhole))}
                   onChange={(e) => {
-                    const h = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    const v = e.target.value;
+                    if (!/^\d*$/.test(v)) return;
+                    setDurationHourDraft(v);
+                    if (v.trim() === "") return;
+                    const h = Math.max(0, parseInt(v, 10) || 0);
                     const total = form.getValues("time.hours") ?? 0;
                     const m = Math.min(
                       59,
-                      Math.max(0, Math.round((total % 1) * 60)),
+                      Math.max(
+                        0,
+                        Math.round((Math.max(0, total) % 1) * 60),
+                      ),
+                    );
+                    setValue("time.hours", h + m / 60, { shouldDirty: true });
+                  }}
+                  onBlur={(e) => {
+                    const raw = e.currentTarget.value.trim();
+                    setDurationHourDraft(null);
+                    const h =
+                      raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
+                    const total = form.getValues("time.hours") ?? 0;
+                    const m = Math.min(
+                      59,
+                      Math.max(
+                        0,
+                        Math.round((Math.max(0, total) % 1) * 60),
+                      ),
                     );
                     setValue("time.hours", h + m / 60, { shouldDirty: true });
                   }}
@@ -321,23 +356,34 @@ export function InputPanel({
                 <span className="text-xs text-slate-400">h</span>
                 <div className="h-4 w-px bg-slate-800" />
                 <input
-                  type="number"
-                  min={0}
-                  max={59}
-                  step={1}
-                  className="w-16 bg-transparent text-sm text-slate-100 outline-none"
-                  value={Math.min(
-                    59,
-                    Math.max(
-                      0,
-                      Math.round(((form.watch("time.hours") ?? 0) % 1) * 60),
-                    ),
-                  )}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="w-16 min-w-0 bg-transparent text-sm text-slate-100 outline-none"
+                  value={
+                    durationMinDraft !== null
+                      ? durationMinDraft
+                      : String(durationMPart)
+                  }
+                  onFocus={() => setDurationMinDraft(String(durationMPart))}
                   onChange={(e) => {
-                    const m = Math.min(
-                      59,
-                      Math.max(0, parseInt(e.target.value, 10) || 0),
-                    );
+                    const v = e.target.value;
+                    if (!/^\d*$/.test(v)) return;
+                    setDurationMinDraft(v);
+                    if (v.trim() === "") return;
+                    const m = Math.min(59, Math.max(0, parseInt(v, 10) || 0));
+                    const total = form.getValues("time.hours") ?? 0;
+                    const h = Math.floor(Math.max(0, total));
+                    setValue("time.hours", h + m / 60, { shouldDirty: true });
+                  }}
+                  onBlur={(e) => {
+                    const raw = e.currentTarget.value.trim();
+                    setDurationMinDraft(null);
+                    const m =
+                      raw === ""
+                        ? 0
+                        : Math.min(59, Math.max(0, parseInt(raw, 10) || 0));
                     const total = form.getValues("time.hours") ?? 0;
                     const h = Math.floor(Math.max(0, total));
                     setValue("time.hours", h + m / 60, { shouldDirty: true });
@@ -390,17 +436,10 @@ export function InputPanel({
                   </optgroup>
                 ) : null}
               </select>
-              <input
-                type="number"
-                step="1"
+              <FormNumericInput
+                form={form}
+                name="time.powerW"
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                value={form.watch("time.powerW") ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value === "" ? 0 : Number(e.target.value);
-                  setValue("time.powerW", Number.isFinite(v) ? v : 0, {
-                    shouldDirty: true,
-                  });
-                }}
               />
             </div>
           </div>
@@ -412,11 +451,10 @@ export function InputPanel({
                 Energia (R$/kWh)
               </label>
               <div className="space-y-1.5">
-                <input
-                  type="number"
-                  step="0.01"
+                <FormNumericInput
+                  form={form}
+                  name="costs.kwhPrice"
                   className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                  {...register("costs.kwhPrice", { valueAsNumber: true })}
                 />
                 <div className="flex items-center gap-2">
                   <input
@@ -499,11 +537,10 @@ export function InputPanel({
               <label className="mb-1 block text-xs text-slate-300">
                 Embalagem (R$)
               </label>
-              <input
-                type="number"
-                step="0.1"
+              <FormNumericInput
+                form={form}
+                name="costs.packaging"
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("costs.packaging", { valueAsNumber: true })}
               />
             </div>
           </div>
@@ -513,22 +550,20 @@ export function InputPanel({
               <label className="mb-1 block text-xs text-slate-300">
                 Custo da impressora (R$)
               </label>
-              <input
-                type="number"
-                step="10"
+              <FormNumericInput
+                form={form}
+                name="costs.printerCost"
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("costs.printerCost", { valueAsNumber: true })}
               />
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-300">
                 Vida útil (h)
               </label>
-              <input
-                type="number"
-                step="10"
+              <FormNumericInput
+                form={form}
+                name="costs.lifetimeHours"
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("costs.lifetimeHours", { valueAsNumber: true })}
               />
             </div>
           </div>
@@ -548,13 +583,10 @@ export function InputPanel({
                   (?)
                 </span>
               </label>
-              <input
-                type="number"
-                min={0}
-                max={99}
-                step="0.1"
+              <FormNumericInput
+                form={form}
+                name="advanced.taxaFalha"
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("advanced.taxaFalha", { valueAsNumber: true })}
               />
             </div>
 
@@ -565,13 +597,10 @@ export function InputPanel({
                   (?)
                 </span>
               </label>
-              <input
-                type="number"
-                min={0}
-                max={99}
-                step="0.1"
+              <FormNumericInput
+                form={form}
+                name="advanced.descontoPercentual"
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("advanced.descontoPercentual", { valueAsNumber: true })}
               />
             </div>
           </div>
@@ -598,12 +627,10 @@ export function InputPanel({
 
             <div>
               <label className="mb-1 block text-xs text-slate-300">Valor (R$)</label>
-              <input
-                type="number"
-                min={0}
-                step="0.1"
+              <FormNumericInput
+                form={form}
+                name="advanced.maoDeObraValor"
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("advanced.maoDeObraValor", { valueAsNumber: true })}
               />
             </div>
 
@@ -614,12 +641,11 @@ export function InputPanel({
                   (?)
                 </span>
               </label>
-              <input
-                type="number"
-                min={0}
-                step="1"
+              <FormNumericInput
+                form={form}
+                name="advanced.tempoManualMin"
+                integerOnly
                 className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                {...register("advanced.tempoManualMin", { valueAsNumber: true })}
               />
             </div>
           </div>
@@ -655,11 +681,10 @@ export function InputPanel({
             <label className="mb-1 block text-xs text-slate-300">
               Margem alvo (%)
             </label>
-            <input
-              type="number"
-              step="0.1"
+            <FormNumericInput
+              form={form}
+              name="pricing.desiredMargin"
               className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-              {...register("pricing.desiredMargin", { valueAsNumber: true })}
             />
           </div>
         </div>
@@ -672,13 +697,12 @@ export function InputPanel({
             <label className="mb-1 block text-xs text-slate-300">
               Preço desejado (R$)
             </label>
-            <input
-              type="number"
-              step="0.01"
-              min={0}
+            <FormNumericInput
+              form={form}
+              name="pricing.comparePrice"
+              emptyAsUndefined
               placeholder="Ex: 49,90"
               className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-              {...register("pricing.comparePrice", { valueAsNumber: true })}
             />
             <p className="mt-0.5 text-[11px] text-slate-500">
               Quanto você ganharia vendendo a esse preço
@@ -694,14 +718,11 @@ export function InputPanel({
             <label className="mb-1 block text-xs text-slate-300">
               Desconto promo (%)
             </label>
-            <input
-              type="number"
-              step="1"
-              min={0}
-              max={99}
+            <FormNumericInput
+              form={form}
+              name="pricing.discountPercent"
               placeholder="0"
               className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-              {...register("pricing.discountPercent", { valueAsNumber: true })}
             />
             <p className="mt-0.5 text-[11px] text-slate-500">
               Preço a anunciar calculado para manter margem
@@ -715,38 +736,30 @@ export function InputPanel({
           <label className="mb-1 block text-xs text-slate-300">
             Frete estimado (R$)
           </label>
-          <input
-            type="number"
-            step="0.01"
-            min={0}
+          <FormNumericInput
+            form={form}
+            name="pricing.shippingEstimate"
             className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-            {...register("pricing.shippingEstimate", { valueAsNumber: true })}
           />
         </div>
         <div>
           <label className="mb-1 block text-xs text-slate-300">
             Imposto sobre venda (%)
           </label>
-          <input
-            type="number"
-            step="0.1"
-            min={0}
-            max={100}
+          <FormNumericInput
+            form={form}
+            name="pricing.taxPercent"
             className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-            {...register("pricing.taxPercent", { valueAsNumber: true })}
           />
         </div>
         <div>
           <label className="mb-1 block text-xs text-slate-300">
             Taxa cartão direto (%)
           </label>
-          <input
-            type="number"
-            step="0.01"
-            min={0}
-            max={100}
+          <FormNumericInput
+            form={form}
+            name="pricing.cardFeePercent"
             className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-            {...register("pricing.cardFeePercent", { valueAsNumber: true })}
           />
         </div>
             <div className="flex flex-col justify-end">
