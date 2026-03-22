@@ -33,6 +33,8 @@ export const defaultSettings: SettingsValues = {
     mlPremiumCommission: 16,
     // taxa padrão de cartão para venda direta (crédito)
     cardFeePercent: 4.99,
+    /** Pontos a mais na margem de venda direta vs margem marketplace (pré-preenche a calculadora). */
+    directMarginExtraPoints: 10,
   },
   printer: {
     presetId: "",

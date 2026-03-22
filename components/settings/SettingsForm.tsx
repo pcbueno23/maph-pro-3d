@@ -217,6 +217,32 @@ export function SettingsForm() {
               />
             </div>
 
+            <div>
+              <label className="mb-1 block text-xs text-slate-300">
+                Extra na margem venda direta (p.p.){" "}
+                <span
+                  className="text-slate-500"
+                  title="Somado à margem padrão para pré-preencher a margem de venda direta (sem marketplace). Ex.: 30% + 10 p.p. = 40%."
+                >
+                  (?)
+                </span>
+              </label>
+              <input
+                type="number"
+                step="1"
+                min={0}
+                max={50}
+                className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                {...form.register("defaults.directMarginExtraPoints", {
+                  valueAsNumber: true,
+                })}
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Usado na calculadora principal e na margem certa ao sugerir margem maior para PIX /
+                consumidor final.
+              </p>
+            </div>
+
             <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
               <p className="text-xs text-slate-300">
                 Impressoras e potência agora são gerenciadas em <strong>/impressoras</strong>.

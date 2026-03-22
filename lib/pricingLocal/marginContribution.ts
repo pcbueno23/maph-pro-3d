@@ -77,6 +77,11 @@ export function mercadoLivreFeeResolver(
   return (price: number) => getMercadoLivreFees(price, listing, commissionPercent);
 }
 
+/** Venda direta ao consumidor: sem comissão nem taxa fixa de marketplace. */
+export function directSaleFeeResolver(): FeeResolver {
+  return () => ({ percentDecimal: 0, fixedFee: 0 });
+}
+
 export type SolvePriceResult =
   | { ok: true; price: number; iterations: number }
   | { ok: false; error: string };
@@ -176,6 +181,9 @@ export function feeResolverForLab(
     mlCommissionPercent?: number;
   }
 ): FeeResolver {
+  if (marketplace === "direct") {
+    return directSaleFeeResolver();
+  }
   if (marketplace === "shopee") {
     return shopeeFeeResolver({ cpfHighVolume90d: options.shopeeCpfHighVolume });
   }

@@ -36,6 +36,7 @@ function buildInput(overrides: Partial<CalculatorFormValues> = {}): CalculatorFo
       personType: "CPF",
       marketplaceFee: 14,
       desiredMargin: 30,
+      directSaleDesiredMargin: 40,
       shippingEstimate: 0,
       taxPercent: 6,
       taxMode: "gross",
@@ -128,6 +129,7 @@ describe("calculateAll", () => {
       buildInput({
         pricing: {
           desiredMargin: 45,
+          directSaleDesiredMargin: 55,
           marketplace: "Shopee",
           personType: "CPF",
           marketplaceFee: 14,

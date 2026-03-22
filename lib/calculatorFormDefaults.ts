@@ -3,6 +3,14 @@ import { CALCULATOR_ADVANCED_DEFAULTS } from "@/types";
 import { DEFAULT_MARKETPLACE_FEES } from "@/lib/constants";
 import { MARKUP_SUPPLY_PLACEHOLDER_ID } from "@/lib/supplyPlaceholders";
 
+/** Margem % sugerida para venda direta: marketplace + pontos extras (Configurações). */
+export function computeDefaultDirectSaleDesiredMargin(
+  desiredMargin: number,
+  extraPoints: number,
+): number {
+  return Math.min(95, Math.max(0, desiredMargin + extraPoints));
+}
+
 /** Recorte de `settings.printer` usado para potência “preset” (sem impressora do Supabase). */
 export type PrinterSettingsSlice = {
   presetId?: string;
@@ -66,6 +74,10 @@ export function getCalculatorFormDefaults(
       personType: "CPF",
       marketplaceFee: DEFAULT_MARKETPLACE_FEES["Shopee"].CPF,
       desiredMargin: settings.defaults.desiredMargin,
+      directSaleDesiredMargin: computeDefaultDirectSaleDesiredMargin(
+        settings.defaults.desiredMargin,
+        settings.defaults.directMarginExtraPoints ?? 10,
+      ),
       shippingEstimate: settings.defaults.shippingEstimateDefault ?? 0,
       taxPercent: 0,
       taxMode: settings.defaults.taxMode ?? "net_marketplace",
@@ -127,6 +139,10 @@ export function applySettingsToCalculatorForm(
     pricing: {
       ...current.pricing,
       desiredMargin: settings.defaults.desiredMargin,
+      directSaleDesiredMargin: computeDefaultDirectSaleDesiredMargin(
+        settings.defaults.desiredMargin,
+        settings.defaults.directMarginExtraPoints ?? 10,
+      ),
       shippingEstimate: settings.defaults.shippingEstimateDefault ?? 0,
       taxMode: settings.defaults.taxMode ?? "net_marketplace",
       mlClassic: settings.defaults.mlClassic ?? false,

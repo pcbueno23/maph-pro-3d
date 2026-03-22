@@ -731,6 +731,30 @@ export function InputPanel({
         </div>
       </div>
 
+      <div className="rounded-xl border border-emerald-900/40 bg-emerald-950/20 p-3">
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-emerald-400/95">
+          Venda direta ao consumidor (sem marketplace)
+        </p>
+        <div className="mt-2 grid gap-3 md:grid-cols-2 md:items-end">
+          <div>
+            <label className="mb-1 block text-xs text-slate-300">
+              Margem alvo — PIX / consumidor final (%)
+            </label>
+            <FormNumericInput
+              form={form}
+              name="pricing.directSaleDesiredMargin"
+              className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+          <p className="text-[11px] leading-relaxed text-slate-500">
+            Usada nos preços <strong className="text-slate-400">Direto</strong> (sem comissão de
+            Shopee/Mercado Livre). O valor inicial segue a margem de marketplace +{" "}
+            {settings.defaults.directMarginExtraPoints ?? 10} p.p. (ajustável em{" "}
+            <span className="text-slate-400">Configurações</span>).
+          </p>
+        </div>
+      </div>
+
       <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className="mb-1 block text-xs text-slate-300">

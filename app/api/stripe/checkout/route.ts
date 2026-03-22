@@ -92,10 +92,18 @@ export async function POST(req: NextRequest) {
     // segue a configuração do preço no Stripe (sem segundo trial no Pro).
     const session = await stripe.checkout.sessions.create({
       mode,
+      locale: "pt-BR",
       customer_email: email,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/pricing?success=1`,
       cancel_url: `${origin}/pricing?canceled=1`,
+      /** Texto opcional na página de pagamento (complementa a marca em Configurações → Marca). */
+      custom_text: {
+        submit: {
+          message:
+            "Pagamento seguro via Stripe. Após a confirmação, seu plano MAPH PRO 3D é ativado automaticamente.",
+        },
+      },
       metadata: {
         app: "precifica3d",
         plan,

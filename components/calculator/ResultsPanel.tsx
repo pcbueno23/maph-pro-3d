@@ -29,6 +29,7 @@ export function ResultsPanel({ results, isDirty }: Props) {
     suggestedPriceML,
     suggestedPriceDirectCash,
     suggestedPriceDirectCard,
+    directSaleMarginPercent,
     unitsPerBatch,
     plateTotalCost,
     profitPerSale,
@@ -119,7 +120,9 @@ export function ResultsPanel({ results, isDirty }: Props) {
 
   const shopeeBelowAdjustedCost = suggestedPriceShopee < custoTotalAjustado;
   const mlBelowAdjustedCost = suggestedPriceML < custoTotalAjustado;
-  const directPriceShown = suggestedPriceDirectCash ?? suggestedPriceDirectCard ?? suggestedPrice;
+  const directPix = suggestedPriceDirectCash ?? suggestedPrice;
+  const directCard = suggestedPriceDirectCard ?? suggestedPrice;
+  const directPriceShown = directPix;
   const directBelowAdjustedCost = directPriceShown < custoTotalAjustado;
 
   const CascataBlock = ({
@@ -208,26 +211,41 @@ export function ResultsPanel({ results, isDirty }: Props) {
                 </p>
               ) : null}
             </div>
-            <div className="rounded-xl bg-slate-950/40 p-3">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Direto</p>
-              <p className="mt-1 text-lg font-semibold text-slate-50">
-                {fmt(directPriceShown)}
+            <div className="rounded-xl border border-emerald-900/35 bg-emerald-950/15 p-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-500/90">
+                Venda direta
               </p>
-              <p className="mt-0.5 text-[10px] text-slate-500" title="PIX e cartão podem variar; aqui mostramos o primeiro disponível.">
-                (?)
+              <p className="mt-1 text-[11px] text-slate-500">
+                Sem comissão de marketplace · margem alvo{" "}
+                <span className="font-semibold text-emerald-200/95">
+                  {typeof directSaleMarginPercent === "number"
+                    ? `${directSaleMarginPercent.toFixed(1)}%`
+                    : "—"}
+                </span>
               </p>
+              <div className="mt-2 space-y-1.5">
+                <div className="flex justify-between gap-2 text-xs text-slate-400">
+                  <span>PIX (sem taxa de cartão)</span>
+                  <span className="font-semibold text-slate-50">{fmt(directPix)}</span>
+                </div>
+                <div className="flex justify-between gap-2 text-xs text-slate-400">
+                  <span>Cartão (taxa do gateway)</span>
+                  <span className="font-semibold text-slate-50">{fmt(directCard)}</span>
+                </div>
+              </div>
               {directBelowAdjustedCost ? (
-                <p className="mt-1 text-[11px] font-medium text-rose-300">
+                <p className="mt-2 text-[11px] font-medium text-rose-300">
                   Abaixo do custo real ajustado
                 </p>
               ) : null}
             </div>
           </div>
           <p className="mt-3 text-[11px] text-slate-500">
-            Preço ideal calculado por canal para atingir sua margem alvo.
+            Preço ideal por canal: Shopee e ML usam a margem de marketplace; venda direta usa a
+            margem “consumidor final” (maior, pois não há comissão de plataforma).
           </p>
           <p className="mt-1 text-[11px] text-cyan-300">
-            Base usada: custo real ajustado.
+            Base de custo (produção + ajustes): custo real ajustado — o mesmo para todos os canais.
           </p>
 
           {compareAtPriceResult ? (

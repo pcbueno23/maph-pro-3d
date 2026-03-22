@@ -221,6 +221,20 @@ function buildCascata(params: {
   };
 }
 
+/**
+ * Margem alvo para venda direta ao consumidor (sem comissão de marketplace).
+ * Se o formulário não tiver valor explícito, usa margem de marketplace + 10 p.p.
+ */
+export function effectiveDirectSaleMarginPercent(
+  pricing: CalculatorFormValues["pricing"],
+): number {
+  const explicit = pricing.directSaleDesiredMargin;
+  if (typeof explicit === "number" && Number.isFinite(explicit)) {
+    return Math.min(95, Math.max(0, explicit));
+  }
+  return Math.min(95, (pricing.desiredMargin ?? 0) + 10);
+}
+
 export function calculateAll(input: CalculatorFormValues): CalculatorResults {
   // Compat: enquanto a UI não seleciona uma impressora (entidade),
   // o motor usa os campos atuais do formulário.
@@ -293,6 +307,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
   // Para evitar divergência entre "detalhamentos" e "lucro real",
   // os detalhamentos por canal devem usar o mesmo custo-base dos ajustes avançados.
   const totalCostForBreakdowns = custoTotalAjustado;
+  const directSaleMarginPercent = effectiveDirectSaleMarginPercent(input.pricing);
 
   // Preço sugerido por canal (mesma margem alvo, preços podem ser diferentes)
   const suggestedPriceShopee = full.suggested.suggestedPriceShopee;
@@ -378,14 +393,14 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
   const suggestedPriceDirectCash = calcSuggestedPrice({
     totalCost: custoTotalAjustado,
     marketplaceFeePercent: 0,
-    desiredMarginPercent: input.pricing.desiredMargin,
+    desiredMarginPercent: directSaleMarginPercent,
     shippingAmount,
     taxPercent,
   });
   const suggestedPriceDirectCard = calcSuggestedPrice({
     totalCost: custoTotalAjustado,
     marketplaceFeePercent: cardFeePercent,
-    desiredMarginPercent: input.pricing.desiredMargin,
+    desiredMarginPercent: directSaleMarginPercent,
     shippingAmount,
     taxPercent,
   });
@@ -504,14 +519,14 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     kitSuggestedPriceDirectCash = calcSuggestedPrice({
       totalCost: kitCost,
       marketplaceFeePercent: 0,
-      desiredMarginPercent: input.pricing.desiredMargin,
+      desiredMarginPercent: directSaleMarginPercent,
       shippingAmount,
       taxPercent,
     });
     kitSuggestedPriceDirectCard = calcSuggestedPrice({
       totalCost: kitCost,
       marketplaceFeePercent: cardFeePercent,
-      desiredMarginPercent: input.pricing.desiredMargin,
+      desiredMarginPercent: directSaleMarginPercent,
       shippingAmount,
       taxPercent,
     });
@@ -610,6 +625,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     suggestedPriceML,
     suggestedPriceDirectCash,
     suggestedPriceDirectCard,
+    directSaleMarginPercent,
     kitSuggestedPriceShopee,
     kitSuggestedPriceML,
     kitSuggestedPriceDirectCash,

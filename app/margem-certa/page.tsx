@@ -164,6 +164,7 @@ export default function MargemCertaPage() {
         suppressResults={suppressMarginResults}
         suppressResultsMessage="Preencha os dados válidos da impressão acima (peso da peça ≥ 1 g, filamento, tempo, custos etc.) para calcular o custo e a margem de contribuição."
         defaultTargetMarginPercent={settings.defaults.desiredMargin}
+        directMarginExtraPoints={settings.defaults.directMarginExtraPoints ?? 10}
         productCostStr={productCost}
         packagingStr={packaging}
         setProductCost={setProductCost}
@@ -172,9 +173,10 @@ export default function MargemCertaPage() {
         showCostInputs
         topHint={
           <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
-            Abaixo, a margem é calculada com as <strong className="text-slate-400">taxas do marketplace</strong>{" "}
-            (Shopee em faixas fixas), <strong className="text-slate-400">frete no Mercado Livre</strong> e{" "}
-            <strong className="text-slate-400">impostos</strong>, de acordo com o que você preencher.
+            Escolha o canal: <strong className="text-slate-400">Shopee</strong>,{" "}
+            <strong className="text-slate-400">Mercado Livre</strong> (taxas e frete) ou{" "}
+            <strong className="text-emerald-400/90">venda direta</strong> (sem comissão de
+            plataforma). Impostos e frete seguem o que você informar.
           </p>
         }
       />

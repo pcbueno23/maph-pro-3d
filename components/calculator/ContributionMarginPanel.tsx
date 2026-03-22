@@ -60,6 +60,8 @@ export interface ContributionMarginPanelProps {
   sectionTitle?: string;
   /** Margem alvo inicial — alinhar a `defaults.desiredMargin` em Configurações (mesmo preset da calculadora de markup). */
   defaultTargetMarginPercent?: number;
+  /** Pontos a mais ao escolher “Venda direta” no lab (vs margem atual do campo). Alinha a `defaults.directMarginExtraPoints`. */
+  directMarginExtraPoints?: number;
   /** Quando true, não exibe preço/margem (ex.: parâmetros de impressão inválidos com sync ligado). */
   suppressResults?: boolean;
   suppressResultsMessage?: string;
@@ -76,6 +78,7 @@ export function ContributionMarginPanel({
   topHint,
   sectionTitle = "Margem de contribuição (Shopee / ML)",
   defaultTargetMarginPercent,
+  directMarginExtraPoints = 10,
   suppressResults = false,
   suppressResultsMessage,
 }: ContributionMarginPanelProps) {
@@ -249,13 +252,27 @@ export function ContributionMarginPanel({
           value={marketplace}
           onChange={(e) => {
             const v = e.target.value as LabMarketplace;
+            const prev = marketplace;
             setMarketplace(v);
             if (v === "mercado_livre") setMlFreightUserEdited(false);
+            if (v === "direct" && prev !== "direct") {
+              const cur = num(targetMarginPct, defaultTargetMarginPercent ?? 15);
+              setTargetMarginPct(String(Math.min(95, cur + directMarginExtraPoints)));
+            }
           }}
         >
           <option value="shopee">Shopee (FFG — faixas fixas)</option>
           <option value="mercado_livre">Mercado Livre</option>
+          <option value="direct">Venda direta (sem marketplace)</option>
         </select>
+
+        {marketplace === "direct" ? (
+          <p className="rounded-lg border border-emerald-900/40 bg-emerald-950/25 px-3 py-2 text-[11px] leading-relaxed text-emerald-200/90">
+            Simulação <strong className="text-emerald-100">sem comissão</strong> de plataforma
+            (Instagram, WhatsApp, loja própria). A margem alvo foi aumentada em{" "}
+            {directMarginExtraPoints} p.p. em relação ao valor do campo — ajuste se quiser.
+          </p>
+        ) : null}
 
         {showCostInputs ? (
           <>
@@ -356,9 +373,11 @@ export function ContributionMarginPanel({
 
         <div>
           <label className="text-xs text-slate-400">
-            {marketplace === "mercado_livre"
-              ? "2 — Frete pago pelo vendedor (tabela ML)"
-              : "Frete pago pelo vendedor (subsídio / full)"}
+            {marketplace === "direct"
+              ? "Frete / envio (se você pagar)"
+              : marketplace === "mercado_livre"
+                ? "2 — Frete pago pelo vendedor (tabela ML)"
+                : "Frete pago pelo vendedor (subsídio / full)"}
           </label>
           {marketplace === "mercado_livre" && (
             <p className="mt-0.5 text-[11px] text-slate-500">
@@ -476,6 +495,11 @@ export function ContributionMarginPanel({
           <div>
             <label className="text-xs text-slate-400">
               Margem de contribuição alvo (% do preço)
+              {marketplace === "direct" ? (
+                <span className="mt-0.5 block text-[10px] font-normal text-slate-500">
+                  Venda direta: sem taxa de marketplace no preço — use margem maior que em Shopee/ML.
+                </span>
+              ) : null}
             </label>
             <input
               className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm"

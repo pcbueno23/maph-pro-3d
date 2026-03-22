@@ -1,4 +1,5 @@
 import type { Product, Printer, ProductionOrder } from "@/types";
+import { computeDefaultDirectSaleDesiredMargin } from "@/lib/calculatorFormDefaults";
 import { calculateAllWithPrinter } from "@/lib/calculations";
 import { defaultSettings, useSettingsStore } from "@/store/settingsStore";
 import { supabase } from "@/lib/supabaseClient";
@@ -119,6 +120,10 @@ export async function computeProductUnitCost(userId: string, product: Product): 
       personType: "CPF" as const,
       marketplaceFee: settings.defaults.shopeeBaseCommission,
       desiredMargin: settings.defaults.desiredMargin,
+      directSaleDesiredMargin: computeDefaultDirectSaleDesiredMargin(
+        settings.defaults.desiredMargin,
+        settings.defaults.directMarginExtraPoints ?? 10,
+      ),
       shippingEstimate: settings.defaults.shippingEstimateDefault ?? 0,
       taxPercent: 0,
       taxMode: settings.defaults.taxMode ?? "net_marketplace",

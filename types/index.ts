@@ -109,6 +109,16 @@ export const calculatorSchema = z
       .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
       .pipe(z.number().min(0).max(100))
       .default(0),
+    /**
+     * Margem alvo só para venda direta (PIX/cartão), sem marketplace.
+     * Se omitida no parse legado, o motor usa margem marketplace + extra das configurações.
+     */
+    directSaleDesiredMargin: z
+      .union([z.number(), z.nan()])
+      .optional()
+      .transform((n) =>
+        typeof n === "number" && !Number.isNaN(n) ? Math.min(100, Math.max(0, n)) : undefined,
+      ),
     /** Preço de venda desejado para comparar (ex.: preço do concorrente). Opcional. */
     comparePrice: z
       .union([z.number(), z.nan(), z.undefined()])
@@ -150,6 +160,8 @@ export interface CalculatorResults {
   suggestedPriceML: number;
   suggestedPriceDirectCash?: number;
   suggestedPriceDirectCard?: number;
+  /** Margem % usada no preço direto (consumidor final), sem comissão de marketplace. */
+  directSaleMarginPercent?: number;
   kitSuggestedPriceShopee?: number;
   kitSuggestedPriceML?: number;
   kitSuggestedPriceDirectCash?: number;
@@ -333,6 +345,12 @@ export const settingsSchema = z.object({
       .union([z.number(), z.nan()])
       .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
       .default(0),
+    /** Pontos percentuais a mais na margem de venda direta vs margem marketplace (ex.: 10 → 30%+10%=40%). */
+    directMarginExtraPoints: z
+      .union([z.number(), z.nan()])
+      .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 10))
+      .pipe(z.number().min(0).max(50))
+      .default(10),
   }),
   printer: z.object({
     presetId: z.string().optional(),

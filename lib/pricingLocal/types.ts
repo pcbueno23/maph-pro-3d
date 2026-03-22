@@ -2,7 +2,7 @@
 export type TaxRegime = "CPF_MEI" | "SIMPLES" | "LUCRO";
 
 /** Marketplace do laboratório de margem de contribuição. */
-export type LabMarketplace = "shopee" | "mercado_livre";
+export type LabMarketplace = "shopee" | "mercado_livre" | "direct";
 
 export type MLListingType = "classico" | "premium";
 
