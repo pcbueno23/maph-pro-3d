@@ -3,6 +3,7 @@ import "./globals.css";
 import { Sidebar } from "./layout/Sidebar";
 import { Header } from "./layout/Header";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { PrintingTimerAlertsHost } from "@/components/orders/PrintingTimerAlertsHost";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 
@@ -37,6 +38,7 @@ export default function RootLayout({
               </main>
             </div>
           </div>
+          <PrintingTimerAlertsHost />
           <PwaInstallPrompt />
           <ServiceWorkerRegister />
         </AuthGuard>

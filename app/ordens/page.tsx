@@ -25,7 +25,6 @@ import {
   nextProductionOrderStatus,
 } from "@/lib/productionOrderStatus";
 import { computePrintingStartedAtForSave } from "@/lib/productionPrintingStartedAt";
-import { PrintingTimerAlerts } from "@/components/orders/PrintingTimerAlerts";
 
 type DraftOrder = {
   id?: string;
@@ -582,7 +581,6 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-4">
-      <PrintingTimerAlerts orders={orders} productsById={productsById} />
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">

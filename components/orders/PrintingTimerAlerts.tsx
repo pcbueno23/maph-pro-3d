@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Product, ProductionOrder } from "@/types";
+import { showPrintingPushNotification } from "@/lib/printingPushNotifications";
 
 const WARN_BEFORE_MS = 5 * 60 * 1000;
 
@@ -34,6 +35,12 @@ export function PrintingTimerAlerts({ orders, productsById }: Props) {
       const key = sessionKey(payload.orderId, payload.phase);
       if (window.sessionStorage.getItem(key)) return;
       window.sessionStorage.setItem(key, "1");
+
+      void showPrintingPushNotification(
+        payload.phase,
+        payload.productName,
+        payload.orderId,
+      );
 
       setCurrent((c) => {
         if (c) {
