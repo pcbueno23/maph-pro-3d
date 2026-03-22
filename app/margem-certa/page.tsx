@@ -138,6 +138,7 @@ export default function MargemCertaPage() {
       </div>
 
       <ContributionMarginPanel
+        defaultTargetMarginPercent={settings.defaults.desiredMargin}
         productCostStr={productCost}
         packagingStr={packaging}
         setProductCost={setProductCost}

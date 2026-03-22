@@ -58,6 +58,8 @@ export interface ContributionMarginPanelProps {
   topHint?: ReactNode;
   /** Título da coluna de entradas. */
   sectionTitle?: string;
+  /** Margem alvo inicial — alinhar a `defaults.desiredMargin` em Configurações (mesmo preset da calculadora de markup). */
+  defaultTargetMarginPercent?: number;
 }
 
 export function ContributionMarginPanel({
@@ -70,6 +72,7 @@ export function ContributionMarginPanel({
   syncMarketplaceFromCalculator,
   topHint,
   sectionTitle = "Margem de contribuição (Shopee / ML)",
+  defaultTargetMarginPercent,
 }: ContributionMarginPanelProps) {
   const [marketplace, setMarketplace] = useState<LabMarketplace>("shopee");
   const [freightSeller, setFreightSeller] = useState("0");
@@ -80,7 +83,13 @@ export function ContributionMarginPanel({
   const [mode, setMode] = useState<"margem_alvo" | "preco_concorrencia">(
     "margem_alvo",
   );
-  const [targetMarginPct, setTargetMarginPct] = useState("15");
+  const [targetMarginPct, setTargetMarginPct] = useState(() =>
+    String(defaultTargetMarginPercent ?? 15),
+  );
+
+  useEffect(() => {
+    setTargetMarginPct(String(defaultTargetMarginPercent ?? 15));
+  }, [defaultTargetMarginPercent]);
   const [sellPrice, setSellPrice] = useState("99.99");
 
   const [shopeeCpfHighVolume, setShopeeCpfHighVolume] = useState(false);
