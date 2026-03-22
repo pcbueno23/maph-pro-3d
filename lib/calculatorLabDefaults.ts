@@ -3,9 +3,13 @@ import {
   getCalculatorFormDefaults,
   getPrinterSettingsSlice,
 } from "@/lib/calculatorFormDefaults";
+import {
+  LAB_PRINTING_SUPPLY_FALLBACK_ID,
+  isPlaceholderSupplyId,
+  MARKUP_SUPPLY_PLACEHOLDER_ID,
+} from "@/lib/supplyPlaceholders";
 
-/** Id fictício para o schema quando não há filamento de /insumos selecionado (margem certa). */
-export const LAB_PRINTING_SUPPLY_FALLBACK_ID = "lab-local";
+export { LAB_PRINTING_SUPPLY_FALLBACK_ID, isPlaceholderSupplyId, MARKUP_SUPPLY_PLACEHOLDER_ID };
 
 /** Mesmos defaults da Calculadora de markup + id de filamento para esta tela. */
 export function buildLabPrintingFormDefaults(settings: SettingsValues): CalculatorFormValues {

@@ -28,12 +28,20 @@ export async function syncProductsOnLogin(userId: string): Promise<void> {
     window.localStorage.setItem(migrationKey, "true");
   }
 
-  const remoteProducts = await fetchUserProducts(userId);
+  let remoteProducts = await fetchUserProducts(userId);
+
+  // Nuvem vazia mas há lista local: tenta enviar de novo (ex.: falha de rede/RLS na sessão anterior).
+  if (remoteProducts.length === 0 && localProducts.length > 0) {
+    await upsertProductsForUser(userId, localProducts);
+    remoteProducts = await fetchUserProducts(userId);
+  }
 
   if (remoteProducts.length > 0) {
     useProductsStore.getState().hydrateFromCloud(remoteProducts);
+  } else if (localProducts.length > 0) {
+    // Evita lista vazia após refresh se o Supabase ainda não devolveu linhas; mantém o que está no disco.
+    useProductsStore.getState().hydrateFromCloud(localProducts);
   } else {
-    // Nuvem vazia: não usar dados locais (podem ser de outro usuário após troca de conta)
     useProductsStore.getState().hydrateFromCloud([]);
   }
 }

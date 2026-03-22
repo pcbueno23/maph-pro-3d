@@ -1,6 +1,7 @@
 import type { CalculatorFormValues, CalculatorResults, Product, SettingsValues } from "@/types";
 import { upsertProductsForUser } from "@/lib/supabaseProducts";
 import { listSupplies, upsertProductMaterial } from "@/lib/supabaseProduction";
+import { isPlaceholderSupplyId } from "@/lib/supplyPlaceholders";
 import { useProductsStore } from "@/store/productsStore";
 
 function generateUuid() {
@@ -61,6 +62,13 @@ export async function saveCalculatorProductFromSnapshot(
     if (!ok) return "user_cancelled";
   }
 
+  if (user && typeof window !== "undefined" && isPlaceholderSupplyId(lastInput.material.supplyId)) {
+    const ok = window.confirm(
+      "Nenhum filamento (insumo) foi selecionado na calculadora. O produto será salvo sem vínculo de material na lista de insumos.\n\nDeseja continuar?",
+    );
+    if (!ok) return "user_cancelled";
+  }
+
   const unitsPerBatch =
     typeof lastInput.time.unitsPerBatch === "number" && lastInput.time.unitsPerBatch > 0
       ? lastInput.time.unitsPerBatch
@@ -112,11 +120,21 @@ export async function saveCalculatorProductFromSnapshot(
 
   if (user && typeof window !== "undefined") {
     const list = useProductsStore.getState().products;
-    await upsertProductsForUser(user.id, list).catch(() => {});
+    try {
+      await upsertProductsForUser(user.id, list);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("Falha ao sincronizar produto no Supabase:", e);
+    }
 
     const supplyId = lastInput.material.supplyId;
-    const isUuid = /^[0-9a-fA-F-]{36}$/.test(product.id);
-    if (supplyId && isUuid) {
+    const productIdIsUuid = /^[0-9a-fA-F-]{36}$/.test(product.id);
+    const canPersistBom =
+      productIdIsUuid &&
+      !isPlaceholderSupplyId(supplyId) &&
+      typeof supplyId === "string";
+
+    if (canPersistBom) {
       try {
         const supplies = await listSupplies(user.id);
         const supply = supplies.find((s) => s.id === supplyId);
@@ -139,9 +157,19 @@ export async function saveCalculatorProductFromSnapshot(
             createdAt: nowIso,
             updatedAt: nowIso,
           });
+        } else if (typeof window !== "undefined") {
+          window.alert(
+            "Filamento não encontrado na lista de insumos (pode ter sido removido). O produto foi salvo, mas o material não foi vinculado — adicione o material na lista de produtos.",
+          );
         }
-      } catch {
-        // se falhar em gravar BOM, não bloqueia o fluxo de salvar produto
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error("Falha ao gravar material do produto (BOM):", e);
+        if (typeof window !== "undefined") {
+          window.alert(
+            "O produto foi salvo, mas não foi possível salvar o vínculo com o filamento. Tente adicionar o material na lista de produtos.",
+          );
+        }
       }
     }
   }

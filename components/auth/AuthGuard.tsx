@@ -31,6 +31,8 @@ export function AuthGuard({ children }: Props) {
   const resetAccess = useAccessStore((s) => s.reset);
   const accessNonce = useAccessStore((s) => s.accessNonce);
   const lastUserIdRef = useRef<string | null>(null);
+  /** Id do último usuário que passou pelo sync (SPA). No refresh da página o ref zera — não limpamos dados nesse caso. */
+  const previousSyncedUserIdRef = useRef<string | null>(null);
 
   const isPublic = PUBLIC_PATHS.includes(pathname);
   const isPaywallException = PAYWALL_EXCEPTION_PATHS.includes(pathname);
@@ -81,14 +83,22 @@ export function AuthGuard({ children }: Props) {
   }, [setAuth, setInitialized, clearAuth, resetAccess]);
 
   useEffect(() => {
-    if (user) {
-      // Limpar primeiro para nunca mostrar dados de outro usuário (mesmo navegador / troca de conta)
-      clearUserData();
-      void (async () => {
-        await syncProductsOnLogin(user.id);
-        await syncUserDataOnLogin(user.id);
-      })();
+    if (!user) {
+      previousSyncedUserIdRef.current = null;
+      return;
     }
+    const uid = user.id;
+    const prev = previousSyncedUserIdRef.current;
+    // Antes: clearUserData() rodava em todo login e apagava o localStorage antes do sync — ao
+    // atualizar a página os produtos sumiam. Só limpamos ao trocar de conta na mesma aba (SPA).
+    if (prev !== null && prev !== uid) {
+      clearUserData();
+    }
+    previousSyncedUserIdRef.current = uid;
+    void (async () => {
+      await syncProductsOnLogin(user.id);
+      await syncUserDataOnLogin(user.id);
+    })();
   }, [user]);
 
   useEffect(() => {

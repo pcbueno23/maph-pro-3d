@@ -1,6 +1,7 @@
 import type { CalculatorFormValues, SettingsValues } from "@/types";
 import { CALCULATOR_ADVANCED_DEFAULTS } from "@/types";
 import { DEFAULT_MARKETPLACE_FEES } from "@/lib/constants";
+import { MARKUP_SUPPLY_PLACEHOLDER_ID } from "@/lib/supplyPlaceholders";
 
 /** Recorte de `settings.printer` usado para potência “preset” (sem impressora do Supabase). */
 export type PrinterSettingsSlice = {
@@ -41,7 +42,7 @@ export function getCalculatorFormDefaults(
       pricePerKg: 120,
       type: "PLA",
       // Schema exige string não vazia; margem certa usa id fictício, calculadora principal usa placeholder até o usuário escolher filamento.
-      supplyId: options?.labSupplyFallbackId ?? "_",
+      supplyId: options?.labSupplyFallbackId ?? MARKUP_SUPPLY_PLACEHOLDER_ID,
       plateWeight: undefined,
     },
     time: {

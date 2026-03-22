@@ -15,6 +15,7 @@ import {
   buildLabPrintingFormDefaults,
   LAB_PRINTING_SUPPLY_FALLBACK_ID,
 } from "@/lib/calculatorLabDefaults";
+import { isPlaceholderSupplyId } from "@/lib/supplyPlaceholders";
 import { calcularCustoTotalAjustadoProduto } from "@/lib/precoCompleto";
 import {
   computePricingFromFormValues,
@@ -94,6 +95,12 @@ export default function MargemCertaPage() {
     if (!parsed) {
       window.alert(
         "Não foi possível usar os dados da impressão. Verifique peso, tempo e custos e tente de novo.",
+      );
+      return;
+    }
+    if (isPlaceholderSupplyId(parsed.material.supplyId)) {
+      window.alert(
+        "Selecione um filamento em «Filamento (preset de insumo)» nos parâmetros da impressão para salvar o material e a quantidade de insumo (gramas) no produto.",
       );
       return;
     }
