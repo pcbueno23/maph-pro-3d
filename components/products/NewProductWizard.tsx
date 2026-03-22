@@ -321,6 +321,7 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
       return {
         shopeeSuggested,
         mlSuggested,
+        directSuggested,
         worstSuggested: directSuggested,
       };
     }
@@ -343,9 +344,18 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
       classic,
     });
 
+    const directSuggested = calcSuggestedPrice({
+      totalCost,
+      marketplaceFeePercent: 0,
+      desiredMarginPercent: margin,
+      shippingAmount,
+      taxPercent,
+    });
+
     return {
       shopeeSuggested,
       mlSuggested,
+      directSuggested,
       worstSuggested: Math.max(shopeeSuggested, mlSuggested),
     };
   }, [totalCost, marginPercent, settings?.defaults, marketplace]);
@@ -522,6 +532,7 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
       totalCost,
       suggestedPriceShopee: pricingFromMargin.shopeeSuggested,
       suggestedPriceML: pricingFromMargin.mlSuggested,
+      suggestedPriceDirect: pricingFromMargin.directSuggested,
       printTimeMinutes: Math.round(printTimeHours * 60) || null,
       defaultPrinterId: defaultPrinterId ?? null,
     };

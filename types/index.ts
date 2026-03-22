@@ -276,6 +276,8 @@ export interface Product {
   /** Preços sugeridos por canal e custo de produção no momento do salvamento (opcionais, para estoque). */
   suggestedPriceShopee?: number;
   suggestedPriceML?: number;
+  /** Preço sugerido venda direta (PIX/cartão), sem taxa de marketplace. */
+  suggestedPriceDirect?: number;
   /** Custo unitário de produção (ex.: custo real ajustado na calculadora). Não varia com o canal de venda. */
   totalCost?: number;
   /** Campos de ficha técnica (opcionais; não afetam a calculadora atual) */

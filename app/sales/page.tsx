@@ -36,7 +36,7 @@ export default function SalesPage() {
         ? item.suggestedPriceShopee ?? item.price
         : channel === "ML"
           ? item.suggestedPriceML ?? item.price
-          : item.price;
+          : item.suggestedPriceDirect ?? item.price;
 
     const channelLabel =
       channel === "ML"
@@ -155,7 +155,7 @@ export default function SalesPage() {
                     })}
                   </td>
                   <td className="px-2 py-2 text-slate-100">
-                    {i.price.toLocaleString("pt-BR", {
+                    {(i.suggestedPriceDirect ?? i.price).toLocaleString("pt-BR", {
                       style: "currency",
                       currency: "BRL",
                     })}

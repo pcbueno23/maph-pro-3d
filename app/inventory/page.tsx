@@ -36,13 +36,23 @@ export default function InventoryPage() {
         const snapshot = useInventoryStore.getState().items;
         for (const i of snapshot) {
           const p = prods.find((x) => x.id === i.productId);
-          if (!p?.totalCost || p.totalCost <= 0) continue;
-          if (i.productionCost != null && i.productionCost > 0) continue;
+          if (!p) continue;
+          const fillsCost =
+            Boolean(p.totalCost && p.totalCost > 0) &&
+            (!i.productionCost || i.productionCost <= 0);
+          const fillsDirect =
+            p.suggestedPriceDirect != null && i.suggestedPriceDirect == null;
+          if (!fillsCost && !fillsDirect) continue;
           update({
             ...i,
-            productionCost: p.totalCost,
-            suggestedPriceShopee: p.suggestedPriceShopee ?? i.suggestedPriceShopee,
-            suggestedPriceML: p.suggestedPriceML ?? i.suggestedPriceML,
+            ...(fillsCost
+              ? {
+                  productionCost: p.totalCost,
+                  suggestedPriceShopee: p.suggestedPriceShopee ?? i.suggestedPriceShopee,
+                  suggestedPriceML: p.suggestedPriceML ?? i.suggestedPriceML,
+                }
+              : {}),
+            ...(fillsDirect ? { suggestedPriceDirect: p.suggestedPriceDirect } : {}),
             updatedAt: new Date().toISOString(),
           });
         }
@@ -76,6 +86,7 @@ export default function InventoryPage() {
                   <th className="px-2 py-2">Qtd</th>
                   <th className="px-2 py-2">Preço Shopee</th>
                   <th className="px-2 py-2">Preço ML</th>
+                  <th className="px-2 py-2">Preço venda direta</th>
                   <th className="px-2 py-2">Custo produção</th>
                   <th className="px-2 py-2">% Margem (pior canal)</th>
                   <th className="px-2 py-2">Canal</th>
@@ -122,6 +133,12 @@ export default function InventoryPage() {
                     </td>
                     <td className="px-2 py-2 text-slate-100">
                       {(i.suggestedPriceML ?? i.price).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </td>
+                    <td className="px-2 py-2 text-slate-100">
+                      {(i.suggestedPriceDirect ?? i.price).toLocaleString("pt-BR", {
                         style: "currency",
                         currency: "BRL",
                       })}

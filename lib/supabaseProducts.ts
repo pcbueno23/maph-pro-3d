@@ -22,6 +22,7 @@ export async function fetchUserProducts(userId: string): Promise<Product[]> {
         total_cost,
         suggested_price_shopee,
         suggested_price_ml,
+        suggested_price_direct,
         catalog_visible,
         catalog_sort,
         created_at,
@@ -54,6 +55,8 @@ export async function fetchUserProducts(userId: string): Promise<Product[]> {
       row.suggested_price_shopee != null ? Number(row.suggested_price_shopee) : undefined,
     suggestedPriceML:
       row.suggested_price_ml != null ? Number(row.suggested_price_ml) : undefined,
+    suggestedPriceDirect:
+      row.suggested_price_direct != null ? Number(row.suggested_price_direct) : undefined,
     catalogVisible: row.catalog_visible === true,
     catalogSort: row.catalog_sort != null ? Number(row.catalog_sort) : null,
     createdAt: row.created_at,
@@ -85,6 +88,7 @@ export async function upsertProductsForUser(
     total_cost: p.totalCost ?? null,
     suggested_price_shopee: p.suggestedPriceShopee ?? null,
     suggested_price_ml: p.suggestedPriceML ?? null,
+    suggested_price_direct: p.suggestedPriceDirect ?? null,
     catalog_visible: p.catalogVisible ?? false,
     catalog_sort: p.catalogSort ?? null,
     created_at: p.createdAt,

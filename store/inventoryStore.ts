@@ -13,6 +13,7 @@ export interface InventoryItem {
   /** Preços sugeridos por canal no momento do lançamento (se disponíveis). */
   suggestedPriceShopee?: number;
   suggestedPriceML?: number;
+  suggestedPriceDirect?: number;
   /** Custo de produção unitário no momento do lançamento (se disponível). */
   productionCost?: number;
   createdAt: string;
@@ -65,6 +66,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         marginPercent: product.margin ?? existing.marginPercent,
         suggestedPriceShopee: product.suggestedPriceShopee ?? existing.suggestedPriceShopee,
         suggestedPriceML: product.suggestedPriceML ?? existing.suggestedPriceML,
+        suggestedPriceDirect: product.suggestedPriceDirect ?? existing.suggestedPriceDirect,
         productionCost: product.totalCost ?? existing.productionCost,
         updatedAt: now,
       };
@@ -85,6 +87,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         marginPercent: product.margin ?? 0,
         suggestedPriceShopee: product.suggestedPriceShopee,
         suggestedPriceML: product.suggestedPriceML,
+        suggestedPriceDirect: product.suggestedPriceDirect,
         productionCost: product.totalCost,
         createdAt: now,
         updatedAt: now,
