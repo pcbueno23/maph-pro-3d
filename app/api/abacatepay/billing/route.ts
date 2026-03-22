@@ -80,14 +80,14 @@ const PLAN_PRODUCTS: Record<
   pro: {
     name: "Precifica3D Pro",
     description:
-      "Assinatura mensal – produtos ilimitados, sync nuvem, taxas 2026 (trial 7 dias via Stripe).",
-    priceCents: 2499, // R$ 24,99
+      "Assinatura mensal – produtos ilimitados, sync nuvem, taxas 2026.",
+    priceCents: 2990, // R$ 29,90 (fallback v1; com prod_ na loja usa preço do painel AbacatePay)
   },
   lifetime: {
     name: "Precifica3D Business anual",
     description:
-      "Plano anual (cobrança anual em 12x) – precificação completa, estoque, insumos, vendas e relatórios.",
-    priceCents: 23880, // 12x de R$ 19,90 => R$ 238,80/ano
+      "Plano anual – precificação completa, estoque, insumos, vendas e relatórios.",
+    priceCents: 19990, // R$ 199,90/ano (fallback v1)
   },
 };
 
@@ -153,10 +153,12 @@ export async function POST(req: NextRequest) {
       process.env.ABACATEPAY_USE_V1_BILLING_ONLY === "true" ||
       process.env.ABACATEPAY_USE_V1_BILLING_ONLY === "1";
 
+    /** Sem espaços em torno do `=` no .env (ex.: KEY=value), senão a variável não carrega. */
     const storeProductIdRaw =
       plan === "pro"
-        ? process.env.ABACATEPAY_STORE_PRODUCT_ID_PRO?.trim() ?? ""
-        : process.env.ABACATEPAY_STORE_PRODUCT_ID_LIFETIME?.trim() ?? "";
+        ? process.env.ABACATEPAY_STORE_PRODUCT_ID_PRO?.replace(/\s/g, "") ?? ""
+        : process.env.ABACATEPAY_STORE_PRODUCT_ID_LIFETIME?.replace(/\s/g, "") ??
+          "";
 
     const storeProductId = useV1BillingOnly ? "" : storeProductIdRaw;
 
@@ -229,21 +231,14 @@ export async function POST(req: NextRequest) {
           );
         }
         if (!isAbacatePayV2KeyRejected(v2Err)) throw v2Err;
-        // eslint-disable-next-line no-console
-        console.warn(
-          "AbacatePay: checkout v2 recusado pela chave (ex.: só API v1). Usando billing v1 como fallback.",
+        /** Com `prod_...` configurado, não cair silencioso no v1 (outro preço/nome) — exige corrigir chave ou env. */
+        return NextResponse.json(
+          {
+            error:
+              "Checkout v2 da loja falhou: a chave API precisa ser v2 com permissão CHECKOUT:CREATE (ou a AbacatePay recusou o checkout). Opções: (1) Crie/edite a chave no painel AbacatePay com v2 + CHECKOUT:CREATE; (2) Confirme ABACATEPAY_STORE_PRODUCT_ID_PRO / _LIFETIME (prod_ da mesma conta); (3) Se quiser só API v1, remova os prod_ do .env e use ABACATEPAY_USE_V1_BILLING_ONLY=true (preço vem do código, não da loja).",
+          },
+          { status: 400 },
         );
-        if (!canSendCustomer(body) && !defaultCustomerId) {
-          return NextResponse.json(
-            {
-              error:
-                "Sua chave não aceita checkout v2 (produto da loja). Opções: (1) Chave API v2 + CHECKOUT:CREATE no painel AbacatePay; (2) No .env: ABACATEPAY_DEFAULT_CUSTOMER_ID=cust_... (fallback v1 já tentará de novo); (3) Ou ABACATEPAY_USE_V1_BILLING_ONLY=true + cust_ — ignora prod_ sem apagar a linha (preço v1 do código, não o da loja).",
-            },
-            { status: 400 },
-          );
-        }
-        const billing = await createBilling(token, v1BillingParams());
-        return NextResponse.json({ url: billing.url, id: billing.id });
       }
     }
 
