@@ -568,7 +568,11 @@ export default function OrdersPage() {
 
   async function remove(order: ProductionOrder) {
     if (!user) return;
-    if (!window.confirm("Remover esta ordem?")) return;
+    const msg =
+      order.status === "cancelled"
+        ? "Excluir esta ordem cancelada do histórico? Ela deixará de aparecer no dashboard e nos gráficos."
+        : "Remover esta ordem?";
+    if (!window.confirm(msg)) return;
     try {
       await deleteProductionOrder(user.id, order.id);
       setOrders((prev) => prev.filter((o) => o.id !== order.id));
@@ -578,6 +582,11 @@ export default function OrdersPage() {
   }
 
   const columns = PRODUCTION_ORDER_PIPELINE;
+
+  const cancelledOrdersList = useMemo(
+    () => orders.filter((o) => o.status === "cancelled"),
+    [orders],
+  );
 
   return (
     <div className="space-y-4">
@@ -745,6 +754,57 @@ export default function OrdersPage() {
           );
         })}
       </div>
+
+      {cancelledOrdersList.length > 0 ? (
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+          <h2 className="text-sm font-semibold text-slate-200">Ordens canceladas</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Não aparecem no quadro acima, mas ainda entram nos totais do dashboard até você excluir
+            do histórico.
+          </p>
+          <ul className="mt-3 divide-y divide-slate-800/80">
+            {cancelledOrdersList.map((o) => {
+              const prod = productsById.get(o.productId);
+              return (
+                <li
+                  key={o.id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-slate-100">
+                      {prod?.name ?? o.productId}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      {o.quantity} un. · criada em{" "}
+                      {new Date(o.createdAt).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(o)}
+                      className="rounded-lg border border-slate-700 px-3 py-1.5 text-[11px] text-slate-300 hover:bg-slate-900"
+                    >
+                      Ver / editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => remove(o)}
+                      className="rounded-lg border border-rose-500/50 bg-rose-500/10 px-3 py-1.5 text-[11px] font-medium text-rose-200 hover:bg-rose-500/20"
+                    >
+                      Excluir do histórico
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       {modalOpen && draft && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4">
