@@ -60,6 +60,9 @@ export interface ContributionMarginPanelProps {
   sectionTitle?: string;
   /** Margem alvo inicial — alinhar a `defaults.desiredMargin` em Configurações (mesmo preset da calculadora de markup). */
   defaultTargetMarginPercent?: number;
+  /** Quando true, não exibe preço/margem (ex.: parâmetros de impressão inválidos com sync ligado). */
+  suppressResults?: boolean;
+  suppressResultsMessage?: string;
 }
 
 export function ContributionMarginPanel({
@@ -73,6 +76,8 @@ export function ContributionMarginPanel({
   topHint,
   sectionTitle = "Margem de contribuição (Shopee / ML)",
   defaultTargetMarginPercent,
+  suppressResults = false,
+  suppressResultsMessage,
 }: ContributionMarginPanelProps) {
   const [marketplace, setMarketplace] = useState<LabMarketplace>("shopee");
   const [freightSeller, setFreightSeller] = useState("0");
@@ -142,6 +147,7 @@ export function ContributionMarginPanel({
   );
 
   const solved = useMemo(() => {
+    if (suppressResults) return null;
     if (mode !== "margem_alvo") return null;
     return solvePriceForTargetContributionMargin({
       productCost: baseCosts.productCost,
@@ -151,10 +157,12 @@ export function ContributionMarginPanel({
       taxRateDecimal: baseCosts.taxRateDecimal,
       feeResolver: baseCosts.feeResolver,
     });
-  }, [mode, baseCosts, targetMarginPct]);
+  }, [suppressResults, mode, baseCosts, targetMarginPct]);
 
-  const effectivePrice =
-    mode === "margem_alvo" && solved?.ok ? solved.price : num(sellPrice);
+  const effectivePrice = useMemo(() => {
+    if (suppressResults) return 0;
+    return mode === "margem_alvo" && solved?.ok ? solved.price : num(sellPrice);
+  }, [suppressResults, mode, solved, sellPrice]);
 
   useEffect(() => {
     if (marketplace !== "mercado_livre") return;
@@ -180,13 +188,14 @@ export function ContributionMarginPanel({
   ]);
 
   const breakdown = useMemo(() => {
+    if (suppressResults) return null;
     if (mode === "margem_alvo" && solved && !solved.ok) return null;
     if (effectivePrice <= 0) return null;
     return contributionBreakdown({
       price: effectivePrice,
       ...baseCosts,
     });
-  }, [mode, solved, effectivePrice, baseCosts]);
+  }, [suppressResults, mode, solved, effectivePrice, baseCosts]);
 
   const bandHint = useMemo(() => {
     if (marketplace !== "shopee" || !breakdown) return null;
@@ -205,12 +214,14 @@ export function ContributionMarginPanel({
     : null;
 
   const competitorBreakdown = useMemo(() => {
+    if (suppressResults) return null;
     const p = num(competitorPrice);
     if (p <= 0) return null;
     return contributionBreakdown({ price: p, ...baseCosts });
-  }, [competitorPrice, baseCosts]);
+  }, [suppressResults, competitorPrice, baseCosts]);
 
   const mlScenarios = useMemo(() => {
+    if (suppressResults) return null;
     if (marketplace !== "mercado_livre" || effectivePrice <= 0) return null;
     return scenarioMercadoLivreClassicVsPremium({
       price: effectivePrice,
@@ -224,7 +235,7 @@ export function ContributionMarginPanel({
         Math.max(15, num(mlCommissionPct, 16) + 3),
       ),
     });
-  }, [marketplace, effectivePrice, baseCosts, mlCommissionPct]);
+  }, [suppressResults, marketplace, effectivePrice, baseCosts, mlCommissionPct]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -499,11 +510,17 @@ export function ContributionMarginPanel({
       <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
         <h2 className="text-sm font-semibold text-emerald-400">Resultado</h2>
 
-        {mode === "margem_alvo" && solved && !solved.ok && (
+        {suppressResults && suppressResultsMessage ? (
+          <p className="rounded-xl border border-amber-500/30 bg-amber-950/25 p-3 text-sm text-amber-100/95">
+            {suppressResultsMessage}
+          </p>
+        ) : null}
+
+        {!suppressResults && mode === "margem_alvo" && solved && !solved.ok && (
           <p className="text-sm text-amber-400">{solved.error}</p>
         )}
 
-        {mode === "margem_alvo" && solved?.ok && (
+        {!suppressResults && mode === "margem_alvo" && solved?.ok && (
           <p className="text-sm text-slate-300">
             <span className="text-slate-400">Preço sugerido: </span>
             <strong className="text-lg text-cyan-300">
@@ -515,7 +532,7 @@ export function ContributionMarginPanel({
           </p>
         )}
 
-        {breakdown && (
+        {!suppressResults && breakdown && (
           <ul className="space-y-2 text-sm text-slate-300">
             <li className="flex justify-between border-b border-slate-800 py-1">
               <span>Comissão (% sobre PV)</span>
@@ -553,7 +570,7 @@ export function ContributionMarginPanel({
           </ul>
         )}
 
-        {beginner && (
+        {!suppressResults && beginner && (
           <div
             className={`rounded-xl border p-3 text-sm ${
               beginner.status === "ideal"
@@ -567,7 +584,7 @@ export function ContributionMarginPanel({
           </div>
         )}
 
-        {bandHint && (
+        {!suppressResults && bandHint && (
           <div className="rounded-xl border border-cyan-900 bg-cyan-950/30 p-3 text-sm text-cyan-100">
             <p className="font-medium">Otimização de faixa (Shopee)</p>
             <p className="mt-1">{bandHint.message}</p>
@@ -578,7 +595,7 @@ export function ContributionMarginPanel({
           </div>
         )}
 
-        {competitorBreakdown && (
+        {!suppressResults && competitorBreakdown && (
           <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-3 text-sm">
             <p className="font-medium text-slate-200">Na concorrência</p>
             <p className="mt-1 text-slate-400">
@@ -595,7 +612,7 @@ export function ContributionMarginPanel({
           </div>
         )}
 
-        {marketplace === "shopee" && (
+        {!suppressResults && marketplace === "shopee" && (
           <details className="text-xs text-slate-500">
             <summary className="cursor-pointer text-slate-400">
               Faixas FFG (referência)
@@ -611,7 +628,7 @@ export function ContributionMarginPanel({
           </details>
         )}
 
-        {mlScenarios && (
+        {!suppressResults && mlScenarios && (
           <div className="space-y-3 border-t border-slate-800 pt-3">
             <p className="text-sm font-medium text-slate-200">
               Simulação: Clássico vs Premium (mesmo preço)

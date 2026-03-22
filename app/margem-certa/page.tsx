@@ -47,13 +47,29 @@ export default function MargemCertaPage() {
   const watchedPrinting = useWatch({ control: printingForm.control });
   const [syncPrintingCost, setSyncPrintingCost] = useState(true);
 
-  const [productCost, setProductCost] = useState("25");
-  const [packaging, setPackaging] = useState("3");
+  const [productCost, setProductCost] = useState("0");
+  const [packaging, setPackaging] = useState(() =>
+    String(printingDefaults.costs.packaging ?? 0),
+  );
+
+  const printingFormValid = useMemo(
+    () => calculatorSchema.safeParse(printingForm.getValues()).success,
+    [watchedPrinting],
+  );
+
+  /** Com sync ligado e impressão inválida: não mostrar margem/preço (evita custo “fantasma” antigo). */
+  const suppressMarginResults =
+    syncPrintingCost && !printingFormValid;
 
   useEffect(() => {
     if (!syncPrintingCost) return;
     const parsed = calculatorSchema.safeParse(printingForm.getValues());
-    if (!parsed.success) return;
+    if (!parsed.success) {
+      const pack = Number(printingForm.getValues("costs.packaging") ?? 0);
+      setProductCost("0");
+      setPackaging(String(Math.round(pack * 100) / 100));
+      return;
+    }
     const total = calcularCustoTotalAjustadoProduto(parsed.data);
     const pack = Number(parsed.data.costs.packaging ?? 0);
     const productOnly = Math.max(0, total - pack);
@@ -138,6 +154,8 @@ export default function MargemCertaPage() {
       </div>
 
       <ContributionMarginPanel
+        suppressResults={suppressMarginResults}
+        suppressResultsMessage="Preencha os dados válidos da impressão acima (peso da peça ≥ 1 g, filamento, tempo, custos etc.) para calcular o custo e a margem de contribuição."
         defaultTargetMarginPercent={settings.defaults.desiredMargin}
         productCostStr={productCost}
         packagingStr={packaging}
