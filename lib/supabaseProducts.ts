@@ -57,11 +57,13 @@ export async function fetchUserProducts(userId: string): Promise<Product[]> {
   })) as Product[];
 }
 
+export type UpsertProductsResult = { ok: true } | { ok: false; message: string };
+
 export async function upsertProductsForUser(
   userId: string,
   products: Product[],
-): Promise<void> {
-  if (!supabase || products.length === 0) return;
+): Promise<UpsertProductsResult> {
+  if (!supabase || products.length === 0) return { ok: true };
 
   const payload = products.map((p) => ({
     id: p.id,
@@ -90,7 +92,9 @@ export async function upsertProductsForUser(
   if (error) {
     // eslint-disable-next-line no-console
     console.error("Erro ao sincronizar produtos com Supabase:", error);
+    return { ok: false, message: error.message };
   }
+  return { ok: true };
 }
 
 export async function deleteProduct(userId: string, productId: string): Promise<void> {

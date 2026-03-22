@@ -241,7 +241,9 @@ export async function upsertProductMaterial(
   }
   const { data, error } = await client
     .from("product_materials")
-    .upsert(payload, { onConflict: "id" })
+    .upsert(payload, {
+      onConflict: "user_id,product_id,supply_id",
+    })
     .select("*")
     .single();
   if (error || !data) throw error ?? new Error("Falha ao salvar material do produto");

@@ -120,12 +120,7 @@ export async function saveCalculatorProductFromSnapshot(
 
   if (user && typeof window !== "undefined") {
     const list = useProductsStore.getState().products;
-    try {
-      await upsertProductsForUser(user.id, list);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("Falha ao sincronizar produto no Supabase:", e);
-    }
+    const syncResult = await upsertProductsForUser(user.id, list);
 
     const supplyId = lastInput.material.supplyId;
     const productIdIsUuid = /^[0-9a-fA-F-]{36}$/.test(product.id);
@@ -134,7 +129,8 @@ export async function saveCalculatorProductFromSnapshot(
       !isPlaceholderSupplyId(supplyId) &&
       typeof supplyId === "string";
 
-    if (canPersistBom) {
+    // BOM referencia products(id): só grava após o produto existir no Supabase (evita FK 23503).
+    if (syncResult.ok && canPersistBom) {
       try {
         const supplies = await listSupplies(user.id);
         const supply = supplies.find((s) => s.id === supplyId);
@@ -165,12 +161,22 @@ export async function saveCalculatorProductFromSnapshot(
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error("Falha ao gravar material do produto (BOM):", e);
+        const msg =
+          e && typeof e === "object" && "message" in e
+            ? String((e as { message: string }).message)
+            : "";
         if (typeof window !== "undefined") {
           window.alert(
-            "O produto foi salvo, mas não foi possível salvar o vínculo com o filamento. Tente adicionar o material na lista de produtos.",
+            msg
+              ? `Não foi possível salvar o vínculo com o filamento: ${msg}`
+              : "Não foi possível salvar o vínculo com o filamento. Tente de novo ou adicione o material na lista de produtos.",
           );
         }
       }
+    } else if (!syncResult.ok && canPersistBom && typeof window !== "undefined") {
+      window.alert(
+        `O produto não foi sincronizado com o servidor (${syncResult.message}).\n\nPor isso o vínculo com o filamento não pôde ser gravado. Verifique a conexão e se você está logado.`,
+      );
     }
   }
 
