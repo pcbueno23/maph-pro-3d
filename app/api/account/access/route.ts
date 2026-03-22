@@ -5,6 +5,9 @@ import { getAppTrialDays, parseTrialEndsAt } from "@/lib/appTrial";
 import { getAbacatePayPaidEntitlement, isAbacatePayPaymentProvider } from "@/lib/abacatepayPaidPlan";
 import { getStripePaidEntitlement } from "@/lib/stripePaidPlan";
 
+/** Paywall depende de sessão + env em runtime — não cachear como resposta fixa. */
+export const dynamic = "force-dynamic";
+
 export type AccountAccessResponse = {
   allowed: boolean;
   reason: "subscriber" | "app_trial" | "trial_expired" | "paywall_disabled";

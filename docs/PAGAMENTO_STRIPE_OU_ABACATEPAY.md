@@ -4,8 +4,8 @@ O app decide **qual provedor libera o acesso pago** e **o que a página Planos m
 
 | Valor | Comportamento |
 |--------|----------------|
-| `stripe` ou **vazio / não definido** | Paywall e painel usam **Stripe**. Na página Planos aparecem checkout **Stripe** + opção **AbacatePay** como alternativa. |
-| `abacatepay` | Paywall e painel usam só **AbacatePay** (modo teste/espelho da lógica do Stripe). Na página Planos aparecem **apenas** botões AbacatePay. |
+| `stripe` ou **vazio / não definido** | Paywall e painel usam **Stripe**. Na página **Planos** (`PlansManagement`) o checkout e o status vêm só da **Stripe** (portal de assinatura incluso). |
+| `abacatepay` | Paywall e painel usam só **AbacatePay**. Na página Planos aparecem **apenas** checkout/status **AbacatePay** (sem portal Stripe). |
 
 ## Onde configurar
 

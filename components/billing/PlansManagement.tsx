@@ -20,11 +20,17 @@ type StripeStatusResponse = {
 /** Evita bump duplicado em dev (Strict Mode) ou re-renders rápidos ao voltar do Stripe. */
 let lastBumpAfterStripeMs = 0;
 
+function initialPaymentProviderFromEnv(): "stripe" | "abacatepay" {
+  const v = process.env.NEXT_PUBLIC_APP_PAYMENT_PROVIDER?.trim().toLowerCase();
+  return v === "abacatepay" ? "abacatepay" : "stripe";
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    cache: "no-store",
   });
   const data = (await res.json()) as T;
   if (!res.ok) {
@@ -44,6 +50,9 @@ export function PlansManagement() {
   const searchParams = useSearchParams();
 
   const [loading, setLoading] = useState(true);
+  const [paymentProvider, setPaymentProvider] = useState<"stripe" | "abacatepay">(
+    initialPaymentProviderFromEnv,
+  );
   const [status, setStatus] = useState<StripeStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingAction, setLoadingAction] = useState(false);
@@ -64,8 +73,20 @@ export function PlansManagement() {
         return;
       }
 
+      let provider: "stripe" | "abacatepay" = "stripe";
       try {
-        const data = await postJson<StripeStatusResponse>("/api/stripe/status", {
+        const pr = await fetch("/api/app/payment-provider", { cache: "no-store" });
+        const pj = (await pr.json()) as { provider?: string };
+        if (pj.provider === "abacatepay") provider = "abacatepay";
+      } catch {
+        /* mantém stripe */
+      }
+      setPaymentProvider(provider);
+
+      const statusUrl =
+        provider === "abacatepay" ? "/api/abacatepay/status" : "/api/stripe/status";
+      try {
+        const data = await postJson<StripeStatusResponse>(statusUrl, {
           email: user.email,
         });
         setStatus(data);
@@ -142,10 +163,14 @@ export function PlansManagement() {
       setError(null);
       setLoadingAction(true);
       try {
-        const data = await postJson<{ url?: string; error?: string }>(
-          "/api/stripe/checkout",
-          { plan: nextPlan, email: user.email },
-        );
+        const checkoutPath =
+          paymentProvider === "abacatepay"
+            ? "/api/abacatepay/billing"
+            : "/api/stripe/checkout";
+        const data = await postJson<{ url?: string; error?: string }>(checkoutPath, {
+          plan: nextPlan,
+          email: user.email,
+        });
         if (!data.url)
           throw new Error(data.error ?? "URL do checkout não encontrada.");
         window.location.href = data.url;
@@ -157,7 +182,7 @@ export function PlansManagement() {
         setLoadingAction(false);
       }
     },
-    [router, user],
+    [router, user, paymentProvider],
   );
 
   async function handlePortal() {
@@ -165,6 +190,7 @@ export function PlansManagement() {
       router.push("/login");
       return;
     }
+    if (paymentProvider !== "stripe") return;
 
     setError(null);
     setLoadingAction(true);
@@ -234,9 +260,12 @@ export function PlansManagement() {
                   </>
                 ) : (
                   <>
-                    Obrigado! Estamos confirmando sua assinatura no Stripe — o bloco
-                    &quot;Painel de Assinatura&quot; deve atualizar em alguns segundos. Se
-                    continuar como Free,{" "}
+                    Obrigado! Estamos confirmando seu pagamento
+                    {paymentProvider === "abacatepay"
+                      ? " na AbacatePay"
+                      : " no Stripe"}{" "}
+                    — o bloco &quot;Painel de Assinatura&quot; deve atualizar em alguns
+                    segundos. Se continuar como Free,{" "}
                     <strong className="text-slate-200">atualize a página (F5)</strong>.
                   </>
                 )}
@@ -326,7 +355,12 @@ export function PlansManagement() {
                   Status: Período de teste (trial). {trialEnd ? `Termina em ${trialEnd}.` : ""}
                 </p>
               ) : (
-                <p className="text-xs text-slate-400">Status: Assinatura ativa (Stripe).</p>
+                <p className="text-xs text-slate-400">
+                  Status: Plano pago ativo
+                  {paymentProvider === "abacatepay"
+                    ? " (AbacatePay)."
+                    : " (Stripe)."}
+                </p>
               )}
             </div>
           </div>
@@ -365,7 +399,7 @@ export function PlansManagement() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {plan !== "free" ? (
+            {plan !== "free" && paymentProvider === "stripe" ? (
               <button
                 type="button"
                 disabled={loadingAction}
@@ -374,6 +408,12 @@ export function PlansManagement() {
               >
                 Abrir Painel de Assinatura
               </button>
+            ) : null}
+            {plan !== "free" && paymentProvider === "abacatepay" ? (
+              <p className="text-xs text-slate-500">
+                Gestão de cobrança na AbacatePay é pelo painel do gateway; aqui só
+                exibimos o plano detectado após pagamento.
+              </p>
             ) : null}
           </div>
         </div>
@@ -407,7 +447,9 @@ export function PlansManagement() {
           >
             {plan === "pro" && !isOnTrial
               ? "Você já está no Pro"
-              : "Assinar Pro (Stripe)"}
+              : paymentProvider === "abacatepay"
+                ? "Pagar Pro (PIX ou cartão — AbacatePay)"
+                : "Assinar Pro (Stripe)"}
           </button>
         </div>
 
@@ -446,7 +488,9 @@ export function PlansManagement() {
           >
             {plan === "business" && !isOnTrial
               ? "Você já está no Business"
-              : "Assinar Plano Anual (Business — Stripe)"}
+              : paymentProvider === "abacatepay"
+                ? "Pagar Plano Anual (PIX ou cartão — AbacatePay)"
+                : "Assinar Plano Anual (Business — Stripe)"}
           </button>
         </div>
       </div>
