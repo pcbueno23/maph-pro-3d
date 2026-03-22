@@ -6,6 +6,7 @@ import { Eye, EyeOff, Lock, Mail, Phone, User, Building2, IdCard, Camera } from 
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
 import { uploadCompanyLogoFromDataUrl } from "@/lib/uploadCompanyLogo";
+import { fetchUserContact, upsertUserContact } from "@/lib/supabaseUserContact";
 
 /** Redimensiona e exporta JPEG para caber no user_metadata do Supabase e no PDF. */
 function fileToCompressedJpegDataUrl(
@@ -88,9 +89,12 @@ export function AccountForm() {
   useEffect(() => {
     if (!user) return;
     const md = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const fromMeta = String(
+      md.phone ?? md.contact_phone ?? md.contact_whatsapp ?? "",
+    ).trim();
     setFields({
       fullName: String(md.full_name ?? md.name ?? ""),
-      phone: String(md.phone ?? md.contact_phone ?? ""),
+      phone: fromMeta,
       companyName: String(md.company_name ?? ""),
       companyDocument: String(md.company_document ?? ""),
       companyEmail: String(md.company_email ?? ""),
@@ -99,6 +103,17 @@ export function AccountForm() {
         md.company_logo_url ?? md.company_logo ?? md.avatar_url ?? "",
       ).trim(),
     });
+    if (!supabase) return;
+    void (async () => {
+      try {
+        const fromTable = await fetchUserContact(user.id);
+        if (fromTable?.trim()) {
+          setFields((prev) => ({ ...prev, phone: fromTable.trim() }));
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
   }, [user]);
 
   const logoSrc = useMemo(() => {
@@ -196,6 +211,7 @@ export function AccountForm() {
         full_name: fields.fullName.trim(),
         phone: fields.phone.trim(),
         contact_phone: fields.phone.trim(),
+        contact_whatsapp: fields.phone.trim(),
         company_name: fields.companyName.trim(),
         company_document: fields.companyDocument.trim(),
         company_email: fields.companyEmail.trim(),
@@ -208,6 +224,8 @@ export function AccountForm() {
         data: nextMetadata,
       });
       if (metaError) throw metaError;
+
+      await upsertUserContact(user.id, fields.phone.trim());
 
       const { data: sess } = await supabase.auth.getSession();
       if (sess.session?.user) {

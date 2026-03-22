@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, Mail, Lock, Chrome, Phone } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { upsertUserContact } from "@/lib/supabaseUserContact";
 
 function formatAuthError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err ?? "");
@@ -90,37 +91,23 @@ function LoginFormContent() {
         router.replace(redirectTo as Parameters<typeof router.replace>[0]);
       } else {
         const phoneTrim = phone.trim();
-        if (!phoneTrim) {
-          setError("Informe seu telefone (WhatsApp).");
-          setLoading(false);
-          return;
-        }
-        /**
-         * Metadados: use `contact_phone` — a coluna "Phone" do painel Supabase é só para login SMS
-         * (`auth.users.phone`), não para WhatsApp. A chave `phone` em metadata às vezes não aparece
-         * como esperado; `contact_phone` + espelho em `phone` cobre Conta e integrações.
-         */
+        /** Chave `contact_whatsapp` evita conflito com campos reservados do Auth; cópia em `public.user_contact`. */
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              contact_phone: phoneTrim,
-              phone: phoneTrim,
+              contact_whatsapp: phoneTrim,
             },
           },
         });
         if (signUpError) throw signUpError;
-        if (signUpData.session?.user) {
+        const uid = signUpData.user?.id;
+        if (uid && signUpData.session) {
           try {
-            await supabase.auth.updateUser({
-              data: {
-                contact_phone: phoneTrim,
-                phone: phoneTrim,
-              },
-            });
+            await upsertUserContact(uid, phoneTrim);
           } catch {
-            /* metadados já vêm do signUp; sessão imediata só reforça o salvamento */
+            /* trigger em auth.users também preenche user_contact quando há metadata */
           }
         }
         setMessage(
@@ -234,16 +221,15 @@ function LoginFormContent() {
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
-                  required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-                  placeholder="(11) 99999-9999"
+                  placeholder="Opcional — WhatsApp para contato"
                 />
               </div>
               <p className="text-[11px] text-slate-500">
-                Fica em <span className="text-slate-400">User metadata</span> no Supabase (a coluna
-                &quot;Phone&quot; da lista é só para login por SMS). Também aparece em Conta.
+                Gravado na tabela <span className="font-mono text-slate-400">public.user_contact</span> no
+                Supabase (Table Editor). A coluna &quot;Phone&quot; da lista de usuários é só para login SMS.
               </p>
             </div>
           ) : null}
