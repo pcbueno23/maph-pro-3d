@@ -425,6 +425,7 @@ export async function upsertProductionOrder(
     due_date: input.dueDate ?? null,
     status: input.status,
     notes: input.notes ?? null,
+    printing_started_at: input.printingStartedAt ?? null,
     created_at: input.createdAt,
     updated_at: new Date().toISOString(),
   };
@@ -456,6 +457,7 @@ function mapProductionOrderRow(row: any): ProductionOrder {
     dueDate: row.due_date,
     status: row.status,
     notes: row.notes,
+    printingStartedAt: row.printing_started_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

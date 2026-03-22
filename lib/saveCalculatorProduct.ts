@@ -1,4 +1,5 @@
 import type { CalculatorFormValues, CalculatorResults, Product, SettingsValues } from "@/types";
+import { refreshProductsFromCloud } from "@/lib/productSync";
 import { upsertProductsForUser } from "@/lib/supabaseProducts";
 import { listSupplies, upsertProductMaterial } from "@/lib/supabaseProduction";
 import { isPlaceholderSupplyId } from "@/lib/supplyPlaceholders";
@@ -179,6 +180,14 @@ export async function saveCalculatorProductFromSnapshot(
           canPersistBom ? "\n\nO vínculo com o filamento não pôde ser gravado enquanto o produto não existir na nuvem." : ""
         }`,
       );
+    }
+
+    if (syncResult.ok) {
+      try {
+        await refreshProductsFromCloud(user.id);
+      } catch {
+        // Lista local já foi atualizada com addProduct; refresh é melhoria de consistência.
+      }
     }
   }
 

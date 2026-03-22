@@ -24,6 +24,8 @@ import {
   PRODUCTION_ORDER_STATUS_LABELS,
   nextProductionOrderStatus,
 } from "@/lib/productionOrderStatus";
+import { computePrintingStartedAtForSave } from "@/lib/productionPrintingStartedAt";
+import { PrintingTimerAlerts } from "@/components/orders/PrintingTimerAlerts";
 
 type DraftOrder = {
   id?: string;
@@ -415,6 +417,7 @@ export default function OrdersPage() {
         dueDate: draft.dueDate ?? null,
         status: draft.status,
         notes: draft.notes ?? null,
+        printingStartedAt: computePrintingStartedAtForSave(previous, draft.status),
         // Para ordens existentes, preservamos createdAt anterior; para novas, usamos agora.
         createdAt: previous?.createdAt ?? now,
         updatedAt: now,
@@ -535,6 +538,7 @@ export default function OrdersPage() {
       const updated: ProductionOrder = {
         ...order,
         status: next,
+        printingStartedAt: computePrintingStartedAtForSave(order, next),
       };
       const saved = await upsertProductionOrder(user.id, updated);
       setOrders((prev) => prev.map((o) => (o.id === saved.id ? saved : o)));
@@ -578,6 +582,7 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-4">
+      <PrintingTimerAlerts orders={orders} productsById={productsById} />
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">

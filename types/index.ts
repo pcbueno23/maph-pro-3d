@@ -494,6 +494,8 @@ export interface ProductionOrder {
   dueDate?: string | null; // YYYY-MM-DD
   status: ProductionOrderStatus;
   notes?: string | null;
+  /** ISO: preenchido ao entrar em `printing` (base do cronômetro de impressão). */
+  printingStartedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
