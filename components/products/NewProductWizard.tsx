@@ -170,6 +170,25 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
     defaultValues: printingDefaults,
   });
   const watchedPrinting = printingForm.watch();
+  const calcPreview = useMemo(() => {
+    const parsed = safeParseCalculatorValues(watchedPrinting);
+    if (!parsed) return null;
+    const results = computePricingFromFormValues(parsed);
+    const adjustedTotal =
+      typeof (results as { custoTotalAjustado?: number }).custoTotalAjustado ===
+      "number"
+        ? Number(
+            (results as { custoTotalAjustado?: number }).custoTotalAjustado,
+          )
+        : Number(results.totalCost ?? 0);
+    return {
+      filamentCost: Number(results.filamentCost ?? 0),
+      energyCost: Number(results.energyCost ?? 0),
+      depreciationCost: Number(results.depreciationCost ?? 0),
+      packagingCost: Number(results.packagingCost ?? 0),
+      totalCost: adjustedTotal,
+    };
+  }, [watchedPrinting]);
 
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [supplies, setSupplies] = useState<SupplyItem[]>([]);
@@ -1184,12 +1203,24 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
               <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3 text-xs text-slate-400">
                 <p className="font-semibold text-slate-300">Resumo da produção</p>
                 <ul className="mt-1 space-y-0.5 text-sm text-slate-300">
-                  <li>Custo de Materiais: {formatBRL(materialCost)}</li>
-                  <li>Custo de Energia: {formatBRL(energyCost)}</li>
-                  <li>Custo de Depreciação: {formatBRL(depreciationCost)}</li>
-                  <li>Embalagem: {formatBRL(packagingCost)}</li>
                   <li>
-                    Custo Total de Produção: <strong>{formatBRL(totalCost)}</strong>
+                    Custo de Materiais:{" "}
+                    {formatBRL(calcPreview?.filamentCost ?? materialCost)}
+                  </li>
+                  <li>
+                    Custo de Energia:{" "}
+                    {formatBRL(calcPreview?.energyCost ?? energyCost)}
+                  </li>
+                  <li>
+                    Custo de Depreciação:{" "}
+                    {formatBRL(calcPreview?.depreciationCost ?? depreciationCost)}
+                  </li>
+                  <li>
+                    Embalagem: {formatBRL(calcPreview?.packagingCost ?? packagingCost)}
+                  </li>
+                  <li>
+                    Custo Total de Produção:{" "}
+                    <strong>{formatBRL(calcPreview?.totalCost ?? totalCost)}</strong>
                   </li>
                 </ul>
               </div>
