@@ -1,23 +1,41 @@
 "use client";
 
 import { ExternalLink, Percent } from "lucide-react";
+import { useEffect, useState } from "react";
+import type { MarketingPromocao } from "@/lib/appMarketing";
 
-type Plataforma = "Shopee" | "ML";
-
-interface Promocao {
-  titulo: string;
-  url: string;
-  descricao?: string;
-  plataforma: Plataforma;
-}
+type Plataforma = MarketingPromocao["plataforma"];
 
 export default function PromocoesPage() {
-  // Links de indicação – seus produtos no ML e na Shopee
-  const promocoes: Promocao[] = [
-    // Exemplo:
-    // { titulo: "Filamento PLA 1kg", url: "https://shopee.com.br/...", descricao: "Em promoção", plataforma: "Shopee" },
-    // { titulo: "Impressora 3D", url: "https://mercadolivre.com.br/...", descricao: "Frete grátis", plataforma: "ML" },
-  ];
+  const [promocoes, setPromocoes] = useState<MarketingPromocao[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/marketing");
+        const data = (await res.json()) as {
+          promocoes?: MarketingPromocao[];
+        };
+        if (cancelled) return;
+        if (res.ok && Array.isArray(data.promocoes)) {
+          setPromocoes(data.promocoes);
+        } else {
+          setPromocoes([]);
+          setLoadError(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setPromocoes([]);
+          setLoadError(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const badgePlataforma = (p: Plataforma) => {
     if (p === "Shopee")
@@ -33,6 +51,19 @@ export default function PromocoesPage() {
     );
   };
 
+  if (promocoes === null) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">
+            Promoções
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">Carregando…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -40,8 +71,13 @@ export default function PromocoesPage() {
           Promoções
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          Links de indicação dos seus produtos no Mercado Livre e na Shopee. Adicione aqui para divulgar ofertas.
+          Links de indicação dos seus produtos no Mercado Livre e na Shopee.
         </p>
+        {loadError ? (
+          <p className="mt-2 text-xs text-amber-400/90">
+            Não foi possível carregar as promoções. Tente atualizar a página.
+          </p>
+        ) : null}
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6">
@@ -54,7 +90,8 @@ export default function PromocoesPage() {
               Nenhuma promoção cadastrada ainda.
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Edite o arquivo app/promocoes/page.tsx e adicione itens no array promocoes (titulo, url, descricao, plataforma: &quot;Shopee&quot; ou &quot;ML&quot;).
+              Quem administra o app pode incluir ofertas em Admin → Fornecedores
+              e promoções.
             </p>
           </div>
         ) : (
@@ -70,7 +107,9 @@ export default function PromocoesPage() {
                     {badgePlataforma(promo.plataforma)}
                   </div>
                   {promo.descricao && (
-                    <p className="mt-0.5 text-xs text-slate-500">{promo.descricao}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {promo.descricao}
+                    </p>
                   )}
                 </div>
                 <a

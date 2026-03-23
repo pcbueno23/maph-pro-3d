@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { AdminUserRow } from "@/lib/adminUserDto";
+import { AdminMarketingSection } from "@/components/admin/AdminMarketingSection";
 
 type ListResponse = {
   appTrialDays: number;
@@ -13,7 +14,10 @@ type ListResponse = {
   error?: string;
 };
 
+type AdminTab = "users" | "marketing";
+
 export default function AdminPage() {
+  const [tab, setTab] = useState<AdminTab>("users");
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [appTrialDays, setAppTrialDays] = useState(7);
@@ -183,29 +187,64 @@ export default function AdminPage() {
       <div>
         <h1 className="text-lg font-semibold text-slate-50">Painel admin</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Usuários do Supabase Auth. Trial padrão:{" "}
-          <strong className="text-slate-200">{appTrialDays}</strong> dias a partir
-          da criação da conta (<code className="text-xs text-cyan-300">APP_TRIAL_DAYS</code>
-          ). Sobrescreva o fim do teste por usuário abaixo (
-          <code className="text-xs text-cyan-300">trial_ends_at</code>).
+          Gerencie contas, fornecedores e promoções exibidos no app.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setTab("users")}
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+              tab === "users"
+                ? "bg-slate-800 text-cyan-300 shadow-neon-cyan"
+                : "border border-slate-800 text-slate-400 hover:bg-slate-900/80"
+            }`}
+          >
+            Contas e trial
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("marketing")}
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+              tab === "marketing"
+                ? "bg-slate-800 text-cyan-300 shadow-neon-cyan"
+                : "border border-slate-800 text-slate-400 hover:bg-slate-900/80"
+            }`}
+          >
+            Fornecedores e promoções
+          </button>
+        </div>
       </div>
 
-      {loadError && (
+      {tab === "users" ? (
+        <p className="text-sm text-slate-400">
+          Trial padrão:{" "}
+          <strong className="text-slate-200">{appTrialDays}</strong> dias a partir
+          da criação da conta (
+          <code className="text-xs text-cyan-300">APP_TRIAL_DAYS</code>
+          ). Override por usuário:{" "}
+          <code className="text-xs text-cyan-300">trial_ends_at</code>.
+        </p>
+      ) : null}
+
+      {tab === "users" && loadError && (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
           {loadError}
         </div>
       )}
 
-      {loading && allowed ? (
+      {tab === "users" && loading && allowed ? (
         <p className="text-sm text-slate-500">Carregando usuários…</p>
       ) : null}
 
-      {!loading && allowed && users.length === 0 && !loadError ? (
+      {tab === "users" &&
+      !loading &&
+      allowed &&
+      users.length === 0 &&
+      !loadError ? (
         <p className="text-sm text-slate-500">Nenhum usuário nesta página.</p>
       ) : null}
 
-      {allowed && users.length > 0 ? (
+      {tab === "users" && allowed && users.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-slate-800">
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead>
@@ -301,7 +340,9 @@ export default function AdminPage() {
         </div>
       ) : null}
 
-      {allowed && totalPages > 1 ? (
+      {tab === "marketing" && allowed ? <AdminMarketingSection /> : null}
+
+      {tab === "users" && allowed && totalPages > 1 ? (
         <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
           <span>
             Página {page} de {totalPages} ({total} contas)

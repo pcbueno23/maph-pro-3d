@@ -1,45 +1,57 @@
 "use client";
 
 import { ExternalLink, Store } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  DEFAULT_FORNECEDORES,
+  type MarketingFornecedor,
+} from "@/lib/appMarketing";
 
 export default function FornecedoresPage() {
-  const parceiros: { nome: string; url?: string; descricao?: string }[] = [
-    {
-      nome: "Multfila",
-      url: "https://multfila.com.br/",
-      descricao: "Loja online — filamentos PLA, PETG, ABS, TPU, resinas e acessórios.",
-    },
-    {
-      nome: "3D Fila",
-      url: "https://3dfila.com.br/",
-      descricao: "Filamentos, resinas, impressoras e ecossistema para impressão 3D no Brasil.",
-    },
-    {
-      nome: "Fusionx",
-      url: "https://fusionx3d.com.br/",
-      descricao: "Filamentos PLA, PETG, ABS, engenharia, marcas e impressoras 3D.",
-    },
-    {
-      nome: "Loja 3D",
-      url: "https://loja3d.com.br/",
-      descricao: "Impressoras, filamentos, resinas, scanners e acessórios — loja especializada.",
-    },
-    {
-      nome: "National 3D",
-      url: "https://www.lojanational3d.com.br/",
-      descricao: "Loja de fábrica — PLA Max High Speed, ABS, PETG, TPU e mais.",
-    },
-    {
-      nome: "GTMax3D",
-      url: "https://www.gtmax3d.com.br/",
-      descricao: "Impressoras (incl. Bambu Lab), filamentos ABS/PLA/PETG e linha própria.",
-    },
-    {
-      nome: "Voolt3D",
-      url: "https://voolt3d.com.br/",
-      descricao: "Filamentos e insumos 3D — fabricante nacional, PLA, PETG, ABS, resinas e impressoras.",
-    },
-  ];
+  const [parceiros, setParceiros] = useState<MarketingFornecedor[] | null>(
+    null,
+  );
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/marketing");
+        const data = (await res.json()) as {
+          fornecedores?: MarketingFornecedor[];
+        };
+        if (cancelled) return;
+        if (res.ok && Array.isArray(data.fornecedores)) {
+          setParceiros(data.fornecedores);
+        } else {
+          setParceiros(DEFAULT_FORNECEDORES);
+          setLoadError(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setParceiros(DEFAULT_FORNECEDORES);
+          setLoadError(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (parceiros === null) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">
+            Fornecedores
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">Carregando…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -48,8 +60,15 @@ export default function FornecedoresPage() {
           Fornecedores
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          Lojas e fornecedores de referência para filamentos, resinas e equipamentos — abre em nova aba.
+          Lojas e fornecedores de referência para filamentos, resinas e
+          equipamentos — abre em nova aba.
         </p>
+        {loadError ? (
+          <p className="mt-2 text-xs text-amber-400/90">
+            Não foi possível carregar a lista atualizada; exibindo conteúdo em
+            cache local.
+          </p>
+        ) : null}
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6">
@@ -59,17 +78,14 @@ export default function FornecedoresPage() {
               <Store className="h-6 w-6" />
             </div>
             <p className="text-sm text-slate-400">
-              Nenhum fornecedor parceiro cadastrado ainda.
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Os links dos parceiros aparecerão aqui quando forem ativados.
+              Nenhum fornecedor cadastrado no momento.
             </p>
           </div>
         ) : (
           <ul className="space-y-3">
-            {parceiros.map((p) => (
+            {parceiros.map((p, i) => (
               <li
-                key={p.nome}
+                key={`${i}-${p.nome}`}
                 className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3"
               >
                 <div>
