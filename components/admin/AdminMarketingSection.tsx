@@ -121,9 +121,8 @@ export function AdminMarketingSection() {
         <p className="mt-1 text-sm text-slate-400">
           O que você salvar aqui aparece nas páginas públicas{" "}
           <strong className="text-slate-200">/fornecedores</strong> e{" "}
-          <strong className="text-slate-200">/promocoes</strong>. É necessário
-          criar a tabela <code className="text-xs text-cyan-300">app_marketing</code>{" "}
-          no Supabase (migration do repositório).
+          <strong className="text-slate-200">/promocoes</strong> (tabela{" "}
+          <code className="text-xs text-cyan-300">app_marketing</code>).
         </p>
         {updatedAt ? (
           <p className="mt-1 text-xs text-slate-500">

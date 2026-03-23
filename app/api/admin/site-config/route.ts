@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { normalizeMarketingPayload } from "@/lib/appMarketing";
 import { logAdminAudit } from "@/lib/adminAudit";
 import {
   getSupabaseServiceRole,
   requireAdminSession,
 } from "@/lib/adminApiAuth";
+import {
+  defaultSiteConfigData,
+  parseSiteConfigData,
+  siteConfigDataSchema,
+} from "@/lib/siteConfig";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdminSession(req);
@@ -13,30 +17,28 @@ export async function GET(req: NextRequest) {
   const admin = getSupabaseServiceRole();
   if (!admin) {
     return NextResponse.json(
-      {
-        error:
-          "Defina SUPABASE_SERVICE_ROLE_KEY no servidor para editar o conteúdo.",
-      },
+      { error: "Defina SUPABASE_SERVICE_ROLE_KEY no servidor." },
       { status: 503 },
     );
   }
 
   const { data, error } = await admin
-    .from("app_marketing")
-    .select("fornecedores, promocoes, updated_at")
+    .from("app_site_config")
+    .select("data, updated_at")
     .eq("id", "default")
     .maybeSingle();
 
   if (error) {
     return NextResponse.json(
-      { error: error.message || "Erro ao ler app_marketing." },
+      { error: error.message ?? "Erro ao ler app_site_config." },
       { status: 500 },
     );
   }
 
+  const merged = parseSiteConfigData(data?.data ?? {});
+
   return NextResponse.json({
-    fornecedores: Array.isArray(data?.fornecedores) ? data!.fornecedores : [],
-    promocoes: Array.isArray(data?.promocoes) ? data!.promocoes : [],
+    data: merged,
     updated_at: data?.updated_at ?? null,
   });
 }
@@ -48,10 +50,7 @@ export async function PUT(req: NextRequest) {
   const admin = getSupabaseServiceRole();
   if (!admin) {
     return NextResponse.json(
-      {
-        error:
-          "Defina SUPABASE_SERVICE_ROLE_KEY no servidor para salvar o conteúdo.",
-      },
+      { error: "Defina SUPABASE_SERVICE_ROLE_KEY no servidor." },
       { status: 503 },
     );
   }
@@ -63,19 +62,25 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  const normalized = normalizeMarketingPayload(body);
-  if (!normalized.ok) {
-    return NextResponse.json({ error: normalized.error }, { status: 400 });
+  const raw = (body as { data?: unknown }).data ?? body;
+  const parsed = siteConfigDataSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues.map((i) => i.message).join("; ") },
+      { status: 400 },
+    );
   }
 
-  const { fornecedores, promocoes } = normalized.data;
+  const merged = parseSiteConfigData({
+    ...defaultSiteConfigData,
+    ...parsed.data,
+  });
   const now = new Date().toISOString();
 
-  const { error } = await admin.from("app_marketing").upsert(
+  const { error } = await admin.from("app_site_config").upsert(
     {
       id: "default",
-      fornecedores,
-      promocoes,
+      data: merged,
       updated_at: now,
     },
     { onConflict: "id" },
@@ -85,8 +90,8 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error.message ||
-          "Falha ao salvar. Rode a migration supabase/migrations/20260322_app_marketing.sql no projeto.",
+          error.message ??
+          "Execute a migration 20260327_admin_audit_site_metrics.sql no Supabase.",
       },
       { status: 500 },
     );
@@ -94,19 +99,10 @@ export async function PUT(req: NextRequest) {
 
   await logAdminAudit({
     adminEmail: auth.user.email ?? "unknown",
-    action: "marketing_save",
-    targetType: "app_marketing",
+    action: "site_config_save",
+    targetType: "app_site_config",
     targetId: "default",
-    details: {
-      fornecedores: fornecedores.length,
-      promocoes: promocoes.length,
-    },
   });
 
-  return NextResponse.json({
-    ok: true,
-    fornecedores,
-    promocoes,
-    updated_at: now,
-  });
+  return NextResponse.json({ ok: true, data: merged, updated_at: now });
 }

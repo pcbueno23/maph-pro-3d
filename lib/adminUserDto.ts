@@ -1,6 +1,12 @@
 import type { User } from "@supabase/supabase-js";
 import { getAppTrialDays, parseTrialEndsAt } from "@/lib/appTrial";
 
+export function isActiveBan(bannedUntil: string | null | undefined): boolean {
+  if (!bannedUntil) return false;
+  const t = new Date(bannedUntil).getTime();
+  return Number.isFinite(t) && t > Date.now();
+}
+
 export type AdminUserRow = {
   id: string;
   email: string;
@@ -10,6 +16,12 @@ export type AdminUserRow = {
   trial_ends_at_metadata: string | null;
   effective_trial_ends_at: string;
   uses_custom_trial: boolean;
+  /** Nota interna em user_metadata.admin_notes */
+  admin_notes: string | null;
+  /** Ban do Supabase Auth (se existir). */
+  banned_until: string | null;
+  /** `banned_until` ainda no futuro. */
+  is_banned: boolean;
 };
 
 export function toAdminUserRow(u: User): AdminUserRow {
@@ -23,6 +35,14 @@ export function toAdminUserRow(u: User): AdminUserRow {
     typeof rawMeta === "string" &&
     rawMeta.trim() !== "" &&
     metaEnd !== null;
+  const notesRaw = u.user_metadata?.admin_notes;
+  const adminNotes =
+    typeof notesRaw === "string" && notesRaw.trim() !== ""
+      ? notesRaw.trim()
+      : null;
+  const banned = (u as User & { banned_until?: string | null }).banned_until;
+  const bannedStr =
+    typeof banned === "string" && banned.trim() !== "" ? banned.trim() : null;
   return {
     id: u.id,
     email: u.email ?? "",
@@ -31,5 +51,8 @@ export function toAdminUserRow(u: User): AdminUserRow {
     trial_ends_at_metadata: usesCustom ? rawMeta.trim() : null,
     effective_trial_ends_at: new Date(trialEndMs).toISOString(),
     uses_custom_trial: usesCustom,
+    admin_notes: adminNotes,
+    banned_until: bannedStr,
+    is_banned: isActiveBan(bannedStr),
   };
 }

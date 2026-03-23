@@ -1,169 +1,59 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import type { AdminUserRow } from "@/lib/adminUserDto";
+import { AdminUsersTab } from "@/components/admin/AdminUsersTab";
 import { AdminMarketingSection } from "@/components/admin/AdminMarketingSection";
+import { AdminMetricsTab } from "@/components/admin/AdminMetricsTab";
+import { AdminSiteConfigTab } from "@/components/admin/AdminSiteConfigTab";
+import { AdminAuditTab } from "@/components/admin/AdminAuditTab";
+import { AdminHealthTab } from "@/components/admin/AdminHealthTab";
 
-type ListResponse = {
-  appTrialDays: number;
-  page: number;
-  perPage: number;
-  total: number;
-  users: AdminUserRow[];
-  error?: string;
-};
+type AdminTab =
+  | "users"
+  | "marketing"
+  | "metrics"
+  | "site"
+  | "audit"
+  | "health";
 
-type AdminTab = "users" | "marketing";
+const tabs: { id: AdminTab; label: string }[] = [
+  { id: "users", label: "Contas e trial" },
+  { id: "marketing", label: "Fornecedores e promoções" },
+  { id: "metrics", label: "Métricas" },
+  { id: "site", label: "Site e banner" },
+  { id: "audit", label: "Auditoria" },
+  { id: "health", label: "Integrações" },
+];
 
 export default function AdminPage() {
   const [tab, setTab] = useState<AdminTab>("users");
   const [allowed, setAllowed] = useState<boolean | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [appTrialDays, setAppTrialDays] = useState(7);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [perPage, setPerPage] = useState(50);
-  const [users, setUsers] = useState<AdminUserRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [editIso, setEditIso] = useState<Record<string, string>>({});
-
-  const fetchUsers = useCallback(async (p: number) => {
-    if (!supabase) return;
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    if (!token) {
-      setAllowed(false);
-      setLoading(false);
-      return;
-    }
-
-    const who = await fetch("/api/admin/whoami", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const whoBody = (await who.json()) as { admin?: boolean };
-    if (!who.ok || !whoBody.admin) {
-      setAllowed(false);
-      setLoading(false);
-      return;
-    }
-    setAllowed(true);
-
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await fetch(`/api/admin/users?page=${p}&perPage=${perPage}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = (await res.json()) as ListResponse;
-      if (!res.ok) {
-        setLoadError(data.error ?? "Erro ao carregar usuários.");
-        setUsers([]);
-        return;
-      }
-      setAppTrialDays(data.appTrialDays);
-      setPage(data.page);
-      setTotal(data.total);
-      setPerPage(data.perPage);
-      setUsers(data.users);
-      const iso: Record<string, string> = {};
-      for (const u of data.users) {
-        iso[u.id] =
-          u.trial_ends_at_metadata ?? u.effective_trial_ends_at;
-      }
-      setEditIso(iso);
-    } catch {
-      setLoadError("Erro de rede ao carregar usuários.");
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [perPage]);
 
   useEffect(() => {
-    void fetchUsers(1);
-  }, [fetchUsers]);
-
-  async function saveTrial(userId: string) {
-    if (!supabase) return;
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    if (!token) return;
-
-    const iso = editIso[userId]?.trim();
-    setSavingId(userId);
-    setLoadError(null);
-    try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          trial_ends_at: iso && iso.length > 0 ? iso : null,
-        }),
-      });
-      const data = (await res.json()) as { error?: string; user?: AdminUserRow };
-      if (!res.ok) {
-        setLoadError(data.error ?? "Falha ao salvar.");
+    let cancelled = false;
+    void (async () => {
+      if (!supabase) {
+        setAllowed(false);
         return;
       }
-      if (data.user) {
-        setUsers((prev) =>
-          prev.map((u) => (u.id === userId ? data.user! : u)),
-        );
-        setEditIso((prev) => ({
-          ...prev,
-          [userId]:
-            data.user!.trial_ends_at_metadata ??
-            data.user!.effective_trial_ends_at,
-        }));
-      }
-    } catch {
-      setLoadError("Erro de rede ao salvar.");
-    } finally {
-      setSavingId(null);
-    }
-  }
-
-  async function clearTrial(userId: string) {
-    if (!supabase) return;
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    if (!token) return;
-    setSavingId(userId);
-    setLoadError(null);
-    try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ trial_ends_at: null }),
-      });
-      const data = (await res.json()) as { error?: string; user?: AdminUserRow };
-      if (!res.ok) {
-        setLoadError(data.error ?? "Falha ao limpar override.");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        setAllowed(false);
         return;
       }
-      if (data.user) {
-        setUsers((prev) =>
-          prev.map((u) => (u.id === userId ? data.user! : u)),
-        );
-        setEditIso((prev) => ({
-          ...prev,
-          [userId]: data.user!.effective_trial_ends_at,
-        }));
-      }
-    } catch {
-      setLoadError("Erro de rede.");
-    } finally {
-      setSavingId(null);
-    }
-  }
+      const who = await fetch("/api/admin/whoami", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const whoBody = (await who.json()) as { admin?: boolean };
+      if (cancelled) return;
+      setAllowed(Boolean(who.ok && whoBody.admin));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (allowed === false) {
     return (
@@ -180,191 +70,43 @@ export default function AdminPage() {
     );
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  if (allowed === null) {
+    return (
+      <p className="text-sm text-slate-500">Verificando permissão…</p>
+    );
+  }
 
   return (
     <div className="space-y-6 text-slate-200">
       <div>
         <h1 className="text-lg font-semibold text-slate-50">Painel admin</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Gerencie contas, fornecedores e promoções exibidos no app.
+          Contas, conteúdo público, métricas e integrações.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setTab("users")}
-            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-              tab === "users"
-                ? "bg-slate-800 text-cyan-300 shadow-neon-cyan"
-                : "border border-slate-800 text-slate-400 hover:bg-slate-900/80"
-            }`}
-          >
-            Contas e trial
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("marketing")}
-            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-              tab === "marketing"
-                ? "bg-slate-800 text-cyan-300 shadow-neon-cyan"
-                : "border border-slate-800 text-slate-400 hover:bg-slate-900/80"
-            }`}
-          >
-            Fornecedores e promoções
-          </button>
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`rounded-xl px-3 py-2 text-sm font-medium transition md:px-4 ${
+                tab === t.id
+                  ? "bg-slate-800 text-cyan-300 shadow-neon-cyan"
+                  : "border border-slate-800 text-slate-400 hover:bg-slate-900/80"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {tab === "users" ? (
-        <p className="text-sm text-slate-400">
-          Trial padrão:{" "}
-          <strong className="text-slate-200">{appTrialDays}</strong> dias a partir
-          da criação da conta (
-          <code className="text-xs text-cyan-300">APP_TRIAL_DAYS</code>
-          ). Override por usuário:{" "}
-          <code className="text-xs text-cyan-300">trial_ends_at</code>.
-        </p>
-      ) : null}
-
-      {tab === "users" && loadError && (
-        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          {loadError}
-        </div>
-      )}
-
-      {tab === "users" && loading && allowed ? (
-        <p className="text-sm text-slate-500">Carregando usuários…</p>
-      ) : null}
-
-      {tab === "users" &&
-      !loading &&
-      allowed &&
-      users.length === 0 &&
-      !loadError ? (
-        <p className="text-sm text-slate-500">Nenhum usuário nesta página.</p>
-      ) : null}
-
-      {tab === "users" && allowed && users.length > 0 ? (
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/60 text-xs uppercase tracking-wide text-slate-500">
-                <th className="px-3 py-3 font-medium">E-mail</th>
-                <th className="px-3 py-3 font-medium">Criado</th>
-                <th className="px-3 py-3 font-medium">Último login</th>
-                <th className="px-3 py-3 font-medium">Fim do trial (efetivo)</th>
-                <th className="px-3 py-3 font-medium">Override ISO</th>
-                <th className="px-3 py-3 font-medium" />
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr
-                  key={u.id}
-                  className="border-b border-slate-800/80 last:border-0 hover:bg-slate-900/30"
-                >
-                  <td className="max-w-[200px] truncate px-3 py-2.5 text-slate-200">
-                    {u.email || "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-slate-400">
-                    {new Date(u.created_at).toLocaleString("pt-BR", {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-slate-400">
-                    {u.last_sign_in_at
-                      ? new Date(u.last_sign_in_at).toLocaleString("pt-BR", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })
-                      : "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2.5">
-                    <span
-                      className={
-                        u.uses_custom_trial
-                          ? "text-cyan-300"
-                          : "text-slate-400"
-                      }
-                    >
-                      {new Date(u.effective_trial_ends_at).toLocaleString(
-                        "pt-BR",
-                        { dateStyle: "short", timeStyle: "short" },
-                      )}
-                    </span>
-                    {u.uses_custom_trial ? (
-                      <span className="ml-2 text-[10px] text-cyan-500/90">
-                        manual
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="min-w-[200px] px-3 py-2">
-                    <input
-                      type="text"
-                      value={editIso[u.id] ?? ""}
-                      onChange={(e) =>
-                        setEditIso((prev) => ({
-                          ...prev,
-                          [u.id]: e.target.value,
-                        }))
-                      }
-                      placeholder="2026-12-31T23:59:59.000Z"
-                      className="w-full rounded-lg border border-slate-700 bg-slate-950/80 px-2 py-1.5 font-mono text-xs text-slate-200 placeholder:text-slate-600 focus:border-cyan-500/50 focus:outline-none"
-                    />
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2">
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={savingId === u.id}
-                        onClick={() => void saveTrial(u.id)}
-                        className="rounded-lg bg-cyan-600/90 px-2.5 py-1 text-xs font-medium text-slate-950 transition hover:bg-cyan-500 disabled:opacity-50"
-                      >
-                        Salvar
-                      </button>
-                      <button
-                        type="button"
-                        disabled={savingId === u.id || !u.uses_custom_trial}
-                        onClick={() => void clearTrial(u.id)}
-                        className="rounded-lg border border-slate-600 px-2.5 py-1 text-xs text-slate-300 transition hover:bg-slate-800 disabled:opacity-40"
-                      >
-                        Padrão
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-
-      {tab === "marketing" && allowed ? <AdminMarketingSection /> : null}
-
-      {tab === "users" && allowed && totalPages > 1 ? (
-        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
-          <span>
-            Página {page} de {totalPages} ({total} contas)
-          </span>
-          <button
-            type="button"
-            disabled={page <= 1 || loading}
-            onClick={() => void fetchUsers(page - 1)}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-slate-200 transition hover:bg-slate-800 disabled:opacity-40"
-          >
-            Anterior
-          </button>
-          <button
-            type="button"
-            disabled={page >= totalPages || loading}
-            onClick={() => void fetchUsers(page + 1)}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-slate-200 transition hover:bg-slate-800 disabled:opacity-40"
-          >
-            Próxima
-          </button>
-        </div>
-      ) : null}
+      {tab === "users" ? <AdminUsersTab /> : null}
+      {tab === "marketing" ? <AdminMarketingSection /> : null}
+      {tab === "metrics" ? <AdminMetricsTab /> : null}
+      {tab === "site" ? <AdminSiteConfigTab /> : null}
+      {tab === "audit" ? <AdminAuditTab /> : null}
+      {tab === "health" ? <AdminHealthTab /> : null}
     </div>
   );
 }
