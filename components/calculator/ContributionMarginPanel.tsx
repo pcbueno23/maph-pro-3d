@@ -65,6 +65,12 @@ export interface ContributionMarginPanelProps {
   /** Quando true, não exibe preço/margem (ex.: parâmetros de impressão inválidos com sync ligado). */
   suppressResults?: boolean;
   suppressResultsMessage?: string;
+  /** Snapshot do resultado atual da simulação (usado para salvar no produto). */
+  onSimulationChange?: (snapshot: {
+    price: number;
+    marginPercent: number;
+    marketplace: LabMarketplace;
+  }) => void;
 }
 
 export function ContributionMarginPanel({
@@ -81,6 +87,7 @@ export function ContributionMarginPanel({
   directMarginExtraPoints = 10,
   suppressResults = false,
   suppressResultsMessage,
+  onSimulationChange,
 }: ContributionMarginPanelProps) {
   const [marketplace, setMarketplace] = useState<LabMarketplace>("shopee");
   const [freightSeller, setFreightSeller] = useState("0");
@@ -239,6 +246,16 @@ export function ContributionMarginPanel({
       ),
     });
   }, [suppressResults, marketplace, effectivePrice, baseCosts, mlCommissionPct]);
+
+  useEffect(() => {
+    if (!onSimulationChange) return;
+    const marginPercent = breakdown?.contributionMarginPercent ?? 0;
+    onSimulationChange({
+      price: effectivePrice > 0 ? effectivePrice : 0,
+      marginPercent: Number.isFinite(marginPercent) ? marginPercent : 0,
+      marketplace,
+    });
+  }, [onSimulationChange, effectivePrice, breakdown, marketplace]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">

@@ -28,6 +28,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useProductsStore } from "@/store/productsStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { calculatorSchema, type CalculatorFormValues } from "@/types";
+import type { LabMarketplace } from "@/lib/pricingLocal";
 
 export default function MargemCertaPage() {
   const router = useRouter();
@@ -55,6 +56,11 @@ export default function MargemCertaPage() {
   const [packaging, setPackaging] = useState(() =>
     String(printingDefaults.costs.packaging ?? 0),
   );
+  const [simulatedSnapshot, setSimulatedSnapshot] = useState<{
+    price: number;
+    marginPercent: number;
+    marketplace: LabMarketplace;
+  } | null>(null);
 
   const printingFormValid = useMemo(
     () => calculatorSchema.safeParse(printingForm.getValues()).success,
@@ -118,6 +124,8 @@ export default function MargemCertaPage() {
         addProduct,
         router,
         channel,
+        overridePrice: simulatedSnapshot?.price,
+        overrideMarginPercent: simulatedSnapshot?.marginPercent,
       });
     } finally {
       setSavingProduct(false);
@@ -190,6 +198,7 @@ export default function MargemCertaPage() {
         packagingStr={packaging}
         setProductCost={setProductCost}
         setPackaging={setPackaging}
+        onSimulationChange={setSimulatedSnapshot}
         costInputsReadOnly={syncPrintingCost}
         showCostInputs
         topHint={

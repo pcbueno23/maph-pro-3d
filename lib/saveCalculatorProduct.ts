@@ -30,6 +30,9 @@ export type SaveCalculatorProductDeps = {
   router: { push: (path: string) => void };
   /** Canal cujo preço e margem serão gravados no produto. */
   channel: SaveProductChannel;
+  /** Permite salvar exatamente os valores da simulação (ex.: preço concorrência → margem). */
+  overridePrice?: number;
+  overrideMarginPercent?: number;
 };
 
 function netMarginPercentDirectPix(
@@ -53,7 +56,17 @@ function netMarginPercentDirectPix(
 export async function saveCalculatorProductFromSnapshot(
   deps: SaveCalculatorProductDeps,
 ): Promise<SaveCalculatorProductResult> {
-  const { lastInput, lastResults, settings, user, addProduct, router, channel } = deps;
+  const {
+    lastInput,
+    lastResults,
+    settings,
+    user,
+    addProduct,
+    router,
+    channel,
+    overridePrice,
+    overrideMarginPercent,
+  } = deps;
 
   const desiredMargin = lastInput.pricing.desiredMargin ?? settings.defaults.desiredMargin;
   const adjustedCost = lastResults.custoTotalAjustado;
@@ -129,13 +142,20 @@ export async function saveCalculatorProductFromSnapshot(
       : channel === "mercado_livre"
         ? lastResults.cascataML.marginPercent
         : netMarginPercentDirectPix(lastResults, lastInput);
+  const hasOverridePrice =
+    typeof overridePrice === "number" &&
+    Number.isFinite(overridePrice) &&
+    overridePrice > 0;
+  const hasOverrideMargin =
+    typeof overrideMarginPercent === "number" &&
+    Number.isFinite(overrideMarginPercent);
 
   const product: Product = {
     id: generateUuid(),
     name,
     weight: effectiveWeightPerUnit,
-    price: priceForChannel,
-    margin: marginForChannel,
+    price: hasOverridePrice ? overridePrice : priceForChannel,
+    margin: hasOverrideMargin ? overrideMarginPercent : marginForChannel,
     marketplace: marketplaceLabel,
     currency: settings.currency ?? "BRL",
     createdAt: new Date().toISOString(),
