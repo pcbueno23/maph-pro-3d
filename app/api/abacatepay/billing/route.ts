@@ -91,14 +91,30 @@ const PLAN_PRODUCTS: Record<
   },
 };
 
-/** URL https pública do logotipo no item do checkout (billing v1). Opcional por plano. */
-function checkoutProductImageUrl(plan: "pro" | "lifetime"): string | undefined {
+/**
+ * URL https pública da imagem do item no checkout (billing v1).
+ * Padrão: `{origem}/logo.png` (use `public/logo.png` no Next).
+ * Origem: request (https) ou `NEXT_PUBLIC_APP_URL` quando for https (útil se a API da AbacatePay buscar a imagem).
+ */
+function checkoutProductImageUrl(
+  plan: "pro" | "lifetime",
+  requestOrigin: string,
+): string | undefined {
   const specific =
     plan === "pro"
       ? process.env.ABACATEPAY_CHECKOUT_PRODUCT_IMAGE_URL_PRO?.trim()
       : process.env.ABACATEPAY_CHECKOUT_PRODUCT_IMAGE_URL_LIFETIME?.trim();
-  const fallback = process.env.ABACATEPAY_CHECKOUT_PRODUCT_IMAGE_URL?.trim();
-  const raw = specific || fallback;
+  const fallbackEnv = process.env.ABACATEPAY_CHECKOUT_PRODUCT_IMAGE_URL?.trim();
+  const publicApp = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") ?? "";
+
+  let raw = specific || fallbackEnv;
+  if (!raw) {
+    const ro = requestOrigin.replace(/\/$/, "");
+    if (/^https:\/\//i.test(ro)) raw = `${ro}/logo.png`;
+    else if (publicApp && /^https:\/\//i.test(publicApp)) {
+      raw = `${publicApp}/logo.png`;
+    }
+  }
   if (!raw) return undefined;
   if (!/^https:\/\//i.test(raw)) return undefined;
   return raw;
@@ -180,8 +196,14 @@ export async function POST(req: NextRequest) {
         ? { metadata: { app_user_email: email.trim().toLowerCase() } }
         : {};
 
+    const skipCheckoutProductImage =
+      process.env.ABACATEPAY_CHECKOUT_SKIP_PRODUCT_IMAGE === "true" ||
+      process.env.ABACATEPAY_CHECKOUT_SKIP_PRODUCT_IMAGE === "1";
+
     const v1BillingParams = (): AbacatePayCreateBillingParams => {
-      const img = checkoutProductImageUrl(plan);
+      const img = skipCheckoutProductImage
+        ? undefined
+        : checkoutProductImageUrl(plan, base);
       return {
       frequency: "ONE_TIME",
       // Tupla readonly não é atribuível a ("PIX" | "CARD")[] — array mutável explícito.
@@ -193,7 +215,7 @@ export async function POST(req: NextRequest) {
           description: product.description,
           quantity: 1,
           price: product.priceCents,
-          ...(img ? { imageUrl: img } : {}),
+          ...(img ? { imageUrl: img, image_url: img } : {}),
         },
       ],
       returnUrl: `${base}/pricing?canceled=1`,
