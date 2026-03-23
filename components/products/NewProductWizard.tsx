@@ -2,10 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useForm } from "react-hook-form";
+import type { Resolver } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useProductsStore } from "@/store/productsStore";
-import type { Printer, Product, ProductMarketplaceChannel, SupplyItem } from "@/types";
+import type {
+  CalculatorFormValues,
+  Printer,
+  Product,
+  ProductMarketplaceChannel,
+  SupplyItem,
+} from "@/types";
 import {
   listPrinters,
   listSupplies,
@@ -15,17 +24,34 @@ import {
   deleteProductMaterial,
 } from "@/lib/supabaseProduction";
 import { upsertProductsForUser } from "@/lib/supabaseProducts";
+import { InputPanel } from "@/components/calculator/InputPanel";
 import {
   calcEnergyCostFromPrinter,
   calcDepreciationFromPrinter,
   calcSuggestedPrice,
 } from "@/lib/calculations";
 import {
+  applySettingsToCalculatorForm,
+  getPrinterSettingsSlice,
+} from "@/lib/calculatorFormDefaults";
+import {
+  buildLabPrintingFormDefaults,
+  LAB_PRINTING_SUPPLY_FALLBACK_ID,
+  isPlaceholderSupplyId,
+} from "@/lib/calculatorLabDefaults";
+import {
   getShopeeSuggestedPrice,
   getMLSuggestedPrice,
   getShopeeFeeBreakdown,
   getMLFeeBreakdown,
 } from "@/lib/marketplaceFees";
+import { ContributionMarginPanel } from "@/components/calculator/ContributionMarginPanel";
+import type { LabMarketplace } from "@/lib/pricingLocal";
+import {
+  computePricingFromFormValues,
+  safeParseCalculatorValues,
+} from "@/lib/pricingEngine";
+import { calculatorSchema } from "@/types";
 const STEPS = [
   { id: 1, label: "Informações" },
   { id: 2, label: "Materiais" },
@@ -42,6 +68,8 @@ type BomLine = {
   unit: string;
   unitCost: number;
   qty: number;
+  /** Linha gerada automaticamente a partir da aba Informações (calculadora). */
+  autoFromCalculator?: boolean;
 };
 
 function generateUuid() {
@@ -122,8 +150,26 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(false);
+  const [panelProductCost, setPanelProductCost] = useState("0");
+  const [panelPackaging, setPanelPackaging] = useState("0");
+  const [simulatedSnapshot, setSimulatedSnapshot] = useState<{
+    price: number;
+    marginPercent: number;
+    marketplace: LabMarketplace;
+  } | null>(null);
 
   const isEditMode = Boolean(initialProduct?.id);
+  const printerSettings = useMemo(() => getPrinterSettingsSlice(settings), [settings]);
+  const printingDefaults = useMemo(
+    () => buildLabPrintingFormDefaults(settings),
+    [settings],
+  );
+  const printingForm = useForm<CalculatorFormValues>({
+    resolver: zodResolver(calculatorSchema) as Resolver<CalculatorFormValues>,
+    mode: "onChange",
+    defaultValues: printingDefaults,
+  });
+  const watchedPrinting = printingForm.watch();
 
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [supplies, setSupplies] = useState<SupplyItem[]>([]);
@@ -131,6 +177,25 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    printingForm.reset(
+      applySettingsToCalculatorForm(
+        printingForm.getValues(),
+        settings,
+        printerSettings,
+      ),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings]);
+
+  useEffect(() => {
+    const calcName = printingForm.getValues("productName")?.trim() ?? "";
+    if (calcName && !isEditMode) {
+      setName(calcName);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printingForm.watch("productName"), isEditMode]);
 
   useEffect(() => {
     if (!user || !open) return;
@@ -173,6 +238,7 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
         setMarketplace,
         setError,
       });
+      printingForm.reset(printingDefaults);
       setLoadingInitial(false);
       return;
     }
@@ -225,6 +291,58 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
           };
         });
         setMaterials(bom);
+
+        const firstMat = mats[0];
+        const firstSupply = firstMat ? supMap.get(firstMat.supplyId) : null;
+        const unit = (firstSupply?.unit ?? "").toLowerCase();
+        const pricePerKg =
+          firstSupply && Number.isFinite(Number(firstSupply.unitCost))
+            ? unit === "g"
+              ? Number(firstSupply.unitCost) * 1000
+              : Number(firstSupply.unitCost)
+            : 0;
+        const timeHours =
+          p.printTimeMinutes != null && Number.isFinite(p.printTimeMinutes)
+            ? Math.max(0, p.printTimeMinutes / 60)
+            : 0;
+        const merged = applySettingsToCalculatorForm(
+          {
+            ...printingDefaults,
+            productName: p.name ?? "",
+            material: {
+              ...printingDefaults.material,
+              supplyId:
+                firstMat?.supplyId && firstMat.supplyId.trim()
+                  ? firstMat.supplyId
+                  : LAB_PRINTING_SUPPLY_FALLBACK_ID,
+              weight:
+                typeof p.weight === "number" && Number.isFinite(p.weight)
+                  ? Math.max(0, p.weight)
+                  : 0,
+              pricePerKg:
+                pricePerKg > 0
+                  ? pricePerKg
+                  : printingDefaults.material.pricePerKg,
+              plateWeight: undefined,
+            },
+            time: {
+              ...printingDefaults.time,
+              hours: timeHours,
+              printerId: p.defaultPrinterId ?? undefined,
+              unitsPerBatch: 1,
+            },
+            costs: {
+              ...printingDefaults.costs,
+              packaging:
+                typeof settings.defaults.packaging === "number"
+                  ? settings.defaults.packaging
+                  : printingDefaults.costs.packaging,
+            },
+          },
+          settings,
+          printerSettings,
+        );
+        printingForm.reset(merged);
       } catch (e) {
         if (!alive) return;
         setError(e instanceof Error ? e.message : "Falha ao carregar o produto.");
@@ -236,7 +354,17 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
     return () => {
       alive = false;
     };
-  }, [open, mounted, initialProduct?.id, user?.id, defaultMargin]);
+  }, [
+    open,
+    mounted,
+    initialProduct?.id,
+    user?.id,
+    defaultMargin,
+    printingForm,
+    printingDefaults,
+    settings,
+    printerSettings,
+  ]);
 
   const selectedPrinter = useMemo(
     () => (defaultPrinterId ? printers.find((p) => p.id === defaultPrinterId) ?? null : null),
@@ -364,10 +492,63 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
     if (step !== 4) return;
     if (totalCost <= 0) return;
     if (lastEditedByRef.current === "price") return;
-    // Produto salvo como venda direta: mantém o preço gravado (evita recalcular com taxas de marketplace).
-    if (marketplace === "Venda Direta" && isEditMode) return;
+    // Ao abrir/editar produto, mantém o preço salvo até o usuário mudar parâmetros na etapa de preço.
+    if (isEditMode && lastEditedByRef.current !== "margin") return;
     setPrice(pricingFromMargin.worstSuggested);
   }, [pricingFromMargin.worstSuggested, step, totalCost, marketplace, isEditMode]);
+
+  useEffect(() => {
+    const parsed = safeParseCalculatorValues(watchedPrinting);
+    if (!parsed) return;
+    const result = computePricingFromFormValues(parsed);
+    const packaging = Number(parsed.costs.packaging ?? 0);
+    const productOnly = Math.max(0, result.custoTotalAjustado - packaging);
+    setPanelProductCost(String(Math.round(productOnly * 100) / 100));
+    setPanelPackaging(String(Math.round(packaging * 100) / 100));
+  }, [watchedPrinting]);
+
+  useEffect(() => {
+    if (step !== 2) return;
+    const parsed = safeParseCalculatorValues(printingForm.getValues());
+    if (!parsed) return;
+    const supplyId = parsed.material.supplyId;
+    const qty = Number(parsed.material.weight ?? 0);
+    if (!supplyId || isPlaceholderSupplyId(supplyId) || !(qty > 0)) return;
+    const supply = supplies.find((s) => s.id === supplyId);
+    if (!supply) return;
+
+    setMaterials((prev) => {
+      const existing = prev.find((m) => m.supplyId === supplyId);
+      if (existing) {
+        // Se a linha já veio da calculadora, mantém sincronizada com o peso da aba Informações.
+        if (existing.autoFromCalculator) {
+          return prev.map((m) =>
+            m.supplyId === supplyId
+              ? {
+                  ...m,
+                  qty,
+                  name: supply.name,
+                  unit: supply.unit ?? "un",
+                  unitCost: supply.unitCost ?? 0,
+                }
+              : m,
+          );
+        }
+        return prev;
+      }
+      return [
+        {
+          supplyId,
+          name: supply.name,
+          unit: supply.unit ?? "un",
+          unitCost: supply.unitCost ?? 0,
+          qty,
+          autoFromCalculator: true,
+        },
+        ...prev,
+      ];
+    });
+  }, [step, supplies, printingForm, watchedPrinting]);
 
   useEffect(() => {
     if (step === 4 && totalCost > 0 && (marginPercent === "" || marginPercent === 0)) {
@@ -495,14 +676,47 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
 
   async function handleCreate() {
     setError(null);
-    if (!name.trim()) {
+    const parsedCalc = safeParseCalculatorValues(printingForm.getValues());
+    if (!parsedCalc) {
+      setError("Preencha os campos da calculadora antes de salvar.");
+      return;
+    }
+    const calcName = (parsedCalc.productName ?? "").trim();
+    const finalName = name.trim() || calcName;
+    if (!finalName) {
       setError("Informe o nome do produto.");
       return;
     }
-    if (materials.length === 0) {
-      setError("Adicione pelo menos um material.");
-      return;
-    }
+    const calcResults = computePricingFromFormValues(parsedCalc);
+    const unitsPerBatch =
+      typeof parsedCalc.time.unitsPerBatch === "number" &&
+      parsedCalc.time.unitsPerBatch > 0
+        ? parsedCalc.time.unitsPerBatch
+        : 1;
+    const effectiveWeightPerUnit =
+      typeof parsedCalc.material.plateWeight === "number" &&
+      parsedCalc.material.plateWeight > 0 &&
+      unitsPerBatch > 0
+        ? parsedCalc.material.plateWeight / unitsPerBatch
+        : parsedCalc.material.weight;
+
+    const finalPrice =
+      simulatedSnapshot && simulatedSnapshot.price > 0 ? simulatedSnapshot.price : price;
+    const finalMargin =
+      simulatedSnapshot &&
+      Number.isFinite(simulatedSnapshot.marginPercent)
+        ? simulatedSnapshot.marginPercent
+        : typeof marginPercent === "number" && Number.isFinite(marginPercent)
+          ? marginPercent
+          : null;
+    const finalMarketplace: ProductMarketplaceChannel =
+      simulatedSnapshot?.marketplace === "direct"
+        ? "Venda Direta"
+        : simulatedSnapshot?.marketplace === "mercado_livre"
+          ? "Mercado Livre"
+          : simulatedSnapshot?.marketplace === "shopee"
+            ? "Shopee"
+            : marketplace;
 
     setSaving(true);
     const nowIso = new Date().toISOString();
@@ -510,31 +724,23 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
 
     const product: Product = {
       id: productId,
-      name: name.trim(),
+      name: finalName,
       sku: sku.trim() || null,
       description: description.trim() || null,
-      weight:
-        materials.reduce(
-          (acc, m) => acc + (m.unit === "kg" ? m.qty * 1000 : m.unit === "g" ? m.qty : 0),
-          0,
-        ) || 0,
-      price,
-      margin:
-        initialProduct &&
-        typeof marginPercent === "number" &&
-        Number.isFinite(marginPercent)
-          ? marginPercent
-          : null,
-      marketplace,
+      weight: effectiveWeightPerUnit || 0,
+      price: finalPrice,
+      margin: finalMargin,
+      marketplace: finalMarketplace,
       currency: "BRL",
       createdAt: initialProduct?.createdAt ?? nowIso,
       updatedAt: nowIso,
-      totalCost,
-      suggestedPriceShopee: pricingFromMargin.shopeeSuggested,
-      suggestedPriceML: pricingFromMargin.mlSuggested,
-      suggestedPriceDirect: pricingFromMargin.directSuggested,
-      printTimeMinutes: Math.round(printTimeHours * 60) || null,
-      defaultPrinterId: defaultPrinterId ?? null,
+      totalCost: calcResults.custoTotalAjustado,
+      suggestedPriceShopee: calcResults.suggestedPriceShopee,
+      suggestedPriceML: calcResults.suggestedPriceML,
+      suggestedPriceDirect:
+        calcResults.suggestedPriceDirectCash ?? calcResults.suggestedPrice,
+      printTimeMinutes: Math.round(parsedCalc.time.hours * 60) || null,
+      defaultPrinterId: parsedCalc.time.printerId ?? null,
     };
 
     if (initialProduct) {
@@ -547,6 +753,17 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
       try {
         const list = useProductsStore.getState().products;
         await upsertProductsForUser(user.id, list);
+
+        const autoBomQty =
+          typeof parsedCalc.material.weight === "number" &&
+          Number.isFinite(parsedCalc.material.weight)
+            ? parsedCalc.material.weight
+            : 0;
+        const autoBomSupplyId = parsedCalc.material.supplyId;
+        const canAutoBom =
+          !isPlaceholderSupplyId(autoBomSupplyId) &&
+          typeof autoBomSupplyId === "string" &&
+          autoBomQty > 0;
 
         if (initialProduct) {
           const existing = await listProductMaterials(user.id, productId);
@@ -566,14 +783,37 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
               updatedAt: nowIso,
             });
           }
-        } else {
-          for (const m of materials) {
+          if (canAutoBom && !materials.some((m) => m.supplyId === autoBomSupplyId)) {
             await upsertProductMaterial(user.id, {
               id: generateUuid(),
               productId,
-              supplyId: m.supplyId,
-              qty: m.qty,
-              unit: m.unit,
+              supplyId: autoBomSupplyId,
+              qty: autoBomQty,
+              unit: "g",
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            });
+          }
+        } else {
+          if (materials.length > 0) {
+            for (const m of materials) {
+              await upsertProductMaterial(user.id, {
+                id: generateUuid(),
+                productId,
+                supplyId: m.supplyId,
+                qty: m.qty,
+                unit: m.unit,
+                createdAt: nowIso,
+                updatedAt: nowIso,
+              });
+            }
+          } else if (canAutoBom) {
+            await upsertProductMaterial(user.id, {
+              id: generateUuid(),
+              productId,
+              supplyId: autoBomSupplyId,
+              qty: autoBomQty,
+              unit: "g",
               createdAt: nowIso,
               updatedAt: nowIso,
             });
@@ -635,8 +875,8 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
   if (!open || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[999] grid place-items-center bg-slate-950/80 p-4">
-      <div className="flex h-[min(90dvh,820px)] w-full max-w-2xl min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
+    <div className="fixed inset-0 z-[999] grid place-items-center bg-slate-950/80 p-2 md:p-4">
+      <div className="flex h-[95dvh] w-full max-w-5xl min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl md:h-[min(94dvh,980px)]">
         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
           <h2 className="text-lg font-semibold text-slate-50">
             {isEditMode ? "Editar produto" : "Novo produto"}
@@ -651,7 +891,7 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
           </button>
         </div>
 
-        <div className="flex gap-1 border-b border-slate-800 px-4 py-2">
+        <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-800 px-4 py-2">
           {STEPS.map((s) => (
             <div
               key={s.id}
@@ -679,7 +919,7 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
           ))}
         </div>
 
-        <div className="relative p-4">
+        <div className="relative min-h-0 flex-1 overflow-y-auto p-4">
           {loadingInitial && initialProduct ? (
             <div className="absolute inset-0 z-10 grid place-items-center rounded-xl bg-slate-950/70 backdrop-blur-sm">
               <p className="text-sm text-slate-300">Carregando produto…</p>
@@ -696,23 +936,15 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
               <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 px-3 py-2.5 text-sm text-amber-100">
                 <p className="font-semibold">Dica</p>
                 <p>
-                  Se quiser maior precisão, insira o produto através da{" "}
-                  <a href="/calculator" className="underline">
-                    calculadora
-                  </a>
-                  , não manualmente.
+                  Preencha os mesmos campos da Calculadora margem certa (passo a
+                  passo). Assim o produto salvo fica coerente com a simulação.
                 </p>
               </div>
-              <div>
-                <label className="mb-1 block text-xs text-slate-400">Nome do Produto</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Peça de Engrenagem"
-                  className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
-                />
-              </div>
+              <InputPanel
+                form={printingForm}
+                hidePricingSection
+                materialSupplyFallbackId={LAB_PRINTING_SUPPLY_FALLBACK_ID}
+              />
               <div>
                 <label className="mb-1 block text-xs text-slate-400">SKU (opcional)</label>
                 <input
@@ -732,52 +964,6 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
                   rows={2}
                   className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
                 />
-              </div>
-              <div className="flex gap-3">
-                <div>
-                  <label className="mb-1 block text-xs text-slate-400">Tempo de impressão (h)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={printHours}
-                    onChange={(e) =>
-                      setPrintHours(e.target.value === "" ? "" : Number(e.target.value))
-                    }
-                    className="w-20 rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-2 text-sm text-slate-100"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-slate-400">min</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={printMinutes}
-                    onChange={(e) =>
-                      setPrintMinutes(e.target.value === "" ? "" : Number(e.target.value))
-                    }
-                    className="w-20 rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-2 text-sm text-slate-100"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-slate-400">
-                  Equipamento padrão (opcional)
-                </label>
-                <p className="mb-1 text-[10px] text-slate-500">
-                  Usado para calcular custos de energia e depreciação.
-                </p>
-                <select
-                  value={defaultPrinterId ?? ""}
-                  onChange={(e) => setDefaultPrinterId(e.target.value || null)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
-                >
-                  <option value="">Nenhum</option>
-                  {printers.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} {p.model ? `(${p.model})` : ""}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
           )}
@@ -936,71 +1122,57 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
                 <span className="font-semibold">Custo Total de Material:</span>{" "}
                 <span className="font-bold text-amber-300">{formatBRL(materialCost)}</span>
               </div>
-              {materials.length === 0 && (
-                <div className="rounded-xl border border-amber-600/40 bg-amber-950/30 px-3 py-2 text-sm text-amber-200">
-                  <p className="font-semibold">Obrigatório</p>
-                  <p>Adicione pelo menos um material para calcular o custo de produção.</p>
-                </div>
-              )}
+              <div className="rounded-xl border border-slate-700 bg-slate-900/40 px-3 py-2 text-sm text-slate-300">
+                Esta etapa serve para complementar materiais, se precisar. O material
+                principal preenchido na aba Informações já entra automaticamente.
+              </div>
             </div>
           )}
 
           {step === 4 && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3">
-                <p className="text-xs text-slate-400">Outros custos (calculados)</p>
-                <p className="mt-1 text-base font-semibold text-slate-50">
-                  {formatBRL(outrosCustosFromPrice)}
-                </p>
-                <p className="mt-0.5 text-[10px] text-slate-500">
-                  {marketplace === "Venda Direta"
-                    ? "Venda direta: sem comissão de marketplace — frete e impostos conforme configurações."
-                    : "Taxas de marketplace + frete + impostos (conforme configurações)."}
-                </p>
-              </div>
-              <div className="rounded-xl border border-amber-600/40 bg-slate-900/60 p-3">
-                <p className="text-xs text-slate-400">Resumo de custos</p>
-                <ul className="mt-1 space-y-0.5 text-sm text-amber-100">
+              <ContributionMarginPanel
+                sectionTitle="Simulação de preço (igual à margem certa)"
+                productCostStr={panelProductCost}
+                packagingStr={panelPackaging}
+                setProductCost={setPanelProductCost}
+                setPackaging={setPanelPackaging}
+                showCostInputs
+                costInputsReadOnly
+                stickyResultPanel
+                defaultTargetMarginPercent={settings.defaults.desiredMargin}
+                directMarginExtraPoints={settings.defaults.directMarginExtraPoints ?? 10}
+                topHint={
+                  <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
+                    Esta etapa usa os mesmos campos da calculadora margem certa. O produto
+                    será salvo com o preço exibido na simulação atual.
+                  </p>
+                }
+                onSimulationChange={(snap) => {
+                  setSimulatedSnapshot(snap);
+                  if (snap.price > 0) {
+                    setPrice(snap.price);
+                    setMarginPercent(snap.marginPercent);
+                  }
+                }}
+              />
+              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3 text-xs text-slate-400">
+                <p className="font-semibold text-slate-300">Resumo da produção</p>
+                <ul className="mt-1 space-y-0.5 text-sm text-slate-300">
                   <li>Custo de Materiais: {formatBRL(materialCost)}</li>
                   <li>Custo de Energia: {formatBRL(energyCost)}</li>
                   <li>Custo de Depreciação: {formatBRL(depreciationCost)}</li>
                   <li>Embalagem: {formatBRL(packagingCost)}</li>
-                  <li>Outros custos: {formatBRL(outrosCustosFromPrice)}</li>
                   <li>
                     Custo Total de Produção: <strong>{formatBRL(totalCost)}</strong>
                   </li>
                 </ul>
               </div>
-              <div className="space-y-2">
-                <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-3">
-                  <p className="text-xs text-slate-400">Preço de custo (produção)</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-50">
-                    {formatBRL(totalCost)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-emerald-600/40 bg-emerald-950/20 p-3">
-                  <p className="text-xs text-slate-400">
-                    {marketplace === "Venda Direta"
-                      ? "Preço de venda (venda direta)"
-                      : "Preço sugerido de venda"}
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-emerald-200">
-                    {formatBRL(price)}
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
-                <p className="font-semibold text-slate-300">Como funciona</p>
-                <p>
-                  O preço é calculado automaticamente a partir do custo (materiais + energia + depreciação + embalagem) usando as
-                  fórmulas da calculadora e as configurações do seu app. Se não houver equipamento, energia e depreciação ficam zerados.
-                </p>
-              </div>
             </div>
           )}
         </div>
 
-        <div className="flex justify-between gap-2 border-t border-slate-800 px-4 py-3">
+        <div className="flex shrink-0 justify-between gap-2 border-t border-slate-800 px-4 py-3">
           <div>
             {step > 1 && (
               <button
@@ -1033,7 +1205,7 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
               <button
                 type="button"
                 onClick={handleCreate}
-                disabled={saving || materials.length === 0 || loadingInitial}
+                disabled={saving || loadingInitial}
                 className="rounded-xl bg-cyan-600 px-4 py-2 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
               >
                 {saving ? "Salvando…" : isEditMode ? "Salvar alterações" : "Criar produto"}

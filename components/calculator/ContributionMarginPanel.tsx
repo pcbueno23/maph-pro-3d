@@ -71,6 +71,8 @@ export interface ContributionMarginPanelProps {
     marginPercent: number;
     marketplace: LabMarketplace;
   }) => void;
+  /** Mantém a coluna de resultado fixa ao rolar (sticky). */
+  stickyResultPanel?: boolean;
 }
 
 export function ContributionMarginPanel({
@@ -88,6 +90,7 @@ export function ContributionMarginPanel({
   suppressResults = false,
   suppressResultsMessage,
   onSimulationChange,
+  stickyResultPanel = false,
 }: ContributionMarginPanelProps) {
   const [marketplace, setMarketplace] = useState<LabMarketplace>("shopee");
   const [freightSeller, setFreightSeller] = useState("0");
@@ -548,7 +551,11 @@ export function ContributionMarginPanel({
         </div>
       </div>
 
-      <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+      <div
+        className={`space-y-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-4 ${
+          stickyResultPanel ? "lg:sticky lg:top-4 lg:self-start" : ""
+        }`}
+      >
         <h2 className="text-sm font-semibold text-emerald-400">Resultado</h2>
 
         {suppressResults && suppressResultsMessage ? (
