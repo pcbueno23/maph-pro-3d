@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Crown, Infinity, PartyPopper, Rocket, XCircle } from "lucide-react";
+import {
+  Check,
+  CreditCard,
+  Crown,
+  Infinity,
+  PartyPopper,
+  Rocket,
+  Shield,
+  Sparkles,
+  XCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { useAccessStore } from "@/store/accessStore";
@@ -290,14 +300,25 @@ export function PlansManagement({
   const freeIcon = <Infinity className="h-4 w-4 text-slate-300" />;
 
   if (loading) {
-    return <p className="text-sm text-slate-400">Carregando planos...</p>;
+    return (
+      <div className="flex min-h-[12rem] items-center justify-center">
+        <p className="text-sm text-slate-400">Carregando planos…</p>
+      </div>
+    );
   }
 
   const paidActive =
     accessChecked && accessPaid && plan !== "free";
 
+  const planCtaDisabledPro =
+    loadingAction || (plan === "pro" && !isOnTrial) || (paymentProvider === "abacatepay" && !abacatePayerValid);
+  const planCtaDisabledAnnual =
+    loadingAction ||
+    (plan === "business" && !isOnTrial) ||
+    (paymentProvider === "abacatepay" && !abacatePayerValid);
+
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-6">
       {checkoutSuccess ? (
         <div
           className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 sm:flex-row sm:items-start sm:justify-between ${
@@ -386,264 +407,331 @@ export function PlansManagement({
         </div>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-2">
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5 shadow-[0_0_0_1px_rgba(6,182,212,0.10)]">
-        <div className="mb-4 space-y-1">
-          <h2 className="text-xl font-semibold text-slate-50">Painel de Assinatura</h2>
-          <p className="text-sm text-slate-400">
-            Tudo o que você precisa para manter o acesso em dia.
-          </p>
-        </div>
-
-        {error ? (
-          <p className="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="space-y-3">
-          <div className="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950/40">
-              {plan === "pro" ? proIcon : plan === "business" ? businessIcon : freeIcon}
+      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-12 lg:items-start lg:gap-10">
+        <div className="order-1 space-y-8 lg:order-2 lg:col-span-8">
+          <header className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-400/90">
+              {paymentProvider === "abacatepay"
+                ? "Checkout seguro · AbacatePay"
+                : "Assinatura · Stripe"}
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
+              Desbloqueie o app completo
+            </h1>
+            <p className="max-w-xl text-sm leading-relaxed text-slate-400">
+              Pro e anual têm{" "}
+              <span className="text-slate-300">as mesmas funções</span>. Quem usa o MAPH PRO 3D
+              toda semana costuma preferir o anual: menos por mês e um único pagamento.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/90 bg-slate-900/70 px-3 py-1.5 text-[11px] font-medium text-slate-300">
+                <Shield className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                Pagamento criptografado
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/90 bg-slate-900/70 px-3 py-1.5 text-[11px] font-medium text-slate-300">
+                <CreditCard className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
+                PIX e cartão
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/90 bg-slate-900/70 px-3 py-1.5 text-[11px] font-medium text-slate-300">
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-400/90" />
+                Acesso imediato após confirmação
+              </span>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-50">
-                Plano {plan === "pro" ? "Pro" : plan === "business" ? "Business" : "Free"}
-              </p>
-              {plan === "free" ? (
-                <div className="space-y-1">
-                  <p className="text-xs text-slate-400">Acesso básico.</p>
-                  {accessChecked &&
-                  !accessPaid &&
-                  accessDaysRemaining != null &&
-                  accessDaysRemaining > 0 &&
-                  accessTrialEndsAt ? (
-                    <p className="text-xs text-cyan-400">
-                      Teste grátis (sem cartão):{" "}
-                      <strong>{accessDaysRemaining}</strong> dia(s) restante(s).
-                      Encerra em{" "}
-                      {new Date(accessTrialEndsAt).toLocaleDateString("pt-BR")}
-                      .
+          </header>
+
+          {error ? (
+            <p
+              className="rounded-2xl border border-rose-500/35 bg-rose-500/10 px-4 py-3 text-sm text-rose-100"
+              role="alert"
+            >
+              {error}
+            </p>
+          ) : null}
+
+          {paymentProvider === "abacatepay" ? (
+            <section
+              aria-labelledby="payer-step-title"
+              className="rounded-2xl border border-cyan-500/25 bg-gradient-to-b from-slate-900/90 via-slate-950/80 to-slate-950/90 p-5 shadow-[0_20px_50px_-24px_rgba(34,211,238,0.35)] sm:p-6"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20 text-sm font-bold text-cyan-200"
+                    aria-hidden
+                  >
+                    1
+                  </span>
+                  <div>
+                    <h2 id="payer-step-title" className="text-base font-semibold text-slate-50">
+                      Titular do pagamento
+                    </h2>
+                    <p className="mt-1 max-w-lg text-xs leading-relaxed text-slate-400">
+                      Leva menos de um minuto. O gateway exige{" "}
+                      <strong className="font-medium text-slate-300">dados reais</strong> do PIX ou
+                      cartão. Usamos o e-mail da sua conta; no modo AbacatePay nada vai para o Stripe.
                     </p>
-                  ) : null}
+                    {user?.email ? (
+                      <p className="mt-2 text-[11px] text-slate-500">
+                        E-mail na cobrança:{" "}
+                        <span className="text-slate-400">{user.email}</span>
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
-              ) : isOnTrial ? (
-                <p className="text-xs text-slate-400">
-                  Status: Período de teste (trial). {trialEnd ? `Termina em ${trialEnd}.` : ""}
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <label className="block sm:col-span-2">
+                  <span className="text-xs font-medium text-slate-400">Nome completo</span>
+                  <input
+                    type="text"
+                    autoComplete="name"
+                    value={payerName}
+                    onChange={(e) => setPayerName(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-slate-600/80 bg-slate-950/60 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/55 focus:outline-none focus:ring-2 focus:ring-cyan-500/25"
+                    placeholder="Igual ao documento"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-400">CPF ou CNPJ</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={payerTaxId}
+                    onChange={(e) => setPayerTaxId(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-slate-600/80 bg-slate-950/60 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/55 focus:outline-none focus:ring-2 focus:ring-cyan-500/25"
+                    placeholder="11 ou 14 dígitos"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-400">Celular com DDD</span>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={payerCellphone}
+                    onChange={(e) => setPayerCellphone(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-slate-600/80 bg-slate-950/60 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/55 focus:outline-none focus:ring-2 focus:ring-cyan-500/25"
+                    placeholder="Ex. 11999998888"
+                  />
+                </label>
+              </div>
+              {!abacatePayerValid ? (
+                <p className="mt-4 flex items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/95">
+                  <span className="font-medium">Próximo passo:</span> complete os três campos para
+                  ativar os botões de pagamento abaixo.
                 </p>
               ) : (
-                <p className="text-xs text-slate-400">
-                  Status: Plano pago ativo
-                  {paymentProvider === "abacatepay"
-                    ? " (AbacatePay)."
-                    : " (Stripe)."}
+                <p className="mt-4 text-xs font-medium text-emerald-400/90">
+                  Dados ok — escolha seu plano e continue.
                 </p>
               )}
-            </div>
-          </div>
+            </section>
+          ) : null}
 
-          <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-            <p className="text-xs font-semibold text-slate-200">Funções no plano (ON)</p>
-            <ul className="mt-2 space-y-2 text-xs text-slate-200">
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Calculadora de precificação 3D</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Regras de tarifas Shopee e Mercado Livre</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Produtos e gestão de peças produzidas</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Estoque / Insumos e histórico</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Ordens, Vendas e Relatórios</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-            <p className="text-xs font-semibold text-slate-200">Diferença Pro vs Business</p>
-            <p className="mt-2 text-xs text-slate-300">
-              Pro e Business têm as mesmas funções. A diferença é só o preço: Business é mais barato e é cobrado no plano anual.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {plan !== "free" && paymentProvider === "stripe" ? (
-              <button
-                type="button"
-                disabled={loadingAction}
-                onClick={() => void handlePortal()}
-                className="rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70"
+          <section aria-labelledby="plans-step-title" className="space-y-4">
+            <div className="flex items-center gap-3">
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-sm font-bold text-slate-200"
+                aria-hidden
               >
-                Abrir Painel de Assinatura
-              </button>
-            ) : null}
-            {plan !== "free" && paymentProvider === "abacatepay" ? (
-              <p className="text-xs text-slate-500">
-                Gestão de cobrança na AbacatePay é pelo painel do gateway; aqui só
-                exibimos o plano detectado após pagamento.
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {paymentProvider === "abacatepay" ? (
-          <div className="rounded-2xl border border-cyan-500/25 bg-slate-950/50 p-5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
-              Dados do pagador
-            </p>
-            <p className="mt-2 text-xs leading-relaxed text-slate-400">
-              A AbacatePay exige <strong className="text-slate-300">nome, CPF ou CNPJ e celular</strong>{" "}
-              reais do titular do pagamento (PIX ou cartão). Usamos o e-mail da sua conta abaixo; nada
-              disso é enviado ao Stripe.
-            </p>
-            {user?.email ? (
-              <p className="mt-2 text-[11px] text-slate-500">
-                E-mail da conta: <span className="text-slate-400">{user.email}</span>
-              </p>
-            ) : null}
-            <div className="mt-4 space-y-3">
-              <label className="block">
-                <span className="text-[11px] font-medium text-slate-400">Nome completo</span>
-                <input
-                  type="text"
-                  autoComplete="name"
-                  value={payerName}
-                  onChange={(e) => setPayerName(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/60 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
-                  placeholder="Como no documento"
-                />
-              </label>
-              <label className="block">
-                <span className="text-[11px] font-medium text-slate-400">CPF ou CNPJ</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={payerTaxId}
-                  onChange={(e) => setPayerTaxId(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/60 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
-                  placeholder="Somente números ou com pontuação"
-                />
-              </label>
-              <label className="block">
-                <span className="text-[11px] font-medium text-slate-400">Celular (com DDD)</span>
-                <input
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  value={payerCellphone}
-                  onChange={(e) => setPayerCellphone(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/60 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
-                  placeholder="Ex.: 11999998888"
-                />
-              </label>
-            </div>
-            {!abacatePayerValid ? (
-              <p className="mt-3 text-[11px] text-amber-400/90">
-                Preencha os três campos corretamente para habilitar os botões de pagamento.
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
-            Plano Pro mensal
-          </p>
-          <p className="mt-2 text-sm font-medium text-slate-100">
-            Ideal para começar. Todas as funções do app com cobrança mensal por R$ 29,90.
-          </p>
-          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/30 p-3">
-            <ul className="space-y-2 text-xs text-slate-200">
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Acesso completo ao app</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>
+                {paymentProvider === "abacatepay" ? "2" : "1"}
+              </span>
+              <div>
+                <h2 id="plans-step-title" className="text-base font-semibold text-slate-100">
+                  Escolha como pagar
+                </h2>
+                <p className="text-xs text-slate-500">
                   {paymentProvider === "abacatepay"
-                    ? "Pagamento mensal (PIX ou cartão)"
-                    : "Pagamento mensal (cartão)"}
+                    ? "Toque no plano desejado — você será redirecionado para finalizar na AbacatePay."
+                    : "Assinatura recorrente processada pelo Stripe."}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="relative flex flex-col overflow-hidden rounded-2xl border-2 border-emerald-500/45 bg-slate-950/50 p-5 shadow-[0_0_48px_-18px_rgba(52,211,153,0.45)] sm:p-6">
+                <span className="absolute right-3 top-3 rounded-full bg-emerald-500/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-200">
+                  Melhor custo / mês
                 </span>
-              </li>
-            </ul>
-          </div>
-          <button
-            type="button"
-            disabled={
-              loadingAction ||
-              (plan === "pro" && !isOnTrial) ||
-              (paymentProvider === "abacatepay" && !abacatePayerValid)
-            }
-            onClick={() => void handleCheckout("pro")}
-            className="mt-4 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan hover:from-cyan-400 hover:to-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {plan === "pro" && !isOnTrial
-              ? "Você já está no Pro"
-              : paymentProvider === "abacatepay"
-                ? "Pagar Pro (PIX ou cartão — AbacatePay)"
-                : "Assinar Pro (Stripe)"}
-          </button>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400/90">
+                  Plano anual
+                </p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-slate-50">
+                  R$ 199,90
+                  <span className="text-base font-semibold text-slate-500">/ano</span>
+                </p>
+                <p className="mt-1 text-sm text-emerald-400/90">
+                  Equivale a <strong className="font-semibold">R$ 16,66/mês</strong> · economia de{" "}
+                  <strong className="font-semibold">~44%</strong> vs. mensal
+                </p>
+                <ul className="mt-4 space-y-2 text-xs text-slate-300">
+                  <li className="flex gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                    Todo o app: precificação, estoque, vendas e relatórios
+                  </li>
+                  <li className="flex gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                    Um pagamento por ano — menos burocracia
+                  </li>
+                </ul>
+                <button
+                  type="button"
+                  disabled={planCtaDisabledAnnual}
+                  title={
+                    paymentProvider === "abacatepay" && !abacatePayerValid
+                      ? "Preencha nome, CPF/CNPJ e celular acima"
+                      : undefined
+                  }
+                  onClick={() => void handleCheckout("lifetime")}
+                  className="mt-auto w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:from-emerald-400 hover:to-teal-400 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {plan === "business" && !isOnTrial
+                    ? "Plano anual ativo"
+                    : paymentProvider === "abacatepay"
+                      ? "Quero o plano anual"
+                      : "Assinar plano anual (Stripe)"}
+                </button>
+              </div>
+
+              <div className="flex flex-col rounded-2xl border border-slate-700/80 bg-slate-950/35 p-5 sm:p-6">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Flexível
+                </p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-400/80">
+                  Plano mensal
+                </p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-slate-50">
+                  R$ 29,90
+                  <span className="text-base font-semibold text-slate-500">/mês</span>
+                </p>
+                <p className="mt-1 text-sm text-slate-400">
+                  Ideal para testar com compromisso curto.
+                </p>
+                <ul className="mt-4 space-y-2 text-xs text-slate-300">
+                  <li className="flex gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
+                    Mesmas funções do plano anual
+                  </li>
+                  <li className="flex gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
+                    {paymentProvider === "abacatepay"
+                      ? "PIX ou cartão, renovação mensal"
+                      : "Cobrança mensal no cartão"}
+                  </li>
+                </ul>
+                <button
+                  type="button"
+                  disabled={planCtaDisabledPro}
+                  title={
+                    paymentProvider === "abacatepay" && !abacatePayerValid
+                      ? "Preencha nome, CPF/CNPJ e celular acima"
+                      : undefined
+                  }
+                  onClick={() => void handleCheckout("pro")}
+                  className="mt-auto w-full rounded-xl border-2 border-cyan-500/40 bg-cyan-500/10 py-3.5 text-sm font-bold text-cyan-100 transition hover:border-cyan-400/60 hover:bg-cyan-500/15 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {plan === "pro" && !isOnTrial
+                    ? "Plano mensal ativo"
+                    : paymentProvider === "abacatepay"
+                      ? "Prefiro mensal"
+                      : "Assinar mensal (Stripe)"}
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
-          <div className="mb-3 flex items-start justify-between gap-3">
-            <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-3 py-1 text-[11px] font-medium text-cyan-200">
-                <span className="text-cyan-200">Economize com o Plano Anual</span>
+        <aside className="order-2 lg:order-1 lg:col-span-4">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-5 shadow-[0_0_0_1px_rgba(6,182,212,0.08)] lg:sticky lg:top-24">
+            <div className="mb-4 space-y-1">
+              <h2 className="text-lg font-semibold text-slate-50">Sua assinatura</h2>
+              <p className="text-xs text-slate-500">Resumo rápido do acesso.</p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 rounded-xl border border-slate-800/90 bg-slate-900/35 p-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950/50">
+                  {plan === "pro" ? proIcon : plan === "business" ? businessIcon : freeIcon}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-50">
+                    {plan === "pro" ? "Pro" : plan === "business" ? "Business / anual" : "Free"}
+                  </p>
+                  {plan === "free" ? (
+                    <div className="space-y-1">
+                      <p className="text-xs text-slate-500">Modo com trial do app.</p>
+                      {accessChecked &&
+                      !accessPaid &&
+                      accessDaysRemaining != null &&
+                      accessDaysRemaining > 0 &&
+                      accessTrialEndsAt ? (
+                        <p className="text-xs text-cyan-400">
+                          Trial: <strong>{accessDaysRemaining}</strong> dia(s) · até{" "}
+                          {new Date(accessTrialEndsAt).toLocaleDateString("pt-BR")}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : isOnTrial ? (
+                    <p className="text-xs text-slate-500">
+                      Trial gateway {trialEnd ? `até ${trialEnd}` : ""}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-slate-500">
+                      Plano pago
+                      {paymentProvider === "abacatepay" ? " · AbacatePay" : " · Stripe"}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-800/90 bg-slate-900/35 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Incluso no Pro / anual
+                </p>
+                <ul className="mt-2 space-y-1.5 text-[11px] leading-snug text-slate-300">
+                  <li className="flex gap-2">
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                    Precificação 3D e marketplaces
+                  </li>
+                  <li className="flex gap-2">
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                    Produção, estoque e insumos
+                  </li>
+                  <li className="flex gap-2">
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                    Vendas e relatórios
+                  </li>
+                </ul>
+              </div>
+
+              <p className="text-[11px] leading-relaxed text-slate-500">
+                Pro mensal e anual são o mesmo produto em termos de recurso; só muda a forma de
+                cobrança.
               </p>
-              <h3 className="mt-3 text-2xl font-semibold text-slate-50">
-                R$ 199,90/ano
-              </h3>
-              <p className="text-sm text-slate-400">equivalente a R$ 16,66/mês no plano anual.</p>
+
+              <div className="flex flex-wrap gap-2">
+                {plan !== "free" && paymentProvider === "stripe" ? (
+                  <button
+                    type="button"
+                    disabled={loadingAction}
+                    onClick={() => void handlePortal()}
+                    className="w-full rounded-xl border border-slate-600 bg-slate-900/60 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    Gerenciar no Stripe
+                  </button>
+                ) : null}
+                {plan !== "free" && paymentProvider === "abacatepay" ? (
+                  <p className="text-[11px] text-slate-600">
+                    Cobranças e reembolsos: painel AbacatePay.
+                  </p>
+                ) : null}
+              </div>
             </div>
           </div>
-
-          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/30 p-3">
-            <p className="text-xs font-semibold text-slate-200">Por que é melhor?</p>
-            <ul className="mt-2 space-y-2 text-xs text-slate-200">
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Mensal: R$ 29,90/mês</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="mt-0.5 h-3.5 w-3.5 text-emerald-400" />
-                <span>Anual: R$ 199,90/ano com economia de 44% em relação ao mensal</span>
-              </li>
-            </ul>
-          </div>
-
-          <button
-            type="button"
-            disabled={
-              loadingAction ||
-              (plan === "business" && !isOnTrial) ||
-              (paymentProvider === "abacatepay" && !abacatePayerValid)
-            }
-            onClick={() => void handleCheckout("lifetime")}
-            className="mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan hover:from-emerald-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {plan === "business" && !isOnTrial
-              ? "Você já está no Business"
-              : paymentProvider === "abacatepay"
-                ? "Pagar Plano Anual (PIX ou cartão — AbacatePay)"
-                : "Assinar Plano Anual (Business — Stripe)"}
-          </button>
-        </div>
+        </aside>
       </div>
-    </section>
     </div>
   );
 }
