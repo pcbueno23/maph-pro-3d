@@ -30,6 +30,10 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { calculatorSchema, type CalculatorFormValues } from "@/types";
 import type { LabMarketplace } from "@/lib/pricingLocal";
 
+function formatBRL(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 export default function MargemCertaPage() {
   const router = useRouter();
   const { settings } = useSettingsStore();
@@ -61,6 +65,26 @@ export default function MargemCertaPage() {
     marginPercent: number;
     marketplace: LabMarketplace;
   } | null>(null);
+  const calcPreview = useMemo(() => {
+    const parsed = safeParseCalculatorValues(printingForm.getValues());
+    if (!parsed) return null;
+    const result = computePricingFromFormValues(parsed);
+    const adjustedTotal =
+      typeof (result as { custoTotalAjustado?: number }).custoTotalAjustado ===
+      "number"
+        ? Number((result as { custoTotalAjustado?: number }).custoTotalAjustado)
+        : Number(result.totalCost ?? 0);
+    const baseTotal = Number(result.totalCost ?? 0);
+    return {
+      filamentCost: Number(result.filamentCost ?? 0),
+      energyCost: Number(result.energyCost ?? 0),
+      depreciationCost: Number(result.depreciationCost ?? 0),
+      packagingCost: Number(result.packagingCost ?? 0),
+      baseTotal,
+      adjustedTotal,
+      advancedAdjustment: adjustedTotal - baseTotal,
+    };
+  }, [watchedPrinting]);
 
   const printingFormValid = useMemo(
     () => calculatorSchema.safeParse(printingForm.getValues()).success,
@@ -210,6 +234,31 @@ export default function MargemCertaPage() {
           </p>
         }
       />
+      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-400">
+        <p className="font-semibold text-slate-300">Resumo da produção</p>
+        <ul className="mt-1 space-y-0.5 text-sm text-slate-300">
+          <li>
+            Custo de Materiais: {formatBRL(calcPreview?.filamentCost ?? 0)}
+          </li>
+          <li>
+            Custo de Energia: {formatBRL(calcPreview?.energyCost ?? 0)}
+          </li>
+          <li>
+            Custo de Depreciação: {formatBRL(calcPreview?.depreciationCost ?? 0)}
+          </li>
+          <li>Embalagem: {formatBRL(calcPreview?.packagingCost ?? 0)}</li>
+          {(calcPreview?.advancedAdjustment ?? 0) !== 0 ? (
+            <li>
+              Ajustes avançados (falha/mão de obra):{" "}
+              {formatBRL(calcPreview?.advancedAdjustment ?? 0)}
+            </li>
+          ) : null}
+          <li>
+            Custo Total de Produção:{" "}
+            <strong>{formatBRL(calcPreview?.adjustedTotal ?? 0)}</strong>
+          </li>
+        </ul>
+      </div>
 
       <SaveProductChannelDialog
         open={saveDialogOpen}

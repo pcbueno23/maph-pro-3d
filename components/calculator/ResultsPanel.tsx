@@ -56,6 +56,7 @@ export function ResultsPanel({ results, isDirty }: Props) {
     margemReal,
     alertaLucroAbaixoDaMeta,
   } = results;
+  const advancedAdjustment = custoTotalAjustado - totalCost;
 
   const worstChannel =
     cascataShopee.netProfit <= cascataML.netProfit ? cascataShopee : cascataML;
@@ -364,6 +365,24 @@ export function ResultsPanel({ results, isDirty }: Props) {
           </p>
           <p className="mt-1 text-lg font-semibold text-emerald-200">{fmt(custoTotalAjustado)}</p>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-400">
+        <p className="font-semibold text-slate-300">Resumo da produção</p>
+        <ul className="mt-1 space-y-0.5 text-sm text-slate-300">
+          <li>Custo de Materiais: {fmt(results.filamentCost)}</li>
+          <li>Custo de Energia: {fmt(results.energyCost)}</li>
+          <li>Custo de Depreciação: {fmt(results.depreciationCost)}</li>
+          <li>Embalagem: {fmt(results.packagingCost)}</li>
+          {Math.abs(advancedAdjustment) > 0.0001 ? (
+            <li>
+              Ajustes avançados (falha/mão de obra): {fmt(advancedAdjustment)}
+            </li>
+          ) : null}
+          <li>
+            Custo Total de Produção: <strong>{fmt(custoTotalAjustado)}</strong>
+          </li>
+        </ul>
       </div>
 
       <details className="rounded-xl border border-slate-800 bg-slate-950/40">
