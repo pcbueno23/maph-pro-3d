@@ -16,6 +16,7 @@ type DraftPrinter = {
   status: PrinterStatus;
   purchaseValue?: number;
   usefulLifeHours?: number;
+  annualMaintenance?: number | "";
 };
 
 function normalizeNumber(value: unknown, fallback = 0) {
@@ -44,6 +45,7 @@ function toDraft(p?: Printer | null): DraftPrinter {
       status: "available",
       purchaseValue: 0,
       usefulLifeHours: 0,
+      annualMaintenance: "",
     };
   }
   return {
@@ -55,6 +57,7 @@ function toDraft(p?: Printer | null): DraftPrinter {
     status: p.status ?? "available",
     purchaseValue: p.purchaseValue ?? 0,
     usefulLifeHours: p.usefulLifeHours ?? 0,
+    annualMaintenance: "",
   };
 }
 
@@ -100,12 +103,24 @@ export default function ImpressorasPage() {
   }, [user?.id]);
 
   const openCreate = () => {
-    setDraft(toDraft(null));
+    setDraft({
+      ...toDraft(null),
+      annualMaintenance:
+        settings.defaults.annualMaintenance > 0
+          ? settings.defaults.annualMaintenance
+          : "",
+    });
     setOpen(true);
   };
 
   const openEdit = (p: Printer) => {
-    setDraft(toDraft(p));
+    setDraft({
+      ...toDraft(p),
+      annualMaintenance:
+        settings.defaults.annualMaintenance > 0
+          ? settings.defaults.annualMaintenance
+          : "",
+    });
     setOpen(true);
   };
 
@@ -149,6 +164,21 @@ export default function ImpressorasPage() {
         }
         return [saved, ...prev];
       });
+      if (draft.annualMaintenance !== "") {
+        const nextAnnualMaintenance = Math.max(
+          0,
+          normalizeNumber(draft.annualMaintenance, 0),
+        );
+        const merged = {
+          ...settings,
+          defaults: {
+            ...settings.defaults,
+            annualMaintenance: nextAnnualMaintenance,
+          },
+        };
+        updateSettings(merged);
+        await saveUserSettings(user.id, merged);
+      }
       close();
     } catch (e: any) {
       setError(e?.message ?? "Falha ao salvar impressora.");
@@ -392,6 +422,30 @@ export default function ImpressorasPage() {
                   value={draft.usefulLifeHours}
                   onChange={(e) => setDraft((d) => ({ ...d, usefulLifeHours: Number(e.target.value) || 0 }))}
                 />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-xs text-slate-300">
+                  Manutenção anual (R$) (opcional)
+                </label>
+                <input
+                  type="number"
+                  step="10"
+                  placeholder="Ex: 600"
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                  value={draft.annualMaintenance}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      annualMaintenance:
+                        e.target.value === "" ? "" : Number(e.target.value) || 0,
+                    }))
+                  }
+                />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Usado na depreciação/hora da calculadora. Se deixar vazio, mantém
+                  o valor atual das configurações.
+                </p>
               </div>
             </div>
 
