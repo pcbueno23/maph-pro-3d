@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Filter, RefreshCw, Search } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import type { AdminUserRow } from "@/lib/adminUserDto";
+import type { AdminUserSegment } from "@/lib/adminUserFilters";
 import { UserDetailModal } from "@/components/admin/UserDetailModal";
 
 type ListResponse = {
@@ -12,8 +13,16 @@ type ListResponse = {
   perPage: number;
   total: number;
   users: AdminUserRow[];
+  filtered?: boolean;
   error?: string;
 };
+
+function accessLabel(u: AdminUserRow): string {
+  if (u.is_banned) return "Banido";
+  const now = Date.now();
+  const end = new Date(u.effective_trial_ends_at).getTime();
+  return now < end ? "Em teste" : "Pós-trial";
+}
 
 export function AdminUsersTab() {
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -29,42 +38,78 @@ export function AdminUsersTab() {
   const [searching, setSearching] = useState(false);
   const [searchHits, setSearchHits] = useState<AdminUserRow[] | null>(null);
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
+  /** Valores nos campos (ainda não aplicados até clicar em Aplicar). */
+  const [draftSegment, setDraftSegment] = useState<AdminUserSegment>("all");
+  const [draftCreatedFrom, setDraftCreatedFrom] = useState("");
+  const [draftCreatedTo, setDraftCreatedTo] = useState("");
+  /** Filtros efetivos na API e na paginação. */
+  const [appliedSegment, setAppliedSegment] =
+    useState<AdminUserSegment>("all");
+  const [appliedCreatedFrom, setAppliedCreatedFrom] = useState("");
+  const [appliedCreatedTo, setAppliedCreatedTo] = useState("");
+  const [listFiltered, setListFiltered] = useState(false);
 
-  const fetchUsers = useCallback(async (p: number) => {
-    if (!supabase) return;
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    if (!token) return;
+  const fetchUsers = useCallback(
+    async (
+      p: number,
+      overrides?: Partial<{
+        segment: AdminUserSegment;
+        createdFrom: string;
+        createdTo: string;
+      }>,
+    ) => {
+      if (!supabase) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) return;
 
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await fetch(`/api/admin/users?page=${p}&perPage=${perPage}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = (await res.json()) as ListResponse;
-      if (!res.ok) {
-        setLoadError(data.error ?? "Erro ao carregar usuários.");
+      const seg = overrides?.segment ?? appliedSegment;
+      const fromRaw = overrides?.createdFrom ?? appliedCreatedFrom;
+      const toRaw = overrides?.createdTo ?? appliedCreatedTo;
+
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const params = new URLSearchParams();
+        params.set("page", String(p));
+        params.set("perPage", String(perPage));
+        if (seg !== "all") params.set("segment", seg);
+        const from = fromRaw.trim();
+        const to = toRaw.trim();
+        if (from) params.set("createdFrom", from);
+        if (to) params.set("createdTo", to);
+
+        const res = await fetch(`/api/admin/users?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = (await res.json()) as ListResponse;
+        if (!res.ok) {
+          setLoadError(data.error ?? "Erro ao carregar usuários.");
+          setUsers([]);
+          setListFiltered(false);
+          return;
+        }
+        setAppTrialDays(data.appTrialDays);
+        setPage(data.page);
+        setTotal(data.total);
+        setUsers(data.users);
+        setListFiltered(Boolean(data.filtered));
+        const iso: Record<string, string> = {};
+        for (const u of data.users) {
+          iso[u.id] =
+            u.trial_ends_at_metadata ?? u.effective_trial_ends_at;
+        }
+        setEditIso(iso);
+      } catch {
+        setLoadError("Erro de rede ao carregar usuários.");
         setUsers([]);
-        return;
+        setListFiltered(false);
+      } finally {
+        setLoading(false);
       }
-      setAppTrialDays(data.appTrialDays);
-      setPage(data.page);
-      setTotal(data.total);
-      setUsers(data.users);
-      const iso: Record<string, string> = {};
-      for (const u of data.users) {
-        iso[u.id] =
-          u.trial_ends_at_metadata ?? u.effective_trial_ends_at;
-      }
-      setEditIso(iso);
-    } catch {
-      setLoadError("Erro de rede ao carregar usuários.");
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [perPage]);
+    },
+    [perPage, appliedSegment, appliedCreatedFrom, appliedCreatedTo],
+  );
 
   useEffect(() => {
     void fetchUsers(1);
@@ -214,6 +259,96 @@ export function AdminUsersTab() {
         <code className="text-xs text-cyan-300">trial_ends_at</code>.
       </p>
 
+      <div className="rounded-xl border border-slate-800/90 bg-slate-950/40 p-4">
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+          <Filter className="h-3.5 w-3.5 text-cyan-500/80" />
+          <span className="font-medium text-slate-300">Filtros da lista</span>
+          {listFiltered ? (
+            <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-300/90">
+              busca completa nos cadastros
+            </span>
+          ) : null}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block text-xs text-slate-500">
+            Situação
+            <select
+              value={draftSegment}
+              onChange={(e) =>
+                setDraftSegment(e.target.value as AdminUserSegment)
+              }
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-200"
+            >
+              <option value="all">Todas as contas</option>
+              <option value="in_trial">Em teste</option>
+              <option value="post_trial">Pós-trial</option>
+              <option value="banned">Banidas</option>
+            </select>
+          </label>
+          <label className="block text-xs text-slate-500">
+            Criado a partir de
+            <input
+              type="date"
+              value={draftCreatedFrom}
+              onChange={(e) => setDraftCreatedFrom(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-200"
+            />
+          </label>
+          <label className="block text-xs text-slate-500">
+            Criado até
+            <input
+              type="date"
+              value={draftCreatedTo}
+              onChange={(e) => setDraftCreatedTo(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-200"
+            />
+          </label>
+          <div className="flex flex-col justify-end gap-2 sm:flex-row sm:items-end">
+            <button
+              type="button"
+              onClick={() => {
+                setAppliedSegment(draftSegment);
+                setAppliedCreatedFrom(draftCreatedFrom);
+                setAppliedCreatedTo(draftCreatedTo);
+                void fetchUsers(1, {
+                  segment: draftSegment,
+                  createdFrom: draftCreatedFrom,
+                  createdTo: draftCreatedTo,
+                });
+              }}
+              disabled={loading}
+              className="rounded-lg bg-cyan-600/90 px-4 py-2 text-xs font-medium text-slate-950 transition hover:bg-cyan-500 disabled:opacity-50"
+            >
+              Aplicar filtros
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDraftSegment("all");
+                setDraftCreatedFrom("");
+                setDraftCreatedTo("");
+                setAppliedSegment("all");
+                setAppliedCreatedFrom("");
+                setAppliedCreatedTo("");
+                void fetchUsers(1, {
+                  segment: "all",
+                  createdFrom: "",
+                  createdTo: "",
+                });
+              }}
+              disabled={loading}
+              className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] text-slate-600">
+          “Em teste” / “Pós-trial” usam a data fim do trial (regra do app), não o
+          pagamento. Busca por e-mail continua abaixo.
+        </p>
+      </div>
+
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
         <input
@@ -258,18 +393,36 @@ export function AdminUsersTab() {
         </div>
       ) : null}
 
-      {loadError && (
+      {loadError ? (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          {loadError}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="min-w-0 flex-1">{loadError}</span>
+            <button
+              type="button"
+              onClick={() => void fetchUsers(page)}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-400/35 px-3 py-1.5 text-xs font-medium text-amber-50 transition hover:bg-amber-500/15"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Tentar de novo
+            </button>
+          </div>
         </div>
-      )}
+      ) : null}
 
       {loading ? (
         <p className="text-sm text-slate-500">Carregando usuários…</p>
       ) : null}
 
       {!loading && users.length === 0 && !loadError ? (
-        <p className="text-sm text-slate-500">Nenhum usuário nesta página.</p>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-8 text-center">
+          <p className="text-sm text-slate-400">
+            Nenhuma conta encontrada
+            {listFiltered ? " com os filtros aplicados" : ""}.
+          </p>
+          <p className="mt-2 text-xs text-slate-600">
+            Tente outros filtros, use a busca por e-mail ou clique em Limpar.
+          </p>
+        </div>
       ) : null}
 
       {users.length > 0 ? (
@@ -296,13 +449,17 @@ export function AdminUsersTab() {
                     {u.email || "—"}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">
-                    {u.is_banned ? (
-                      <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] text-red-300">
-                        Banido
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-slate-500">—</span>
-                    )}
+                    <span
+                      className={
+                        u.is_banned
+                          ? "rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] text-red-300"
+                          : accessLabel(u) === "Em teste"
+                            ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300/95"
+                            : "rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] text-slate-400"
+                      }
+                    >
+                      {accessLabel(u)}
+                    </span>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-400">
                     {new Date(u.created_at).toLocaleString("pt-BR", {
