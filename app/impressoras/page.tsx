@@ -57,7 +57,7 @@ function toDraft(p?: Printer | null): DraftPrinter {
     status: p.status ?? "available",
     purchaseValue: p.purchaseValue ?? 0,
     usefulLifeHours: p.usefulLifeHours ?? 0,
-    annualMaintenance: "",
+    annualMaintenance: p.annualMaintenance == null ? "" : Number(p.annualMaintenance),
   };
 }
 
@@ -105,22 +105,13 @@ export default function ImpressorasPage() {
   const openCreate = () => {
     setDraft({
       ...toDraft(null),
-      annualMaintenance:
-        settings.defaults.annualMaintenance > 0
-          ? settings.defaults.annualMaintenance
-          : "",
+      annualMaintenance: settings.defaults.annualMaintenance > 0 ? settings.defaults.annualMaintenance : "",
     });
     setOpen(true);
   };
 
   const openEdit = (p: Printer) => {
-    setDraft({
-      ...toDraft(p),
-      annualMaintenance:
-        settings.defaults.annualMaintenance > 0
-          ? settings.defaults.annualMaintenance
-          : "",
-    });
+    setDraft(toDraft(p));
     setOpen(true);
   };
 
@@ -147,6 +138,10 @@ export default function ImpressorasPage() {
       status: draft.status,
       purchaseValue: Math.max(0, normalizeNumber(draft.purchaseValue, 0)),
       usefulLifeHours: Math.max(0, normalizeNumber(draft.usefulLifeHours, 0)),
+      annualMaintenance:
+        draft.annualMaintenance === ""
+          ? null
+          : Math.max(0, normalizeNumber(draft.annualMaintenance, 0)),
       createdAt: draft.id ? nowIso : nowIso,
       updatedAt: nowIso,
     };
@@ -164,21 +159,6 @@ export default function ImpressorasPage() {
         }
         return [saved, ...prev];
       });
-      if (draft.annualMaintenance !== "") {
-        const nextAnnualMaintenance = Math.max(
-          0,
-          normalizeNumber(draft.annualMaintenance, 0),
-        );
-        const merged = {
-          ...settings,
-          defaults: {
-            ...settings.defaults,
-            annualMaintenance: nextAnnualMaintenance,
-          },
-        };
-        updateSettings(merged);
-        await saveUserSettings(user.id, merged);
-      }
       close();
     } catch (e: any) {
       setError(e?.message ?? "Falha ao salvar impressora.");

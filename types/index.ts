@@ -461,6 +461,7 @@ export interface Printer {
   status: PrinterStatus;
   purchaseValue?: number | null;
   usefulLifeHours?: number | null;
+  annualMaintenance?: number | null;
   createdAt: string;
   updatedAt: string;
 }

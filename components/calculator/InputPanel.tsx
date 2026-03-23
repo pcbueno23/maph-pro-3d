@@ -113,6 +113,7 @@ export function InputPanel({
     if (Number.isFinite(Number(p.energyRateBrlKwh))) {
       setValue("costs.kwhPrice", Number(p.energyRateBrlKwh ?? 0), { shouldDirty: false });
     }
+    setValue("costs.annualMaintenance", Number(p.annualMaintenance ?? 0), { shouldDirty: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [printers, settings.printer?.defaultPrinterId]);
 
@@ -128,6 +129,7 @@ export function InputPanel({
     if (Number.isFinite(Number(p.energyRateBrlKwh))) {
       setValue("costs.kwhPrice", Number(p.energyRateBrlKwh ?? 0), { shouldDirty: true });
     }
+    setValue("costs.annualMaintenance", Number(p.annualMaintenance ?? 0), { shouldDirty: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPrinterId, printers]);
 
@@ -414,7 +416,7 @@ export function InputPanel({
                   }
                   setValue(
                     "costs.annualMaintenance",
-                    settings.defaults.annualMaintenance ?? 0,
+                    Number(p.annualMaintenance ?? 0),
                     { shouldDirty: true },
                   );
                   setValue(

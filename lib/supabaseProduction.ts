@@ -44,6 +44,7 @@ export async function upsertPrinter(
     status: input.status,
     purchase_value: input.purchaseValue ?? null,
     useful_life_hours: input.usefulLifeHours ?? null,
+    annual_maintenance: input.annualMaintenance ?? null,
     created_at: input.createdAt,
     updated_at: new Date().toISOString(),
   };
@@ -76,6 +77,7 @@ function mapPrinterRow(row: any): Printer {
     status: row.status,
     purchaseValue: row.purchase_value == null ? null : Number(row.purchase_value),
     usefulLifeHours: row.useful_life_hours == null ? null : Number(row.useful_life_hours),
+    annualMaintenance: row.annual_maintenance == null ? null : Number(row.annual_maintenance),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
