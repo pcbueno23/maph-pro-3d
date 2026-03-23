@@ -512,7 +512,16 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
     const parsed = safeParseCalculatorValues(printingForm.getValues());
     if (!parsed) return;
     const supplyId = parsed.material.supplyId;
-    const qty = Number(parsed.material.weight ?? 0);
+    const unitsPerBatch =
+      typeof parsed.time.unitsPerBatch === "number" && parsed.time.unitsPerBatch > 0
+        ? parsed.time.unitsPerBatch
+        : 1;
+    const weightQty = Number(parsed.material.weight ?? 0);
+    const plateWeightQty =
+      typeof parsed.material.plateWeight === "number" && parsed.material.plateWeight > 0
+        ? parsed.material.plateWeight / unitsPerBatch
+        : 0;
+    const qty = weightQty > 0 ? weightQty : plateWeightQty;
     if (!supplyId || isPlaceholderSupplyId(supplyId) || !(qty > 0)) return;
     const supply = supplies.find((s) => s.id === supplyId);
     if (!supply) return;
@@ -755,10 +764,26 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
         await upsertProductsForUser(user.id, list);
 
         const autoBomQty =
-          typeof parsedCalc.material.weight === "number" &&
-          Number.isFinite(parsedCalc.material.weight)
-            ? parsedCalc.material.weight
-            : 0;
+          (() => {
+            const unitsPerBatch =
+              typeof parsedCalc.time.unitsPerBatch === "number" &&
+              parsedCalc.time.unitsPerBatch > 0
+                ? parsedCalc.time.unitsPerBatch
+                : 1;
+            const weightQty =
+              typeof parsedCalc.material.weight === "number" &&
+              Number.isFinite(parsedCalc.material.weight)
+                ? parsedCalc.material.weight
+                : 0;
+            if (weightQty > 0) return weightQty;
+            const plateWeightQty =
+              typeof parsedCalc.material.plateWeight === "number" &&
+              Number.isFinite(parsedCalc.material.plateWeight) &&
+              parsedCalc.material.plateWeight > 0
+                ? parsedCalc.material.plateWeight / unitsPerBatch
+                : 0;
+            return plateWeightQty;
+          })();
         const autoBomSupplyId = parsedCalc.material.supplyId;
         const canAutoBom =
           !isPlaceholderSupplyId(autoBomSupplyId) &&
