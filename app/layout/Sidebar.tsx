@@ -4,11 +4,13 @@ import type { ComponentType } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Shield } from "lucide-react";
 import {
   primaryNavLinks,
   secondaryNavLinksAfterDivider,
   secondaryNavLinksBeforeDivider,
 } from "./navLinks";
+import { useAdminWhoami } from "@/hooks/useAdminWhoami";
 
 function NavLinkRow({
   href,
@@ -39,6 +41,7 @@ function NavLinkRow({
 
 export function Sidebar() {
   const pathname = usePathname();
+  const isAdmin = useAdminWhoami();
 
   return (
     <aside
@@ -100,6 +103,14 @@ export function Sidebar() {
               pathname={pathname}
             />
           ))}
+          {isAdmin ? (
+            <NavLinkRow
+              href="/admin"
+              label="Admin"
+              icon={Shield}
+              pathname={pathname}
+            />
+          ) : null}
         </div>
       </nav>
     </aside>

@@ -11,6 +11,7 @@ import { useCalculatorStore } from "@/store/calculatorStore";
 import { supabase } from "@/lib/supabaseClient";
 import { clearUserData } from "@/lib/clearUserData";
 import { mobileNavLinksFlat } from "./navLinks";
+import { useAdminWhoami } from "@/hooks/useAdminWhoami";
 
 const titles: Record<string, string> = {
   "/": "Visão geral",
@@ -27,6 +28,7 @@ const titles: Record<string, string> = {
   "/settings": "Configurações",
   "/pricing": "Assinaturas",
   "/trial-expired": "Acesso encerrado",
+  "/admin": "Admin",
 };
 
 const mobileLinks = mobileNavLinksFlat;
@@ -42,6 +44,7 @@ export function Header() {
   const requestNewSimulation = useCalculatorStore((s) => s.requestNewSimulation);
   const isCalculator = pathname === "/calculator";
    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isAdmin = useAdminWhoami();
 
   const title =
     Object.entries(titles)
@@ -204,6 +207,19 @@ export function Header() {
                   </Link>
                 );
               })}
+              {isAdmin ? (
+                <Link
+                  href="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block rounded-xl px-3 py-2 text-sm ${
+                    pathname.startsWith("/admin")
+                      ? "bg-slate-900 text-cyan-400 shadow-neon-cyan"
+                      : "text-slate-300 hover:bg-slate-900/80"
+                  }`}
+                >
+                  Admin
+                </Link>
+              ) : null}
             </nav>
           </div>
         </div>

@@ -19,6 +19,13 @@ function isPublicCatalogPath(pathname: string | null): boolean {
 /** Com trial expirado o usuário só acessa estas rotas até assinar. */
 const PAYWALL_EXCEPTION_PATHS = ["/pricing", "/trial-expired", "/suporte"];
 
+function isPaywallExceptionPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (PAYWALL_EXCEPTION_PATHS.includes(pathname)) return true;
+  if (pathname.startsWith("/admin")) return true;
+  return false;
+}
+
 interface Props {
   children: ReactNode;
 }
@@ -39,7 +46,7 @@ export function AuthGuard({ children }: Props) {
   const previousSyncedUserIdRef = useRef<string | null>(null);
 
   const isPublic = PUBLIC_PATHS.includes(pathname) || isPublicCatalogPath(pathname);
-  const isPaywallException = PAYWALL_EXCEPTION_PATHS.includes(pathname);
+  const isPaywallException = isPaywallExceptionPath(pathname);
 
   useEffect(() => {
     if (!supabase) {
