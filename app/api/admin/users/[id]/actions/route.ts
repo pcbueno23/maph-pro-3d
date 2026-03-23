@@ -95,16 +95,26 @@ export async function POST(
   }
 
   if (body.action === "send_recovery" || body.action === "send_magic") {
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") ?? "";
+    const redirectTo =
+      base.length > 0
+        ? `${base}/reset-password`
+        : undefined;
     const gen = admin.auth.admin as unknown as {
       generateLink: (p: {
         type: "recovery" | "magiclink";
         email: string;
+        options?: { redirectTo?: string };
       }) => Promise<{ data: { properties?: { action_link?: string } }; error: Error | null }>;
     };
     const type = body.action === "send_recovery" ? "recovery" : "magiclink";
     const { data: linkData, error: linkErr } = await gen.generateLink({
       type,
       email,
+      ...(redirectTo && type === "recovery"
+        ? { options: { redirectTo } }
+        : {}),
     });
     if (linkErr) {
       return NextResponse.json(

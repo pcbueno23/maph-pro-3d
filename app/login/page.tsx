@@ -39,7 +39,7 @@ function LoginFormContent() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -73,6 +73,17 @@ function LoginFormContent() {
     );
   }
 
+  function redirectBaseForAuth(): string {
+    if (
+      typeof process.env.NEXT_PUBLIC_APP_URL === "string" &&
+      process.env.NEXT_PUBLIC_APP_URL.trim()
+    ) {
+      return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+    }
+    if (typeof window !== "undefined") return window.location.origin;
+    return "";
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!supabase) return;
@@ -81,6 +92,25 @@ function LoginFormContent() {
     setLoading(true);
 
     try {
+      if (mode === "forgot") {
+        const base = redirectBaseForAuth();
+        if (!base) {
+          setError("Defina NEXT_PUBLIC_APP_URL para o link de recuperação.");
+          setLoading(false);
+          return;
+        }
+        const { error: resetErr } = await supabase.auth.resetPasswordForEmail(
+          email.trim(),
+          { redirectTo: `${base}/reset-password` },
+        );
+        if (resetErr) throw resetErr;
+        setMessage(
+          "Se existir uma conta com este e-mail, você receberá um link para definir uma nova senha.",
+        );
+        setMode("signin");
+        setLoading(false);
+        return;
+      }
       if (mode === "signin") {
         const { error: signInError } =
           await supabase.auth.signInWithPassword({
@@ -162,35 +192,51 @@ function LoginFormContent() {
             <h1 className="text-lg font-semibold">
               {mode === "signin"
                 ? "Entrar na sua conta"
-                : "Criar conta para começar"}
+                : mode === "signup"
+                  ? "Criar conta para começar"
+                  : "Recuperar senha"}
             </h1>
           </div>
         </div>
 
-        <div className="flex gap-1 rounded-full bg-slate-900/70 p-1 text-xs">
+        {mode === "forgot" ? (
           <button
             type="button"
-            onClick={() => setMode("signin")}
-            className={`flex-1 rounded-full px-3 py-1.5 ${
-              mode === "signin"
-                ? "bg-slate-800 text-slate-100"
-                : "text-slate-400"
-            }`}
+            onClick={() => {
+              setMode("signin");
+              setError(null);
+              setMessage(null);
+            }}
+            className="text-xs text-cyan-400 transition hover:text-cyan-300"
           >
-            Entrar
+            ← Voltar ao login
           </button>
-          <button
-            type="button"
-            onClick={() => setMode("signup")}
-            className={`flex-1 rounded-full px-3 py-1.5 ${
-              mode === "signup"
-                ? "bg-slate-800 text-slate-100"
-                : "text-slate-400"
-            }`}
-          >
-            Criar conta
-          </button>
-        </div>
+        ) : (
+          <div className="flex gap-1 rounded-full bg-slate-900/70 p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setMode("signin")}
+              className={`flex-1 rounded-full px-3 py-1.5 ${
+                mode === "signin"
+                  ? "bg-slate-800 text-slate-100"
+                  : "text-slate-400"
+              }`}
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("signup")}
+              className={`flex-1 rounded-full px-3 py-1.5 ${
+                mode === "signup"
+                  ? "bg-slate-800 text-slate-100"
+                  : "text-slate-400"
+              }`}
+            >
+              Criar conta
+            </button>
+          </div>
+        )}
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2 text-sm">
@@ -234,23 +280,41 @@ function LoginFormContent() {
             </div>
           ) : null}
 
-          <div className="space-y-2 text-sm">
-            <label className="mb-1 block text-xs text-slate-300">
-              Senha
-            </label>
-            <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2">
-              <Lock className="h-4 w-4 text-slate-500" />
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="flex-1 bg-transparent text-sm outline-none"
-                placeholder="Mínimo 6 caracteres"
-              />
+          {mode === "forgot" ? null : (
+            <div className="space-y-2 text-sm">
+              <label className="mb-1 block text-xs text-slate-300">
+                Senha
+              </label>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2">
+                <Lock className="h-4 w-4 text-slate-500" />
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="flex-1 bg-transparent text-sm outline-none"
+                  placeholder="Mínimo 6 caracteres"
+                />
+              </div>
             </div>
-          </div>
+          )}
+
+          {mode === "signin" ? (
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("forgot");
+                  setError(null);
+                  setMessage(null);
+                }}
+                className="text-xs text-cyan-400 transition hover:text-cyan-300"
+              >
+                Esqueci minha senha
+              </button>
+            </div>
+          ) : null}
 
           {error && (
             <p className="whitespace-pre-wrap text-xs text-rose-400">
@@ -270,7 +334,11 @@ function LoginFormContent() {
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
           >
             <LogIn className="h-4 w-4" />
-            {mode === "signin" ? "Entrar" : "Criar conta"}
+            {mode === "signin"
+              ? "Entrar"
+              : mode === "signup"
+                ? "Criar conta"
+                : "Enviar link de recuperação"}
           </button>
         </form>
 

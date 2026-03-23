@@ -10,7 +10,7 @@ import { syncProductsOnLogin } from "@/lib/productSync";
 import { syncUserDataOnLogin } from "@/lib/userDataSync";
 import { PersistUserData } from "./PersistUserData";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/reset-password"];
 
 function isPublicCatalogPath(pathname: string | null): boolean {
   return Boolean(pathname?.startsWith("/c/"));
@@ -77,8 +77,21 @@ export function AuthGuard({ children }: Props) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setAuth(session?.user ?? null, session ?? null);
+      if (event === "PASSWORD_RECOVERY") {
+        try {
+          sessionStorage.setItem("supabase-pw-recovery", "1");
+        } catch {
+          /* ignore */
+        }
+        if (
+          typeof window !== "undefined" &&
+          window.location.pathname !== "/reset-password"
+        ) {
+          router.replace("/reset-password");
+        }
+      }
       if (!session) {
         clearUserData();
         clearAuth();
@@ -91,7 +104,7 @@ export function AuthGuard({ children }: Props) {
       clearTimeout(failSafe);
       subscription.unsubscribe();
     };
-  }, [setAuth, setInitialized, clearAuth, resetAccess]);
+  }, [setAuth, setInitialized, clearAuth, resetAccess, router]);
 
   useEffect(() => {
     if (!user) {
