@@ -186,7 +186,9 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
       energyCost: Number(results.energyCost ?? 0),
       depreciationCost: Number(results.depreciationCost ?? 0),
       packagingCost: Number(results.packagingCost ?? 0),
+      baseTotal: Number(results.totalCost ?? 0),
       totalCost: adjustedTotal,
+      advancedAdjustment: adjustedTotal - Number(results.totalCost ?? 0),
     };
   }, [watchedPrinting]);
 
@@ -1218,6 +1220,12 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
                   <li>
                     Embalagem: {formatBRL(calcPreview?.packagingCost ?? packagingCost)}
                   </li>
+                  {(calcPreview?.advancedAdjustment ?? 0) !== 0 ? (
+                    <li>
+                      Ajustes avançados (falha/mão de obra):{" "}
+                      {formatBRL(calcPreview?.advancedAdjustment ?? 0)}
+                    </li>
+                  ) : null}
                   <li>
                     Custo Total de Produção:{" "}
                     <strong>{formatBRL(calcPreview?.totalCost ?? totalCost)}</strong>
