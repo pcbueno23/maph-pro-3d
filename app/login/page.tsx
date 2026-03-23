@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from "react";
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { LogIn, Mail, Lock, Chrome, Phone } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { upsertUserContact } from "@/lib/supabaseUserContact";
@@ -158,13 +159,25 @@ function LoginFormContent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-8 text-slate-100">
       <div className="w-full max-w-md space-y-6 rounded-3xl border border-slate-800 bg-slate-950/70 p-6 shadow-neon-cyan backdrop-blur-xl">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-500 via-purple-500 to-emerald-500" />
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-cyan-400">
-              Precifica3D
+        <div className="flex items-start gap-3">
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-900/80">
+            <Image
+              src="/logo-maph-pro-3d.png"
+              alt="MAPH PRO 3D"
+              width={64}
+              height={64}
+              className="h-12 w-12 object-contain"
+              priority
+            />
+          </div>
+          <div className="min-w-0">
+            <p className="text-base font-semibold tracking-tight text-slate-50">
+              MAPH PRO 3D
             </p>
-            <h1 className="text-lg font-semibold">
+            <p className="text-[11px] text-slate-400">
+              Profissionalize seu negócio 3D
+            </p>
+            <h1 className="mt-2 text-lg font-semibold text-slate-100">
               {mode === "signin"
                 ? "Entrar na sua conta"
                 : mode === "signup"
@@ -245,12 +258,12 @@ function LoginFormContent() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-                  placeholder="Opcional — WhatsApp para contato"
+                  placeholder="DDD + número do WhatsApp"
                 />
               </div>
               <p className="text-[11px] text-slate-500">
-                Gravado na tabela <span className="font-mono text-slate-400">public.user_contact</span> no
-                Supabase (Table Editor). A coluna &quot;Phone&quot; da lista de usuários é só para login SMS.
+                Usamos para falar com você sobre pedidos, suporte e novidades do
+                seu negócio.
               </p>
             </div>
           ) : null}

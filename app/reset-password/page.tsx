@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, Lock } from "lucide-react";
+import Image from "next/image";
+import { Lock } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { userFacingPasswordUpdateError } from "@/lib/authUserMessages";
@@ -115,15 +116,27 @@ export default function ResetPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 text-slate-100">
       <div className="w-full max-w-md space-y-6 rounded-3xl border border-slate-800 bg-slate-950/70 p-6 shadow-neon-cyan backdrop-blur-xl">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-600">
-            <KeyRound className="h-5 w-5 text-slate-950" />
+        <div className="flex items-start gap-3">
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-900/80">
+            <Image
+              src="/logo-maph-pro-3d.png"
+              alt="MAPH PRO 3D"
+              width={64}
+              height={64}
+              className="h-12 w-12 object-contain"
+              priority
+            />
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-cyan-400">
+          <div className="min-w-0">
+            <p className="text-base font-semibold tracking-tight text-slate-50">
               MAPH PRO 3D
             </p>
-            <h1 className="text-lg font-semibold">Nova senha</h1>
+            <p className="text-[11px] text-slate-400">
+              Profissionalize seu negócio 3D
+            </p>
+            <h1 className="mt-2 text-lg font-semibold text-slate-100">
+              Nova senha
+            </h1>
           </div>
         </div>
 
