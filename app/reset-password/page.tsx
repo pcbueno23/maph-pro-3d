@@ -5,19 +5,9 @@ import { useRouter } from "next/navigation";
 import { KeyRound, Lock } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { userFacingPasswordUpdateError } from "@/lib/authUserMessages";
 
 const RECOVERY_KEY = "supabase-pw-recovery";
-
-function appOrigin(): string {
-  if (
-    typeof process.env.NEXT_PUBLIC_APP_URL === "string" &&
-    process.env.NEXT_PUBLIC_APP_URL.trim()
-  ) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
-  }
-  if (typeof window !== "undefined") return window.location.origin;
-  return "";
-}
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -95,7 +85,7 @@ export default function ResetPasswordPage() {
         router.replace("/");
       }, 800);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Não foi possível salvar.");
+      setError(userFacingPasswordUpdateError(err));
     } finally {
       setLoading(false);
     }
@@ -104,7 +94,10 @@ export default function ResetPasswordPage() {
   if (!supabase) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-200">
-        <p className="text-sm">Supabase não configurado.</p>
+        <p className="text-sm">
+          O serviço não está disponível no momento. Tente mais tarde ou fale com
+          o suporte.
+        </p>
       </div>
     );
   }
@@ -144,11 +137,7 @@ export default function ResetPasswordPage() {
               → Esqueci minha senha.
             </p>
             <p className="text-xs text-slate-500">
-              Em Authentication → URL Configuration, inclua{" "}
-              <code className="break-all text-cyan-600/90">
-                {appOrigin()}/reset-password
-              </code>{" "}
-              em Redirect URLs.
+              Se o problema continuar, fale com o suporte.
             </p>
           </div>
         ) : !canSetPassword ? (

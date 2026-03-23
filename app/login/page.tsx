@@ -6,30 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, Mail, Lock, Chrome, Phone } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { upsertUserContact } from "@/lib/supabaseUserContact";
-
-function formatAuthError(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err ?? "");
-  const code = typeof err === "object" && err !== null && "code" in err ? String((err as { code?: string }).code) : "";
-  const combined = `${code} ${msg}`.toLowerCase();
-  if (
-    code === "over_email_send_rate_limit" ||
-    combined.includes("rate limit") ||
-    combined.includes("email rate limit") ||
-    combined.includes("too many requests")
-  ) {
-    return [
-      "Limite de e-mails do Supabase (proteção anti-abuso). Cada tentativa de cadastro conta, mesmo quando dá erro.",
-      "",
-      "O que fazer:",
-      "• Espere 30–60 min (ou use outra rede/Wi‑Fi — o limite é por IP/projeto).",
-      "• No painel: Authentication → Providers → Email — desative “Confirm email” em ambiente de teste (bem menos e-mails por cadastro).",
-      "• Authentication → Attack Protection (ou Rate Limits) — aumente os limites, se o plano mostrar essa opção.",
-      "• Settings → Auth → SMTP: configure SMTP próprio (ex.: Resend, SendGrid) — costuma ter cota maior que o e-mail padrão.",
-      "• Docs: supabase.com/docs/guides/auth/rate-limits",
-    ].join("\n");
-  }
-  return msg || "Não foi possível autenticar.";
-}
+import { userFacingAuthError } from "@/lib/authUserMessages";
 
 function LoginFormContent() {
   const router = useRouter();
@@ -58,15 +35,8 @@ function LoginFormContent() {
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-100">
         <div className="space-y-2 rounded-2xl bg-slate-900/80 px-6 py-4 text-sm">
           <p>
-            Supabase não está configurado. Defina as variáveis{" "}
-            <span className="font-mono text-xs">
-              NEXT_PUBLIC_SUPABASE_URL
-            </span>{" "}
-            e{" "}
-            <span className="font-mono text-xs">
-              NEXT_PUBLIC_SUPABASE_ANON_KEY
-            </span>{" "}
-            no arquivo <span className="font-mono text-xs">.env.local</span>.
+            O serviço de login não está disponível no momento. Tente mais tarde
+            ou fale com o suporte.
           </p>
         </div>
       </div>
@@ -95,7 +65,9 @@ function LoginFormContent() {
       if (mode === "forgot") {
         const base = redirectBaseForAuth();
         if (!base) {
-          setError("Defina NEXT_PUBLIC_APP_URL para o link de recuperação.");
+          setError(
+            "Não foi possível enviar o link agora. Tente novamente mais tarde ou fale com o suporte.",
+          );
           setLoading(false);
           return;
         }
@@ -146,7 +118,7 @@ function LoginFormContent() {
         setMode("signin");
       }
     } catch (err: unknown) {
-      setError(formatAuthError(err));
+      setError(userFacingAuthError(err, mode));
     } finally {
       setLoading(false);
     }
@@ -175,7 +147,10 @@ function LoginFormContent() {
         },
       });
     } catch (err: unknown) {
-      setError(formatAuthError(err) || "Erro ao iniciar login com Google.");
+      setError(
+        userFacingAuthError(err, "oauth") ||
+          "Não foi possível abrir o login com Google. Tente de novo.",
+      );
       setLoading(false);
     }
   }
