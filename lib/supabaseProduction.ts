@@ -15,6 +15,16 @@ function mustHaveClient() {
   return supabase;
 }
 
+let printersSupportsAnnualMaintenance: boolean | null = null;
+
+function isMissingAnnualMaintenanceColumn(error: unknown): boolean {
+  const message =
+    typeof error === "string"
+      ? error
+      : (error as { message?: string } | null)?.message ?? "";
+  return /annual_maintenance/i.test(message) && /printers/i.test(message);
+}
+
 // =========================
 // Impressoras
 // =========================
@@ -44,18 +54,34 @@ export async function upsertPrinter(
     status: input.status,
     purchase_value: input.purchaseValue ?? null,
     useful_life_hours: input.usefulLifeHours ?? null,
-    annual_maintenance: input.annualMaintenance ?? null,
     created_at: input.createdAt,
     updated_at: new Date().toISOString(),
   };
+  if (printersSupportsAnnualMaintenance !== false) {
+    payload.annual_maintenance = input.annualMaintenance ?? null;
+  }
   if (input.id) {
     payload.id = input.id;
   }
-  const { data, error } = await client
-    .from("printers")
-    .upsert(payload, { onConflict: "id" })
-    .select("*")
-    .single();
+  const runUpsert = async (candidatePayload: any) =>
+    client
+      .from("printers")
+      .upsert(candidatePayload, { onConflict: "id" })
+      .select("*")
+      .single();
+
+  let { data, error } = await runUpsert(payload);
+  if (error && isMissingAnnualMaintenanceColumn(error) && "annual_maintenance" in payload) {
+    printersSupportsAnnualMaintenance = false;
+    const fallbackPayload = { ...payload };
+    delete fallbackPayload.annual_maintenance;
+    const retry = await runUpsert(fallbackPayload);
+    data = retry.data;
+    error = retry.error;
+  } else if (!error && "annual_maintenance" in payload) {
+    printersSupportsAnnualMaintenance = true;
+  }
+
   if (error || !data) throw error ?? new Error("Falha ao salvar equipamento");
   return mapPrinterRow(data);
 }

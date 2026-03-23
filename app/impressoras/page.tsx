@@ -423,8 +423,8 @@ export default function ImpressorasPage() {
                   }
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  Usado na depreciação/hora da calculadora. Se deixar vazio, mantém
-                  o valor atual das configurações.
+                  Usado na depreciação/hora da calculadora para esta impressora.
+                  Se deixar vazio, considera R$ 0,00.
                 </p>
               </div>
             </div>
