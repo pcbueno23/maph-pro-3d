@@ -5,7 +5,9 @@ import {
   createCustomer,
   type AbacatePayCreateBillingParams,
 } from "@/lib/abacatepay";
-import { PLAN_PRICING } from "@/lib/planPricing";
+import { getPlanPricingFromConfig } from "@/lib/planPricing";
+import { parseSiteConfigData } from "@/lib/siteConfig";
+import { getSupabaseServiceRole } from "@/lib/adminApiAuth";
 
 const token = process.env.ABACATEPAY_TOKEN?.trim();
 
@@ -74,23 +76,35 @@ function customerNotFoundUserMessage(): string {
   );
 }
 
-const PLAN_PRODUCTS: Record<
-  string,
-  { name: string; description: string; priceCents: number }
-> = {
+const PLAN_NAMES: Record<string, { name: string; description: string }> = {
   pro: {
     name: "MAPH PRO 3D — Plano Pro (mensal)",
     description:
       "Assinatura mensal com acesso completo ao MAPH PRO 3D: calculadora de precificação 3D, taxas Shopee e Mercado Livre, produtos e peças, estoque e insumos, ordens, vendas e relatórios. Cobrança via PIX ou cartão.",
-    priceCents: PLAN_PRICING.pro.priceCents,
   },
   lifetime: {
     name: "MAPH PRO 3D — Plano anual (economia)",
     description:
       "Plano anual com as mesmas funções do Pro: precificação completa, gestão de produção, estoque, vendas e relatórios. Valor anual com desconto em relação ao mensal. Pagamento via PIX ou cartão.",
-    priceCents: PLAN_PRICING.lifetime.priceCents,
   },
 };
+
+/** Busca preços efetivos do banco (admin pode sobrescrever via painel). */
+async function fetchEffectivePlanPrices() {
+  try {
+    const sb = getSupabaseServiceRole();
+    if (!sb) return getPlanPricingFromConfig();
+    const { data } = await sb
+      .from("app_site_config")
+      .select("data")
+      .eq("id", "default")
+      .single();
+    const cfg = parseSiteConfigData(data?.data);
+    return getPlanPricingFromConfig(cfg);
+  } catch {
+    return getPlanPricingFromConfig();
+  }
+}
 
 /**
  * URL https pública da imagem do item no checkout (billing v1).
@@ -165,13 +179,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const product = PLAN_PRODUCTS[plan];
-    if (!product) {
+    const planNames = PLAN_NAMES[plan];
+    if (!planNames) {
       return NextResponse.json(
         { error: "Plano não encontrado." },
         { status: 400 }
       );
     }
+
+    const effectivePricing = await fetchEffectivePlanPrices();
+    const product = {
+      ...planNames,
+      priceCents: effectivePricing[plan].priceCents,
+    };
 
     const base = publicOrigin(req);
 

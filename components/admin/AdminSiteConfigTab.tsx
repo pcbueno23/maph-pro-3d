@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { SiteConfigData } from "@/lib/siteConfig";
+import { PLAN_PRICING } from "@/lib/planPricing";
 
 export function AdminSiteConfigTab() {
   const [loading, setLoading] = useState(true);
@@ -153,6 +154,46 @@ export function AdminSiteConfigTab() {
             )
           }
           rows={3}
+          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs"
+        />
+      </label>
+      <hr className="border-slate-700" />
+      <p className="text-xs font-medium text-slate-400">Preços dos planos</p>
+      <label className="block">
+        <span className="text-xs text-slate-500">
+          Plano Pro — preço em centavos (ex.: 2990 = R$&nbsp;29,90)
+        </span>
+        <input
+          type="number"
+          min={1}
+          step={1}
+          value={data.plan_price_pro_cents ?? PLAN_PRICING.pro.priceCents}
+          onChange={(e) => {
+            const v = parseInt(e.target.value, 10);
+            setData((d) =>
+              d ? { ...d, plan_price_pro_cents: isNaN(v) ? undefined : v } : d,
+            );
+          }}
+          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs"
+        />
+      </label>
+      <label className="block">
+        <span className="text-xs text-slate-500">
+          Plano Anual — preço em centavos (ex.: 19990 = R$&nbsp;199,90)
+        </span>
+        <input
+          type="number"
+          min={1}
+          step={1}
+          value={data.plan_price_lifetime_cents ?? PLAN_PRICING.lifetime.priceCents}
+          onChange={(e) => {
+            const v = parseInt(e.target.value, 10);
+            setData((d) =>
+              d
+                ? { ...d, plan_price_lifetime_cents: isNaN(v) ? undefined : v }
+                : d,
+            );
+          }}
           className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs"
         />
       </label>

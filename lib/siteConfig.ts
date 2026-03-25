@@ -12,6 +12,8 @@ export const siteConfigDataSchema = z.object({
   banner_enabled: z.boolean().optional(),
   banner_title: z.string().optional(),
   banner_message: z.string().optional(),
+  plan_price_pro_cents: z.number().int().positive().optional(),
+  plan_price_lifetime_cents: z.number().int().positive().optional(),
 });
 
 export type SiteConfigData = z.infer<typeof siteConfigDataSchema>;
