@@ -5,7 +5,7 @@ import { FeatureTabs } from "../components/FeatureTabs";
 import { FaqAccordion } from "../components/FaqAccordion";
 
 const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ?? "https://maph-pro-3d-8hgw.vercel.app";
+  process.env.NEXT_PUBLIC_APP_URL ?? "https://app.maphpro3d.com";
 const DOCS_URL =
   process.env.NEXT_PUBLIC_DOCS_URL ?? null;
 const CHECKLIST_CTA_URL =
