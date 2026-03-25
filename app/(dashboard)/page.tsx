@@ -292,24 +292,39 @@ export default function DashboardPage() {
     });
     const totalsByChannel = list.reduce(
       (acc, s) => {
+        const gross = s.grossProfit ?? s.netProfit;
+        const fee = s.marketplaceFeeAmount ?? 0;
+        const net = s.netProfit;
         if (s.channel === "Shopee") {
           acc.shopeeRevenue += s.revenue;
-          acc.shopeeProfit += s.netProfit;
+          acc.shopeeGrossProfit += gross;
+          acc.shopeeFees += fee;
+          acc.shopeeProfit += net;
         } else if (s.channel === "ML") {
           acc.mlRevenue += s.revenue;
-          acc.mlProfit += s.netProfit;
+          acc.mlGrossProfit += gross;
+          acc.mlFees += fee;
+          acc.mlProfit += net;
         } else if (s.channel === "Direto") {
           acc.directRevenue += s.revenue;
-          acc.directProfit += s.netProfit;
+          acc.directGrossProfit += gross;
+          acc.directFees += fee;
+          acc.directProfit += net;
         }
         return acc;
       },
       {
         shopeeRevenue: 0,
+        shopeeGrossProfit: 0,
+        shopeeFees: 0,
         shopeeProfit: 0,
         mlRevenue: 0,
+        mlGrossProfit: 0,
+        mlFees: 0,
         mlProfit: 0,
         directRevenue: 0,
+        directGrossProfit: 0,
+        directFees: 0,
         directProfit: 0,
       },
     );
@@ -317,11 +332,15 @@ export default function DashboardPage() {
       totalsByChannel.shopeeRevenue +
       totalsByChannel.mlRevenue +
       totalsByChannel.directRevenue;
+    const totalGrossProfit =
+      totalsByChannel.shopeeGrossProfit + totalsByChannel.mlGrossProfit + totalsByChannel.directGrossProfit;
+    const totalFees =
+      totalsByChannel.shopeeFees + totalsByChannel.mlFees + totalsByChannel.directFees;
     const totalProfit =
       totalsByChannel.shopeeProfit + totalsByChannel.mlProfit + totalsByChannel.directProfit;
     const totalOrders = list.length;
 
-    return { list, totalsByChannel, totalRevenue, totalProfit, totalOrders };
+    return { list, totalsByChannel, totalRevenue, totalGrossProfit, totalFees, totalProfit, totalOrders };
   }, [sales, rangeMeta]);
 
   const salesDays = useMemo(() => {
@@ -666,7 +685,18 @@ export default function DashboardPage() {
                 <Wallet className="h-5 w-5 text-cyan-400" />
               </div>
               <p className="mt-1 text-[11px] text-slate-400">
-                Lucro:{" "}
+                Lucro bruto:{" "}
+                <span className="font-semibold text-slate-200">
+                  {formatBRL(rangeSales.totalGrossProfit)}
+                </span>
+                {" · "}
+                Taxas:{" "}
+                <span className="font-semibold text-rose-400">
+                  -{formatBRL(rangeSales.totalFees)}
+                </span>
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-400">
+                Lucro líquido:{" "}
                 <span className="font-semibold text-emerald-400">
                   {formatBRL(rangeSales.totalProfit)}
                 </span>
@@ -1257,25 +1287,37 @@ export default function DashboardPage() {
               </div>
 
               <div className="mt-3 grid gap-3 border-t border-slate-800 pt-3 text-sm sm:grid-cols-3">
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Shopee</p>
-                  <p className="text-slate-200">
-                    {formatBRL(rangeSales.totalsByChannel.shopeeRevenue)}{" "}
-                    <span className="text-emerald-400">• lucro {formatBRL(rangeSales.totalsByChannel.shopeeProfit)}</span>
+                  <p className="text-slate-200">{formatBRL(rangeSales.totalsByChannel.shopeeRevenue)}</p>
+                  <p className="text-[11px] text-slate-400">
+                    Bruto: <span className="text-slate-300">{formatBRL(rangeSales.totalsByChannel.shopeeGrossProfit)}</span>
+                    {" · "}Taxa: <span className="text-rose-400">-{formatBRL(rangeSales.totalsByChannel.shopeeFees)}</span>
+                  </p>
+                  <p className="text-[11px]">
+                    Líquido: <span className="font-semibold text-emerald-400">{formatBRL(rangeSales.totalsByChannel.shopeeProfit)}</span>
                   </p>
                 </div>
-                <div className="space-y-1 sm:text-center">
+                <div className="space-y-0.5 sm:text-center">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Mercado Livre</p>
-                  <p className="text-slate-200">
-                    {formatBRL(rangeSales.totalsByChannel.mlRevenue)}{" "}
-                    <span className="text-emerald-400">• lucro {formatBRL(rangeSales.totalsByChannel.mlProfit)}</span>
+                  <p className="text-slate-200">{formatBRL(rangeSales.totalsByChannel.mlRevenue)}</p>
+                  <p className="text-[11px] text-slate-400">
+                    Bruto: <span className="text-slate-300">{formatBRL(rangeSales.totalsByChannel.mlGrossProfit)}</span>
+                    {" · "}Taxa: <span className="text-rose-400">-{formatBRL(rangeSales.totalsByChannel.mlFees)}</span>
+                  </p>
+                  <p className="text-[11px]">
+                    Líquido: <span className="font-semibold text-emerald-400">{formatBRL(rangeSales.totalsByChannel.mlProfit)}</span>
                   </p>
                 </div>
-                <div className="space-y-1 sm:text-right">
+                <div className="space-y-0.5 sm:text-right">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Venda direta</p>
-                  <p className="text-slate-200">
-                    {formatBRL(rangeSales.totalsByChannel.directRevenue)}{" "}
-                    <span className="text-emerald-400">• lucro {formatBRL(rangeSales.totalsByChannel.directProfit)}</span>
+                  <p className="text-slate-200">{formatBRL(rangeSales.totalsByChannel.directRevenue)}</p>
+                  <p className="text-[11px] text-slate-400">
+                    Bruto: <span className="text-slate-300">{formatBRL(rangeSales.totalsByChannel.directGrossProfit)}</span>
+                    {" · "}Taxa: <span className="text-rose-400">-{formatBRL(rangeSales.totalsByChannel.directFees)}</span>
+                  </p>
+                  <p className="text-[11px]">
+                    Líquido: <span className="font-semibold text-emerald-400">{formatBRL(rangeSales.totalsByChannel.directProfit)}</span>
                   </p>
                 </div>
               </div>
