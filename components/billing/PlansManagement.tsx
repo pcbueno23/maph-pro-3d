@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { useAccessStore } from "@/store/accessStore";
+import { PLAN_PRICING } from "@/lib/planPricing";
 
 type PlanEntitlement = "free" | "pro" | "business";
 
@@ -559,12 +560,16 @@ export function PlansManagement({
                   Plano anual
                 </p>
                 <p className="mt-2 text-3xl font-bold tabular-nums text-slate-50">
-                  R$ 199,90
-                  <span className="text-base font-semibold text-slate-500">/ano</span>
+                  {PLAN_PRICING.lifetime.label}
+                  <span className="text-base font-semibold text-slate-500">{PLAN_PRICING.lifetime.period}</span>
                 </p>
                 <p className="mt-1 text-sm text-emerald-400/90">
-                  Equivale a <strong className="font-semibold">R$ 16,66/mês</strong> · economia de{" "}
-                  <strong className="font-semibold">~44%</strong> vs. mensal
+                  Equivale a{" "}
+                  <strong className="font-semibold">
+                    R$ {PLAN_PRICING.lifetime.monthlyEquivalentBrl.toFixed(2).replace(".", ",")}/mês
+                  </strong>{" "}
+                  · economia de{" "}
+                  <strong className="font-semibold">~{PLAN_PRICING.lifetime.savingsVsMonthlyPct}%</strong> vs. mensal
                 </p>
                 <ul className="mt-4 space-y-2 text-xs text-slate-300">
                   <li className="flex gap-2">
@@ -603,8 +608,8 @@ export function PlansManagement({
                   Plano mensal
                 </p>
                 <p className="mt-2 text-3xl font-bold tabular-nums text-slate-50">
-                  R$ 29,90
-                  <span className="text-base font-semibold text-slate-500">/mês</span>
+                  {PLAN_PRICING.pro.label}
+                  <span className="text-base font-semibold text-slate-500">{PLAN_PRICING.pro.period}</span>
                 </p>
                 <p className="mt-1 text-sm text-slate-400">
                   Ideal para testar com compromisso curto.

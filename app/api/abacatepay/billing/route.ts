@@ -5,6 +5,7 @@ import {
   createCustomer,
   type AbacatePayCreateBillingParams,
 } from "@/lib/abacatepay";
+import { PLAN_PRICING } from "@/lib/planPricing";
 
 const token = process.env.ABACATEPAY_TOKEN?.trim();
 
@@ -81,13 +82,13 @@ const PLAN_PRODUCTS: Record<
     name: "MAPH PRO 3D — Plano Pro (mensal)",
     description:
       "Assinatura mensal com acesso completo ao MAPH PRO 3D: calculadora de precificação 3D, taxas Shopee e Mercado Livre, produtos e peças, estoque e insumos, ordens, vendas e relatórios. Cobrança via PIX ou cartão.",
-    priceCents: 2990, // R$ 29,90 (v1; com prod_ + v2 vem do painel AbacatePay)
+    priceCents: PLAN_PRICING.pro.priceCents,
   },
   lifetime: {
     name: "MAPH PRO 3D — Plano anual (economia)",
     description:
       "Plano anual com as mesmas funções do Pro: precificação completa, gestão de produção, estoque, vendas e relatórios. Valor anual com desconto em relação ao mensal. Pagamento via PIX ou cartão.",
-    priceCents: 19990, // R$ 199,90/ano (v1)
+    priceCents: PLAN_PRICING.lifetime.priceCents,
   },
 };
 
