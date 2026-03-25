@@ -82,8 +82,8 @@ const PLAN_NAMES: Record<string, { name: string; description: string }> = {
     description:
       "Assinatura mensal com acesso completo ao MAPH PRO 3D: calculadora de precificação 3D, taxas Shopee e Mercado Livre, produtos e peças, estoque e insumos, ordens, vendas e relatórios. Cobrança via PIX ou cartão.",
   },
-  lifetime: {
-    name: "MAPH PRO 3D — Plano anual (economia)",
+  business: {
+    name: "MAPH PRO 3D — Plano Business Anual",
     description:
       "Plano anual com as mesmas funções do Pro: precificação completa, gestão de produção, estoque, vendas e relatórios. Valor anual com desconto em relação ao mensal. Pagamento via PIX ou cartão.",
   },
@@ -112,13 +112,13 @@ async function fetchEffectivePlanPrices() {
  * Origem: request (https) ou `NEXT_PUBLIC_APP_URL` quando for https (útil se a API da AbacatePay buscar a imagem).
  */
 function checkoutProductImageUrl(
-  plan: "pro" | "lifetime",
+  plan: "pro" | "business",
   requestOrigin: string,
 ): string | undefined {
   const specific =
     plan === "pro"
       ? process.env.ABACATEPAY_CHECKOUT_PRODUCT_IMAGE_URL_PRO?.trim()
-      : process.env.ABACATEPAY_CHECKOUT_PRODUCT_IMAGE_URL_LIFETIME?.trim();
+      : process.env.ABACATEPAY_CHECKOUT_PRODUCT_IMAGE_URL_BUSINESS?.trim();
   const fallbackEnv = process.env.ABACATEPAY_CHECKOUT_PRODUCT_IMAGE_URL?.trim();
   const publicApp = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") ?? "";
 
@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
       );
     }
     let body: {
-      plan: "pro" | "lifetime";
+      plan: "pro" | "business";
       email?: string | null;
       name?: string | null;
       /** CPF ou CNPJ válido (a AbacatePay valida; não use fictício). */
@@ -172,9 +172,9 @@ export async function POST(req: NextRequest) {
     }
 
     const { plan, email } = body;
-    if (!plan || (plan !== "pro" && plan !== "lifetime")) {
+    if (!plan || (plan !== "pro" && plan !== "business")) {
       return NextResponse.json(
-        { error: "Plano inválido. Use 'pro' ou 'lifetime'." },
+        { error: "Plano inválido. Use 'pro' ou 'business'." },
         { status: 400 }
       );
     }
@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
     const storeProductIdRaw =
       plan === "pro"
         ? process.env.ABACATEPAY_STORE_PRODUCT_ID_PRO?.replace(/\s/g, "") ?? ""
-        : process.env.ABACATEPAY_STORE_PRODUCT_ID_LIFETIME?.replace(/\s/g, "") ??
+        : process.env.ABACATEPAY_STORE_PRODUCT_ID_BUSINESS?.replace(/\s/g, "") ??
           "";
 
     const storeProductId = useV1BillingOnly ? "" : storeProductIdRaw;

@@ -241,7 +241,7 @@ export function PlansManagement({
   }, [status]);
 
   const handleCheckout = useCallback(
-    async (nextPlan: "pro" | "lifetime") => {
+    async (nextPlan: "pro" | "business") => {
       if (!user) {
         router.push("/login");
         return;
@@ -574,16 +574,16 @@ export function PlansManagement({
                   Plano anual
                 </p>
                 <p className="mt-2 text-3xl font-bold tabular-nums text-slate-50">
-                  {pricing.lifetime.label}
-                  <span className="text-base font-semibold text-slate-500">{pricing.lifetime.period}</span>
+                  {pricing.business.label}
+                  <span className="text-base font-semibold text-slate-500">{pricing.business.period}</span>
                 </p>
                 <p className="mt-1 text-sm text-emerald-400/90">
                   Equivale a{" "}
                   <strong className="font-semibold">
-                    R$ {pricing.lifetime.monthlyEquivalentBrl.toFixed(2).replace(".", ",")}/mês
+                    R$ {pricing.business.monthlyEquivalentBrl.toFixed(2).replace(".", ",")}/mês
                   </strong>{" "}
                   · economia de{" "}
-                  <strong className="font-semibold">~{pricing.lifetime.savingsVsMonthlyPct}%</strong> vs. mensal
+                  <strong className="font-semibold">~{pricing.business.savingsVsMonthlyPct}%</strong> vs. mensal
                 </p>
                 <ul className="mt-4 space-y-2 text-xs text-slate-300">
                   <li className="flex gap-2">
@@ -603,7 +603,7 @@ export function PlansManagement({
                       ? "Preencha nome, CPF/CNPJ e celular acima"
                       : undefined
                   }
-                  onClick={() => void handleCheckout("lifetime")}
+                  onClick={() => void handleCheckout("business")}
                   className="mt-auto w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:from-emerald-400 hover:to-teal-400 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {plan === "business" && !isOnTrial

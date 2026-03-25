@@ -5,6 +5,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { SiteBanner } from "@/components/SiteBanner";
 import { SitePublicLinks } from "@/components/SitePublicLinks";
+import { MobileBottomNav } from "./MobileBottomNav";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -26,13 +27,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col md:pl-64">
         <SiteBanner />
         <Header />
-        <main className="flex flex-1 flex-col px-4 pb-4 pt-4 md:px-8 md:pb-6 md:pt-6">
+        <main className="flex flex-1 flex-col px-4 pb-20 pt-4 md:px-8 md:pb-6 md:pt-6">
           <div className="glass-panel min-h-0 flex-1 rounded-2xl p-4 md:p-6">
             {children}
           </div>
           <SitePublicLinks className="mt-4 shrink-0 md:mt-6" />
         </main>
       </div>
+      <MobileBottomNav />
     </div>
   );
 }

@@ -8,7 +8,7 @@ export const PLAN_PRICING = {
     label: "R$ 29,90",
     period: "/mês",
   },
-  lifetime: {
+  business: {
     priceCents: 19990,
     priceBrl: 199.9,
     label: "R$ 199,90",
@@ -30,15 +30,15 @@ export function centsToBrl(cents: number): string {
 /** Retorna preços efetivos considerando override do site config (admin). */
 export function getPlanPricingFromConfig(config?: {
   plan_price_pro_cents?: number | null;
-  plan_price_lifetime_cents?: number | null;
+  plan_price_business_cents?: number | null;
 }) {
   const proCents = config?.plan_price_pro_cents ?? PLAN_PRICING.pro.priceCents;
-  const lifetimeCents =
-    config?.plan_price_lifetime_cents ?? PLAN_PRICING.lifetime.priceCents;
+  const businessCents =
+    config?.plan_price_business_cents ?? PLAN_PRICING.business.priceCents;
 
   const proLabel = centsToBrl(proCents);
-  const lifetimeLabel = centsToBrl(lifetimeCents);
-  const monthlyEquiv = lifetimeCents / 12 / 100;
+  const businessLabel = centsToBrl(businessCents);
+  const monthlyEquiv = businessCents / 12 / 100;
   const savingsPct = Math.round(
     (1 - monthlyEquiv / (proCents / 100)) * 100,
   );
@@ -50,11 +50,11 @@ export function getPlanPricingFromConfig(config?: {
       label: proLabel,
       period: PLAN_PRICING.pro.period,
     },
-    lifetime: {
-      priceCents: lifetimeCents,
-      priceBrl: lifetimeCents / 100,
-      label: lifetimeLabel,
-      period: PLAN_PRICING.lifetime.period,
+    business: {
+      priceCents: businessCents,
+      priceBrl: businessCents / 100,
+      label: businessLabel,
+      period: PLAN_PRICING.business.period,
       monthlyEquivalentBrl: monthlyEquiv,
       savingsVsMonthlyPct: savingsPct,
     },

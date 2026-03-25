@@ -185,12 +185,12 @@ export function AdminSiteConfigTab() {
           type="number"
           min={1}
           step={1}
-          value={data.plan_price_lifetime_cents ?? PLAN_PRICING.lifetime.priceCents}
+          value={data.plan_price_business_cents ?? PLAN_PRICING.business.priceCents}
           onChange={(e) => {
             const v = parseInt(e.target.value, 10);
             setData((d) =>
               d
-                ? { ...d, plan_price_lifetime_cents: isNaN(v) ? undefined : v }
+                ? { ...d, plan_price_business_cents: isNaN(v) ? undefined : v }
                 : d,
             );
           }}

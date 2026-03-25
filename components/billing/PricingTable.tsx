@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Check, Crown, Infinity, Rocket } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
-type PlanId = "free" | "pro" | "lifetime";
+type PlanId = "free" | "pro" | "business";
 
 interface Plan {
   id: PlanId;
@@ -42,7 +42,7 @@ const plans: Plan[] = [
     ],
   },
   {
-    id: "lifetime",
+    id: "business",
     name: "Business",
     priceLabel: "12x de R$ 19,90 / ano",
     badge: "Plano anual",

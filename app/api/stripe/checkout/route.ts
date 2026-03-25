@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { plan, email } = (await req.json()) as {
-      plan: "pro" | "lifetime";
+      plan: "pro" | "business";
       email?: string | null;
     };
 
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     if (plan === "pro") {
       priceId = priceProMonthly;
       mode = "subscription";
-    } else if (plan === "lifetime") {
+    } else if (plan === "business") {
       priceId = priceLifetime;
       // Business anual (plano anual cobrado em assinatura).
       mode = "subscription";
