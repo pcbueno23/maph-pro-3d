@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminEmail } from "@/lib/adminApiAuth";
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const res = NextResponse.next();
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -32,8 +32,7 @@ export async function middleware(req: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!isAdminEmail(user?.email)) {
-    const url = new URL("/", req.url);
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   return res;
