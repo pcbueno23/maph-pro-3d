@@ -9,7 +9,7 @@ const APP_URL =
 const DOCS_URL =
   process.env.NEXT_PUBLIC_DOCS_URL ?? null;
 const CHECKLIST_CTA_URL =
-  process.env.NEXT_PUBLIC_CHECKLIST_CTA_URL ?? "https://maphpro3d.com/";
+  process.env.NEXT_PUBLIC_CHECKLIST_CTA_URL ?? "https://app.maphpro3d.com/";
 const APP_BASE_URL = APP_URL.replace(/\/$/, "");
 const APP_LOGIN_URL = `${APP_BASE_URL}/login`;
 const APP_SIGNUP_URL = `${APP_BASE_URL}/login?signup=1`;
