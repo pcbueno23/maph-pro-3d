@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useInventoryStore } from "@/store/inventoryStore";
 import { useSalesStore, type SalesChannel } from "@/store/salesStore";
+import { useSettingsStore } from "@/store/settingsStore";
+import { getEffectiveMarketplaceFeePercent } from "@/lib/marketplaceFees";
 
 function formatChannelHistory(ch: SalesChannel) {
   if (ch === "ML") return "Mercado Livre";
@@ -19,6 +21,7 @@ export default function SalesPage() {
     removeSale,
     clearSales,
   } = useSalesStore();
+  const { settings } = useSettingsStore();
 
   useEffect(() => {
     hydrateInventory();
@@ -78,7 +81,38 @@ export default function SalesPage() {
 
     const unitCost = item.productionCost ?? 0;
     const revenue = unitPrice * qty;
-    const netProfit = (unitPrice - unitCost) * qty;
+    const grossProfit = (unitPrice - unitCost) * qty;
+
+    // Taxa do marketplace sobre a receita total
+    let marketplaceFeeAmount = 0;
+    if (channel === "Shopee") {
+      const feePercent = getEffectiveMarketplaceFeePercent(
+        "Shopee",
+        "CPF", // personType não é global; CPF é o mais comum entre makers
+        unitPrice,
+        { freeShipping: settings.defaults.shopeeFreeShippingDefault ?? false },
+      );
+      marketplaceFeeAmount = (revenue * feePercent) / 100;
+    } else if (channel === "ML") {
+      const feePercent = getEffectiveMarketplaceFeePercent(
+        "Mercado Livre",
+        "CPF",
+        unitPrice,
+        { classicML: settings.defaults.mlClassic ?? false },
+      );
+      marketplaceFeeAmount = (revenue * feePercent) / 100;
+    } else if (channel === "Direto") {
+      // Venda direta com cartão usa taxa configurada; PIX = 0
+      // Usamos cardFeePercent como aproximação conservadora
+      const cardFee = settings.defaults.cardFeePercent ?? 0;
+      marketplaceFeeAmount = (revenue * cardFee) / 100;
+    }
+
+    // Imposto: não armazenado globalmente por produto — registrado como 0
+    // (pode ser expandido quando taxPercent for adicionado ao InventoryItem)
+    const taxAmount = 0;
+
+    const netProfit = grossProfit - marketplaceFeeAmount - taxAmount;
 
     registerSale({
       itemId: item.id,
@@ -89,6 +123,9 @@ export default function SalesPage() {
       unitPrice,
       revenue,
       unitProductionCost: unitCost,
+      grossProfit,
+      marketplaceFeeAmount,
+      taxAmount,
       netProfit,
     });
   };
@@ -217,6 +254,8 @@ export default function SalesPage() {
                 <th className="px-2 py-1">Canal</th>
                 <th className="px-2 py-1">Qtd</th>
                 <th className="px-2 py-1">Faturamento</th>
+                <th className="px-2 py-1">Lucro bruto</th>
+                <th className="px-2 py-1">Taxa marketplace</th>
                 <th className="px-2 py-1">Lucro líquido</th>
                 <th className="px-2 py-1 text-right">Ações</th>
               </tr>
@@ -236,6 +275,18 @@ export default function SalesPage() {
                     <td className="px-2 py-1 text-slate-100">{s.quantity}</td>
                     <td className="px-2 py-1 text-slate-100">
                       {s.revenue.toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </td>
+                    <td className="px-2 py-1 text-slate-300">
+                      {(s.grossProfit ?? s.netProfit).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </td>
+                    <td className="px-2 py-1 text-rose-400">
+                      -{(s.marketplaceFeeAmount ?? 0).toLocaleString("pt-BR", {
                         style: "currency",
                         currency: "BRL",
                       })}

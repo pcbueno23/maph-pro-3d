@@ -13,6 +13,13 @@ export interface Sale {
   unitPrice: number;
   revenue: number;
   unitProductionCost: number;
+  /** Lucro bruto: receita - custo de produção (sem descontar taxas de marketplace/imposto). */
+  grossProfit: number;
+  /** Taxa do marketplace sobre a receita (comissão + taxa fixa). 0 para venda direta. */
+  marketplaceFeeAmount: number;
+  /** Imposto sobre o valor da venda (ex: Simples Nacional, DAS). */
+  taxAmount: number;
+  /** Lucro líquido: grossProfit - marketplaceFeeAmount - taxAmount. */
   netProfit: number;
 }
 
