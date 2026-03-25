@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -12,8 +12,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+/**
+ * Client Supabase para uso em componentes client ("use client").
+ * Usa cookie-based storage (via @supabase/ssr) para que a sessão
+ * fique acessível no servidor (middleware, Server Components).
+ */
 export const supabase =
   supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
+    ? createBrowserClient(supabaseUrl, supabaseAnonKey)
     : undefined;
 

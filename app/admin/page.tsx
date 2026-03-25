@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useState } from "react";
 import { AdminUsersTab } from "@/components/admin/AdminUsersTab";
 import { AdminMarketingSection } from "@/components/admin/AdminMarketingSection";
 import { AdminMetricsTab } from "@/components/admin/AdminMetricsTab";
@@ -26,55 +25,9 @@ const tabs: { id: AdminTab; label: string }[] = [
   { id: "health", label: "Integrações" },
 ];
 
+// Proteção de acesso feita no servidor: middleware.ts + app/admin/layout.tsx
 export default function AdminPage() {
   const [tab, setTab] = useState<AdminTab>("users");
-  const [allowed, setAllowed] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!supabase) {
-        setAllowed(false);
-        return;
-      }
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) {
-        setAllowed(false);
-        return;
-      }
-      const who = await fetch("/api/admin/whoami", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const whoBody = (await who.json()) as { admin?: boolean };
-      if (cancelled) return;
-      setAllowed(Boolean(who.ok && whoBody.admin));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (allowed === false) {
-    return (
-      <div className="space-y-3 text-slate-200">
-        <h1 className="text-lg font-semibold text-slate-50">Admin</h1>
-        <p className="text-sm text-slate-400">
-          Você não tem permissão para acessar esta área. Defina seu e-mail em{" "}
-          <code className="rounded bg-slate-900 px-1.5 py-0.5 text-xs text-cyan-300">
-            ADMIN_EMAILS
-          </code>{" "}
-          no servidor e reinicie o app.
-        </p>
-      </div>
-    );
-  }
-
-  if (allowed === null) {
-    return (
-      <p className="text-sm text-slate-500">Verificando permissão…</p>
-    );
-  }
 
   return (
     <div className="space-y-6 text-slate-200">
