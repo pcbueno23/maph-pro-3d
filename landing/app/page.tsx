@@ -4,6 +4,8 @@ import { CountUp } from "../components/CountUp";
 import { FeatureTabs } from "../components/FeatureTabs";
 import { FaqAccordion } from "../components/FaqAccordion";
 import { PricingQuiz } from "../components/PricingQuiz";
+import { MobileNav } from "../components/MobileNav";
+import { ProductMockup } from "../components/ProductMockup";
 
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ?? "https://app.maphpro3d.com";
@@ -105,16 +107,21 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <Link
                 href={APP_LOGIN_URL}
-                className="rounded-full border border-slate-700 bg-slate-800/80 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800"
+                className="hidden rounded-full border border-slate-700 bg-slate-800/80 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 md:inline-flex"
               >
                 Entrar
               </Link>
               <Link
                 href={APP_SIGNUP_URL}
-                className="rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-400"
+                className="hidden rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-400 md:inline-flex"
               >
                 Teste grátis
               </Link>
+              <MobileNav
+                appLoginUrl={APP_LOGIN_URL}
+                appSignupUrl={APP_SIGNUP_URL}
+                docsUrl={DOCS_URL}
+              />
             </div>
           </div>
         </header>
@@ -169,10 +176,10 @@ export default function Home() {
           {/* Stats (animado) */}
           <div className="mx-auto mt-12 grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { n: 4, suf: "+", label: "módulos no app" },
-              { n: 24, suf: "/7", label: "acesso total" },
-              { n: 100, suf: "%", label: "online (PWA)" },
-              { n: 5, suf: "min", label: "pra simular preço" },
+              { n: 8, suf: "+", label: "custos calculados por peça" },
+              { n: 3, suf: " canais", label: "Shopee, ML e venda direta" },
+              { n: 5, suf: "min", label: "da simulação ao preço final" },
+              { n: 100, suf: "%", label: "online — use no celular ou PC" },
             ].map((s) => (
               <div
                 key={s.label}
@@ -187,114 +194,121 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ========== OFERTA IRRESISTÍVEL ========== */}
-        <section id="oferta" className="border-t border-slate-800/80 bg-slate-900/30 py-16 sm:py-20">
+        {/* ========== MOCKUP DO PRODUTO ========== */}
+        <div className="border-t border-slate-800/40 pb-4">
+          <ProductMockup />
+        </div>
+
+        {/* ========== PROVA SOCIAL ========== */}
+        <section className="border-t border-slate-800/80 bg-slate-900/20 py-14 sm:py-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-3xl text-center">
-              <h2 className="text-3xl font-bold text-slate-50 sm:text-4xl">
-                Uma ideia central: vender com lucro previsível
-              </h2>
-              <p className="mt-4 text-slate-400">
-                Em vez de dezenas de promessas, focamos em um resultado: você saber o preço mínimo e o preço ideal antes de anunciar.
-              </p>
-            </div>
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <p className="mb-8 text-center text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Quem usa o Maph Pro 3D
+            </p>
+            <div className="grid gap-5 sm:grid-cols-3">
               {[
-                "Calcula custo real por peça (não só filamento).",
-                "Considera energia, embalagem e depreciação.",
-                "Inclui taxa de falha para custo realista.",
-                "Simula Shopee, Mercado Livre, PIX e cartão.",
-                "Mostra lucro líquido e margem final.",
-                "Compara com preço de mercado em segundos.",
-                "Evita vender abaixo do custo sem perceber.",
-                "Organiza produtos, ordens e vendas no mesmo app.",
-                "Gera orçamento em PDF com sua marca.",
-                "Sincroniza na nuvem para continuar de onde parou.",
-              ].map((item) => (
+                {
+                  quote:
+                    "Antes eu chutava o preço e ficava no zero a zero. Agora em 5 minutos tenho o preço mínimo, o ideal e a margem de cada canal. Nunca mais vendi no prejuízo sem perceber.",
+                  name: "Rafael M.",
+                  role: "Impressão 3D para e-commerce · Shopee",
+                  initial: "R",
+                },
+                {
+                  quote:
+                    "Organizei os insumos, as ordens e os preços em um lugar só. O PDF de orçamento com minha logo profissionalizou muito o atendimento — clientes param de pechinchar quando veem o documento.",
+                  name: "Camila S.",
+                  role: "Lab 3D — cosplay e miniaturas · Venda direta",
+                  initial: "C",
+                },
+                {
+                  quote:
+                    "A calculadora com taxa de falha foi o que fez diferença pra mim. Eu não colocava esse custo no preço e perdia dinheiro em peças longas. Agora está tudo no cálculo.",
+                  name: "Douglas F.",
+                  role: "Peças técnicas e protótipos · Mercado Livre",
+                  initial: "D",
+                },
+              ].map((t) => (
                 <div
-                  key={item}
-                  className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 text-sm text-slate-300"
+                  key={t.name}
+                  className="flex flex-col rounded-2xl border border-slate-800 bg-slate-950/70 p-6"
                 >
-                  {item}
+                  <p className="flex-1 text-sm leading-relaxed text-slate-300">
+                    &ldquo;{t.quote}&rdquo;
+                  </p>
+                  <div className="mt-5 flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-emerald-500 text-sm font-bold text-slate-950">
+                      {t.initial}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-100">{t.name}</p>
+                      <p className="text-[11px] text-slate-500">{t.role}</p>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ========== QUIZ (interativo) ========== */}
-        <section className="border-t border-slate-800/80 py-16 sm:py-20">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <PricingQuiz
-              ctaHref={APP_SIGNUP_URL}
-              sections={[
-                {
-                  title: "Sessão: Você está precificando no achismo?",
-                  questions: [
-                    {
-                      id: "q1",
-                      text: "1. Você sabe exatamente quanto custa o filamento que vai em cada peça ou chuta um valor “por média”?",
-                    },
-                    {
-                      id: "q2",
-                      text: "2. Quando você liga a impressora, sabe quantos centavos de energia está gastando por hora de impressão?",
-                    },
-                    {
-                      id: "q3",
-                      text: "3. Já parou para somar o custo de fita, cola, pincel e embalagem que “não custa quase nada” — mas no fim do mês dá R$ 200+?",
-                    },
-                    {
-                      id: "q4",
-                      text: "4. Sua impressora de R$ 3.000 já pagou metade do valor dela só com impressões vendidas, ou você nunca calculou a depreciação?",
-                    },
-                    {
-                      id: "q5",
-                      text: "5. Quando uma impressão falha no 90%, você repassa esse custo pro cliente ou come do seu lucro?",
-                    },
-                  ],
-                },
-                {
-                  title: "Sessão: Você está vendendo com prejuízo sem perceber?",
-                  questions: [
-                    {
-                      id: "q6",
-                      text: "6. Antes de bater o martelo no preço, você define qual margem mínima precisa ter — ou aceita “o que o cliente pagar”?",
-                    },
-                    {
-                      id: "q7",
-                      text: "7. Já fez a conta real: Shopee cobra 20%, frete grátis come 15%, imposto pega mais 10% — quanto sobra pra você no final?",
-                    },
-                    {
-                      id: "q8",
-                      text: "8. Quando vê um concorrente vendendo mais barato, você tem certeza que ele está lucrando ou apenas queimando estoque?",
-                    },
-                    {
-                      id: "q9",
-                      text: "9. Você tem um “preço de piso” anotado onde realmente não vale a pena vender, ou topa qualquer oferta?",
-                    },
-                    {
-                      id: "q10",
-                      text: "10. No fim do mês, depois de pagar tudo, sobra quanto % de lucro líquido — 30%, 10%, ou está no vermelho?",
-                    },
-                  ],
-                },
-                {
-                  title: "Sessão: Sua operação está escalável?",
-                  questions: [
-                    {
-                      id: "q11",
-                      text: "11. Quanto do seu tempo (por minuto) está embutido no preço da peça — ou você trabalha de graça sem contabilizar?",
-                    },
-                    {
-                      id: "q12",
-                      text: "12. Se chegasse 50 pedidos iguais amanhã, você conseguiria replicar esse preço rapidamente ou teria que calcular tudo de novo do zero?",
-                    },
-                  ],
-                },
-              ]}
-            />
+        {/* ========== OFERTA — ANTES / DEPOIS ========== */}
+        <section id="oferta" className="border-t border-slate-800/80 py-16 sm:py-20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center">
+              <h2 className="text-3xl font-bold text-slate-50 sm:text-4xl">
+                Do achismo ao preço com método
+              </h2>
+              <p className="mt-4 text-slate-400">
+                Uma ferramenta construída para quem já perdeu dinheiro precificando na intuição.
+              </p>
+            </div>
+            <div className="mt-10 grid gap-6 sm:grid-cols-2">
+              {/* Antes */}
+              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6">
+                <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-rose-400">
+                  Sem o Maph Pro 3D
+                </p>
+                <ul className="space-y-3">
+                  {[
+                    "Preço calculado na base do feeling — sem saber o custo real",
+                    "Taxa de falha ignorada: peça quebra no fim e você absorve o prejuízo",
+                    "Comissão do marketplace não entra no cálculo até a fatura chegar",
+                    "Depreciação da impressora nunca calculada",
+                    "Cada orçamento feito do zero, sem padrão",
+                    "Não sabe se o mês fechou com lucro ou prejuízo",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-slate-400">
+                      <span className="mt-0.5 shrink-0 text-rose-400">✕</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {/* Depois */}
+              <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-6">
+                <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">
+                  Com o Maph Pro 3D
+                </p>
+                <ul className="space-y-3">
+                  {[
+                    "Custo real por peça: filamento, energia, embalagem e depreciação",
+                    "Taxa de falha embutida no preço — margem protegida mesmo quando falha",
+                    "Taxas Shopee, ML e cartão calculadas antes de anunciar",
+                    "Preço mínimo e sugerido por canal em menos de 5 minutos",
+                    "Orçamento em PDF com sua marca gerado em segundos",
+                    "Dashboard com lucro bruto, líquido e desempenho por período",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-slate-300">
+                      <span className="mt-0.5 shrink-0 text-emerald-400">✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         </section>
+
 
         {/* ========== RECURSOS (organizado por área) ========== */}
         <section id="recursos" className="border-t border-slate-800/80 bg-slate-900/30 py-16 sm:py-20">
@@ -308,7 +322,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Interativo (tabs) */}
             <div className="mt-10">
               <FeatureTabs
                 tabs={[
@@ -355,145 +368,44 @@ export default function Home() {
               />
             </div>
 
-            {/* Precificação */}
-            <h3 className="mt-14 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
-              Precificação
-            </h3>
-            <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                {
-                  title: "Calculadora completa",
-                  description:
-                    "Filamento, energia, depreciação, embalagem, frete e margem. Ajustes avançados: taxa de falha, mão de obra e desconto real com lucro líquido e margem real.",
-                  icon: "🧮",
-                },
-                {
-                  title: "Shopee e Mercado Livre",
-                  description:
-                    "Comissões configuráveis, frete grátis na Shopee, CPF ou CNPJ, preço sugerido e mínimo por canal.",
-                  icon: "🛒",
-                },
-                {
-                  title: "PIX e cartão direto",
-                  description:
-                    "Sugestão de preço para venda fora do marketplace, com taxa de cartão configurável.",
-                  icon: "💳",
-                },
-                {
-                  title: "Produtos salvos",
-                  description:
-                    "Transforme simulações em produtos com ficha, imagem e histórico para reutilizar na operação.",
-                  icon: "📦",
-                },
-              ].map((item) => (
-                <FeatureCard key={item.title} {...item} />
-              ))}
-            </div>
+          </div>
+        </section>
 
-            {/* Operação */}
-            <h3 className="mt-14 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
-              Produção e estoque
-            </h3>
-            <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {[
+        {/* ========== QUIZ (posição correta: após Recursos) ========== */}
+        <section id="quiz" className="border-t border-slate-800/80 py-16 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <PricingQuiz
+              ctaHref={APP_SIGNUP_URL}
+              sections={[
                 {
-                  title: "Dashboard operacional",
-                  description:
-                    "Visão de ordens, uso de impressoras e vendas com filtros por período (hoje, 7 e 30 dias).",
-                  icon: "📊",
+                  title: "Sessão: Você está precificando no achismo?",
+                  questions: [
+                    { id: "q1", text: "1. Você sabe exatamente quanto custa o filamento que vai em cada peça ou chuta um valor "por média"?" },
+                    { id: "q2", text: "2. Quando você liga a impressora, sabe quantos centavos de energia está gastando por hora de impressão?" },
+                    { id: "q3", text: "3. Já parou para somar o custo de fita, cola, pincel e embalagem que "não custa quase nada" — mas no fim do mês dá R$ 200+?" },
+                    { id: "q4", text: "4. Sua impressora de R$ 3.000 já pagou metade do valor dela só com impressões vendidas, ou você nunca calculou a depreciação?" },
+                    { id: "q5", text: "5. Quando uma impressão falha no 90%, você repassa esse custo pro cliente ou come do seu lucro?" },
+                  ],
                 },
                 {
-                  title: "Ordens e impressoras",
-                  description:
-                    "Ordens de produção ligadas a produtos e impressoras cadastradas com custos reais para a calculadora.",
-                  icon: "🖨️",
+                  title: "Sessão: Você está vendendo com prejuízo sem perceber?",
+                  questions: [
+                    { id: "q6", text: "6. Antes de bater o martelo no preço, você define qual margem mínima precisa ter — ou aceita "o que o cliente pagar"?" },
+                    { id: "q7", text: "7. Já fez a conta real: Shopee cobra 20%, frete grátis come 15%, imposto pega mais 10% — quanto sobra pra você no final?" },
+                    { id: "q8", text: "8. Quando vê um concorrente vendendo mais barato, você tem certeza que ele está lucrando ou apenas queimando estoque?" },
+                    { id: "q9", text: "9. Você tem um "preço de piso" anotado onde realmente não vale a pena vender, ou topa qualquer oferta?" },
+                    { id: "q10", text: "10. No fim do mês, depois de pagar tudo, sobra quanto % de lucro líquido — 30%, 10%, ou está no vermelho?" },
+                  ],
                 },
                 {
-                  title: "Insumos e movimentações",
-                  description:
-                    "Controle de materiais com histórico de entradas e saídas.",
-                  icon: "🧵",
+                  title: "Sessão: Sua operação está escalável?",
+                  questions: [
+                    { id: "q11", text: "11. Quanto do seu tempo (por minuto) está embutido no preço da peça — ou você trabalha de graça sem contabilizar?" },
+                    { id: "q12", text: "12. Se chegasse 50 pedidos iguais amanhã, você conseguiria replicar esse preço rapidamente ou teria que calcular tudo de novo do zero?" },
+                  ],
                 },
-                {
-                  title: "Peças produzidas",
-                  description:
-                    "Acompanhe o que já saiu da impressora e integre com o fluxo de produtos.",
-                  icon: "✅",
-                },
-              ].map((item) => (
-                <FeatureCard key={item.title} {...item} />
-              ))}
-            </div>
-
-            {/* Comercial */}
-            <h3 className="mt-14 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
-              Vendas e documentos
-            </h3>
-            <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                {
-                  title: "Vendas",
-                  description:
-                    "Registre vendas por canal e acompanhe receita no painel.",
-                  icon: "💰",
-                },
-                {
-                  title: "Orçamentos em PDF",
-                  description:
-                    "Gere orçamento com itens e totais; o PDF usa logo e dados da empresa salvos em Conta.",
-                  icon: "📄",
-                },
-                {
-                  title: "Relatórios",
-                  description:
-                    "Visão consolidada de insumos, produção e indicadores para decisão.",
-                  icon: "📈",
-                },
-                {
-                  title: "Alertas",
-                  description:
-                    "Acompanhe avisos importantes da operação e da margem.",
-                  icon: "🔔",
-                },
-              ].map((item) => (
-                <FeatureCard key={item.title} {...item} />
-              ))}
-            </div>
-
-            {/* Conta, PWA, tutorial */}
-            <h3 className="mt-14 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
-              Conta e experiência
-            </h3>
-            <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                {
-                  title: "Conta e empresa",
-                  description:
-                    "Dados pessoais, dados da empresa, logo e segurança (senha) em um só lugar.",
-                  icon: "👤",
-                },
-                {
-                  title: "PWA no celular",
-                  description:
-                    "Use no navegador ou instale como app (Android e iPhone) com layout responsivo.",
-                  icon: "📱",
-                },
-                {
-                  title: "Tutorial no app",
-                  description:
-                    "Tour em 5 passos, um de cada vez, para configurar e usar o fluxo completo.",
-                  icon: "🎓",
-                },
-                {
-                  title: "Configurações",
-                  description:
-                    "Margem padrão, moeda, presets de comissão e preferências alinhadas à calculadora.",
-                  icon: "⚙️",
-                },
-              ].map((item) => (
-                <FeatureCard key={item.title} {...item} />
-              ))}
-            </div>
+              ]}
+            />
           </div>
         </section>
 
@@ -509,58 +421,47 @@ export default function Home() {
               </p>
             </div>
             <div className="mx-auto mt-10 grid max-w-4xl gap-6 sm:grid-cols-3">
-              {[
-                {
-                  name: "Free",
-                  price: "R$ 0",
-                  detail: "Inclui período de teste com acesso Pro.",
-                  highlight: false,
-                },
-                {
-                  name: "Pro",
-                  price: "R$ 29,90",
-                  detail: "Por mês · precificação e operação completas.",
-                  highlight: true,
-                },
-                {
-                  name: "Business",
-                  price: "R$ 199,90/ano",
-                  detail: "Plano anual · economia de 44% em relação ao mensal.",
-                  highlight: false,
-                },
-              ].map((plan) => (
-                <div
-                  key={plan.name}
-                  className={`rounded-2xl border p-6 text-center ${
-                    plan.highlight
-                      ? "border-cyan-500/50 bg-slate-900/80 shadow-lg shadow-cyan-500/10"
-                      : "border-slate-800 bg-slate-950/80"
-                  }`}
+              {/* Free */}
+              <div className="flex flex-col rounded-2xl border border-slate-800 bg-slate-950/80 p-6 text-center">
+                <p className="text-sm font-semibold text-slate-400">Free</p>
+                <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-50">R$ 0</p>
+                <p className="mt-2 text-sm text-slate-500">Inclui trial com acesso Pro.</p>
+                <Link
+                  href={APP_SIGNUP_URL}
+                  className="mt-6 block rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:bg-slate-900"
                 >
-                  <p className="text-sm font-medium text-cyan-400">{plan.name}</p>
-                  {plan.highlight ? (
-                    <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
-                      Plano padrão
-                    </p>
-                  ) : null}
-                  <p className="mt-2 text-2xl font-bold text-slate-50">{plan.price}</p>
-                  <p className="mt-2 text-sm text-slate-400">{plan.detail}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                href={`${APP_BASE_URL}/pricing`}
-                className="inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-3.5 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-400"
-              >
-                Ver planos e assinar
-              </Link>
-              <Link
-                href={APP_SIGNUP_URL}
-                className="inline-block rounded-xl border border-slate-600 bg-slate-800/50 px-8 py-3.5 text-base font-medium text-slate-200 transition hover:border-cyan-500/50 hover:bg-slate-800"
-              >
-                Iniciar teste grátis
-              </Link>
+                  Começar grátis
+                </Link>
+              </div>
+              {/* Pro */}
+              <div className="flex flex-col rounded-2xl border border-cyan-500/40 bg-slate-900/80 p-6 text-center shadow-lg shadow-cyan-500/10">
+                <p className="text-sm font-semibold text-cyan-400">Pro mensal</p>
+                <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-50">R$ 29,90</p>
+                <p className="mt-1 text-sm text-slate-500">/mês</p>
+                <p className="mt-2 text-sm text-slate-400">Precificação e operação completas.</p>
+                <Link
+                  href={`${APP_BASE_URL}/pricing`}
+                  className="mt-6 block rounded-xl border border-cyan-500/50 bg-cyan-500/10 px-4 py-2.5 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-500/15"
+                >
+                  Assinar mensal
+                </Link>
+              </div>
+              {/* Business / Anual — destaque */}
+              <div className="relative flex flex-col overflow-hidden rounded-2xl border-2 border-emerald-500/50 bg-slate-900/80 p-6 text-center shadow-[0_0_48px_-18px_rgba(52,211,153,0.4)]">
+                <span className="absolute right-3 top-3 rounded-full bg-emerald-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-200">
+                  Melhor custo
+                </span>
+                <p className="text-sm font-semibold text-emerald-400">Business anual</p>
+                <p className="mt-3 text-3xl font-extrabold tracking-tight text-slate-50">R$ 199,90</p>
+                <p className="mt-1 text-sm text-slate-500">/ano · ~R$ 16,66/mês</p>
+                <p className="mt-2 text-sm text-emerald-400/90">Economia de 44% vs. mensal.</p>
+                <Link
+                  href={`${APP_BASE_URL}/pricing`}
+                  className="mt-6 block rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:from-emerald-400 hover:to-teal-400"
+                >
+                  Assinar anual
+                </Link>
+              </div>
             </div>
           </div>
         </section>
@@ -569,10 +470,7 @@ export default function Home() {
         <section className="border-t border-slate-800/80 py-16 sm:py-20">
           <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
             <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-b from-cyan-500/10 to-slate-950/50 p-6 sm:p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
-                Lead Magnet
-              </p>
-              <h3 className="mt-2 text-2xl font-bold text-slate-50">
+              <h3 className="text-2xl font-bold text-slate-50">
                 Checklist grátis: 12 erros que reduzem seu lucro na impressão 3D
               </h3>
               <p className="mt-3 text-sm text-slate-300">
@@ -591,9 +489,9 @@ export default function Home() {
                     href={CHECKLIST_CTA_URL}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-2 block text-center text-xs font-medium text-slate-300 hover:text-cyan-300"
+                    className="mt-2 block text-center text-xs font-medium text-slate-400 hover:text-cyan-300"
                   >
-                    Crie sua conta grátis: {CHECKLIST_CTA_URL}
+                    Quer aplicar em 5 minutos? Crie sua conta grátis →
                   </a>
                 </div>
                 <Link
@@ -722,47 +620,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ========== VISÃO GERAL (3 pilares) ========== */}
-        <section className="border-t border-slate-800/80 py-16 sm:py-20">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <h2 className="text-center text-2xl font-bold text-slate-50 sm:text-3xl">
-              Três pilares do Maph Pro 3D
-            </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-center text-slate-400">
-              Precificar com método, produzir com controle e vender com números claros.
-            </p>
-            <div className="mt-12 grid gap-8 sm:grid-cols-3">
-              {[
-                {
-                  title: "Margem real",
-                  description:
-                    "Preço sugerido por canal com taxas, impostos e custos alinhados — incluindo cenários com ajustes avançados.",
-                },
-                {
-                  title: "Operação organizada",
-                  description:
-                    "Dashboard, ordens, impressoras e insumos para saber o que produzir, com o quê e em que ordem.",
-                },
-                {
-                  title: "Cliente e caixa",
-                  description:
-                    "Vendas registradas, orçamentos profissionais em PDF com a sua marca e relatórios para acompanhar resultado.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6"
-                >
-                  <h3 className="text-lg font-semibold text-slate-100">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-sm text-slate-400">{item.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* ========== QUALIFICAÇÃO (BANT) ========== */}
         <section id="qualificacao" className="border-t border-slate-800/80 bg-slate-900/30 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -817,21 +674,26 @@ export default function Home() {
         </section>
 
         {/* ========== CTA FINAL ========== */}
-        <section className="border-t border-slate-800/80 py-16 sm:py-20">
+        <section className="border-t border-slate-800/80 py-16 sm:py-24">
           <div className="mx-auto max-w-2xl px-4 text-center sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-bold text-slate-50 sm:text-3xl">
-              Pronto para precificar com método?
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
+              Sem cartão de crédito · Cancele quando quiser
+            </p>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-50 sm:text-4xl">
+              Pare de perder dinheiro em cada venda.
             </h2>
-            <p className="mt-3 text-slate-400">
-              Entre no app, siga o tutorial e faça sua primeira simulação com os seus
-              custos reais.
+            <p className="mt-4 text-lg text-slate-400">
+              Configure em 5 minutos, siga o tutorial no app e faça sua primeira simulação com seus custos reais — ainda hoje.
             </p>
             <Link
               href={APP_SIGNUP_URL}
-              className="mt-6 inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-4 text-base font-semibold text-slate-950 shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-emerald-400"
+              className="mt-8 inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-10 py-4 text-base font-semibold text-slate-950 shadow-xl shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-emerald-400"
             >
-              Iniciar teste grátis
+              Começar grátis agora
             </Link>
+            <p className="mt-4 text-sm text-slate-500">
+              Trial com acesso completo · sem compromisso
+            </p>
           </div>
         </section>
 
@@ -946,8 +808,22 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <div className="mt-12 border-t border-slate-800 pt-8 text-center text-sm text-slate-500">
-              © {new Date().getFullYear()} Maph Pro 3D
+            <div className="mt-12 border-t border-slate-800 pt-8 flex flex-col items-center justify-between gap-3 text-xs text-slate-500 sm:flex-row">
+              <p>© {new Date().getFullYear()} Maph Pro 3D. Todos os direitos reservados.</p>
+              <div className="flex gap-4">
+                <Link
+                  href={`${APP_BASE_URL}/termos`}
+                  className="hover:text-slate-400"
+                >
+                  Termos de uso
+                </Link>
+                <Link
+                  href={`${APP_BASE_URL}/privacidade`}
+                  className="hover:text-slate-400"
+                >
+                  Política de privacidade
+                </Link>
+              </div>
             </div>
           </div>
         </footer>

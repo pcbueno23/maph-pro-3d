@@ -40,7 +40,12 @@ export function FeatureTabs({ tabs }: { tabs: Tab[] }) {
         })}
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:items-start">
+      {/* key força remontagem para reiniciar a transição ao trocar de aba */}
+      <div
+        key={active.id}
+        className="mt-6 grid gap-6 animate-[fadeSlideIn_0.2s_ease-out] lg:grid-cols-2 lg:items-start"
+        style={{ animationFillMode: "both" }}
+      >
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
             {active.label}
