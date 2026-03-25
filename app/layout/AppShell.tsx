@@ -9,11 +9,13 @@ import { SitePublicLinks } from "@/components/SitePublicLinks";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPublicCatalog = Boolean(pathname?.startsWith("/c/"));
+  const isTrialExpired = pathname === "/trial-expired";
 
-  if (isPublicCatalog) {
+  if (isPublicCatalog || isTrialExpired) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100">
         <main className="min-h-screen px-4 py-6 md:px-8">{children}</main>
+        <SitePublicLinks className="mx-auto mt-4 max-w-6xl px-4 pb-6 md:mt-6 md:px-8" />
       </div>
     );
   }

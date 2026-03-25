@@ -5,6 +5,8 @@ const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ?? "https://maph-pro-3d-8hgw.vercel.app";
 const DOCS_URL =
   process.env.NEXT_PUBLIC_DOCS_URL ?? null;
+const CHECKLIST_CTA_URL =
+  process.env.NEXT_PUBLIC_CHECKLIST_CTA_URL ?? "https://maphpro3d.com/";
 const APP_BASE_URL = APP_URL.replace(/\/$/, "");
 const APP_LOGIN_URL = `${APP_BASE_URL}/login`;
 const APP_SIGNUP_URL = `${APP_BASE_URL}/login?signup=1`;
@@ -112,13 +114,23 @@ export default function Home() {
             >
               Começar teste grátis
             </Link>
-            <a
-              href={LEAD_MAGNET_URL}
-              download="checklist-precificacao-3d.txt"
-              className="w-full rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-8 py-4 text-center text-base font-medium text-cyan-200 transition hover:bg-cyan-500/15 sm:w-auto"
-            >
-              Baixar checklist grátis
-            </a>
+            <div className="w-full sm:w-auto">
+              <a
+                href={LEAD_MAGNET_URL}
+                download="checklist-precificacao-3d.txt"
+                className="block w-full rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-8 py-4 text-center text-base font-medium text-cyan-200 transition hover:bg-cyan-500/15 sm:w-auto"
+              >
+                Baixar checklist grátis
+              </a>
+              <a
+                href={CHECKLIST_CTA_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 block text-center text-xs font-medium text-slate-300 hover:text-cyan-300"
+              >
+                Quer aplicar em 5 minutos? Crie sua conta grátis →
+              </a>
+            </div>
             <a
               href="#recursos"
               className="w-full rounded-xl border border-slate-600 bg-slate-800/50 px-8 py-4 text-center text-base font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/80 sm:w-auto"
@@ -399,13 +411,23 @@ export default function Home() {
                 Material rápido para aplicar hoje e já corrigir precificação, taxa e margem.
               </p>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <a
-                  href={LEAD_MAGNET_URL}
-                  download="checklist-precificacao-3d.txt"
-                  className="inline-block rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:from-cyan-400 hover:to-emerald-400"
-                >
-                  Baixar checklist grátis
-                </a>
+                <div className="w-full sm:w-auto">
+                  <a
+                    href={LEAD_MAGNET_URL}
+                    download="checklist-precificacao-3d.txt"
+                    className="inline-block w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:from-cyan-400 hover:to-emerald-400"
+                  >
+                    Baixar checklist grátis
+                  </a>
+                  <a
+                    href={CHECKLIST_CTA_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 block text-center text-xs font-medium text-slate-300 hover:text-cyan-300"
+                  >
+                    Crie sua conta grátis: {CHECKLIST_CTA_URL}
+                  </a>
+                </div>
                 <Link
                   href={APP_SIGNUP_URL}
                   className="inline-block rounded-xl border border-slate-600 bg-slate-900/60 px-6 py-3 text-center text-sm font-medium text-slate-200 transition hover:border-cyan-500/50"
