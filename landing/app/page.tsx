@@ -380,9 +380,9 @@ export default function Home() {
                 {
                   title: "Sessão: Você está precificando no achismo?",
                   questions: [
-                    { id: "q1", text: "1. Você sabe exatamente quanto custa o filamento que vai em cada peça ou chuta um valor "por média"?" },
+                    { id: "q1", text: "1. Você sabe exatamente quanto custa o filamento que vai em cada peça ou chuta um valor 'por média'?" },
                     { id: "q2", text: "2. Quando você liga a impressora, sabe quantos centavos de energia está gastando por hora de impressão?" },
-                    { id: "q3", text: "3. Já parou para somar o custo de fita, cola, pincel e embalagem que "não custa quase nada" — mas no fim do mês dá R$ 200+?" },
+                    { id: "q3", text: "3. Já parou para somar o custo de fita, cola, pincel e embalagem que 'não custa quase nada' — mas no fim do mês dá R$ 200+?" },
                     { id: "q4", text: "4. Sua impressora de R$ 3.000 já pagou metade do valor dela só com impressões vendidas, ou você nunca calculou a depreciação?" },
                     { id: "q5", text: "5. Quando uma impressão falha no 90%, você repassa esse custo pro cliente ou come do seu lucro?" },
                   ],
@@ -390,10 +390,10 @@ export default function Home() {
                 {
                   title: "Sessão: Você está vendendo com prejuízo sem perceber?",
                   questions: [
-                    { id: "q6", text: "6. Antes de bater o martelo no preço, você define qual margem mínima precisa ter — ou aceita "o que o cliente pagar"?" },
+                    { id: "q6", text: "6. Antes de bater o martelo no preço, você define qual margem mínima precisa ter — ou aceita 'o que o cliente pagar'?" },
                     { id: "q7", text: "7. Já fez a conta real: Shopee cobra 20%, frete grátis come 15%, imposto pega mais 10% — quanto sobra pra você no final?" },
                     { id: "q8", text: "8. Quando vê um concorrente vendendo mais barato, você tem certeza que ele está lucrando ou apenas queimando estoque?" },
-                    { id: "q9", text: "9. Você tem um "preço de piso" anotado onde realmente não vale a pena vender, ou topa qualquer oferta?" },
+                    { id: "q9", text: "9. Você tem um 'preço de piso' anotado onde realmente não vale a pena vender, ou topa qualquer oferta?" },
                     { id: "q10", text: "10. No fim do mês, depois de pagar tudo, sobra quanto % de lucro líquido — 30%, 10%, ou está no vermelho?" },
                   ],
                 },
