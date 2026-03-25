@@ -1,5 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
+import { CountUp } from "../components/CountUp";
+import { FeatureTabs } from "../components/FeatureTabs";
+import { FaqAccordion } from "../components/FaqAccordion";
 
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ?? "https://maph-pro-3d-8hgw.vercel.app";
@@ -13,6 +16,29 @@ const APP_SIGNUP_URL = `${APP_BASE_URL}/login?signup=1`;
 const LEAD_MAGNET_URL = "/checklist-precificacao-3d.txt";
 
 export default function Home() {
+  const faqItems = [
+    {
+      q: "O que é o Maph Pro 3D?",
+      a: "É um SaaS para quem vende impressão 3D: calculadora de custos e preços por canal (Shopee, Mercado Livre, PIX e cartão), gestão de produtos, produção, insumos, vendas, orçamentos em PDF e painéis para acompanhar a operação.",
+    },
+    {
+      q: "Como funcionam os planos?",
+      a: "Há um plano Free, o Pro mensal e o Business em formato anual (melhor custo por mês). No app, em Planos, você vê valores atualizados, trial quando disponível e pode gerenciar assinatura.",
+    },
+    {
+      q: "Funciona no celular?",
+      a: "Sim. O app é responsivo e pode ser instalado como PWA na tela inicial no Android (Chrome) e no iPhone (Safari).",
+    },
+    {
+      q: "O PDF do orçamento pode ter minha marca?",
+      a: "Sim. Cadastre logo e dados da empresa na aba Conta no app; o orçamento em PDF usa essas informações no cabeçalho.",
+    },
+    {
+      q: "Posso usar com CPF?",
+      a: "Sim. Na calculadora você define pessoa física ou jurídica para refletir melhor as regras de marketplace; venda direta continua configurável.",
+    },
+  ];
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
       {/* Grid background */}
@@ -138,6 +164,26 @@ export default function Home() {
               Ver recursos
             </a>
           </div>
+
+          {/* Stats (animado) */}
+          <div className="mx-auto mt-12 grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { n: 4, suf: "+", label: "módulos no app" },
+              { n: 24, suf: "/7", label: "acesso total" },
+              { n: 100, suf: "%", label: "online (PWA)" },
+              { n: 5, suf: "min", label: "pra simular preço" },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5 text-left"
+              >
+                <p className="text-2xl font-extrabold tracking-tight text-slate-50">
+                  <CountUp to={s.n} suffix={s.suf} />
+                </p>
+                <p className="mt-1 text-sm text-slate-400">{s.label}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* ========== OFERTA IRRESISTÍVEL ========== */}
@@ -185,6 +231,53 @@ export default function Home() {
               <p className="mt-3 text-slate-400">
                 Da simulação de preço à gestão do dia a dia do seu laboratório 3D.
               </p>
+            </div>
+
+            {/* Interativo (tabs) */}
+            <div className="mt-10">
+              <FeatureTabs
+                tabs={[
+                  {
+                    id: "precificacao",
+                    label: "Precificação",
+                    title: "Preço sugerido e mínimo antes de anunciar",
+                    description:
+                      "Você vê custo real, taxas por canal, impostos e lucro líquido. Assim evita vender abaixo do custo sem perceber.",
+                    bullets: [
+                      "Custo real por peça (não só filamento)",
+                      "Energia, embalagem e depreciação",
+                      "Taxa de falha e cenários avançados",
+                      "Shopee, Mercado Livre, PIX e cartão",
+                    ],
+                  },
+                  {
+                    id: "operacao",
+                    label: "Operação",
+                    title: "Produção e estoque conectados ao custo",
+                    description:
+                      "Organize impressoras, ordens e insumos para precificar com base na sua realidade, não em achismo.",
+                    bullets: [
+                      "Ordens ligadas a produtos e impressoras",
+                      "Insumos com histórico de movimentações",
+                      "Peças produzidas e acompanhamento",
+                      "Dashboard operacional por período",
+                    ],
+                  },
+                  {
+                    id: "comercial",
+                    label: "Comercial",
+                    title: "Venda com documento e números claros",
+                    description:
+                      "Registre vendas por canal e gere orçamento em PDF com sua marca para profissionalizar o atendimento.",
+                    bullets: [
+                      "Vendas por canal e receita no painel",
+                      "Orçamentos em PDF com logo e dados",
+                      "Relatórios para decisão",
+                      "Alertas sobre operação e margem",
+                    ],
+                  },
+                ]}
+              />
             </div>
 
             {/* Precificação */}
@@ -644,40 +737,7 @@ export default function Home() {
             <h2 className="text-center text-2xl font-bold text-slate-50 sm:text-3xl">
               Perguntas frequentes
             </h2>
-            <ul className="mt-12 space-y-6">
-              {[
-                {
-                  q: "O que é o Maph Pro 3D?",
-                  a: "É um SaaS para quem vende impressão 3D: calculadora de custos e preços por canal (Shopee, Mercado Livre, PIX e cartão), gestão de produtos, produção, insumos, vendas, orçamentos em PDF e painéis para acompanhar a operação.",
-                },
-                {
-                  q: "Como funcionam os planos?",
-                  a: "Há um plano Free, o Pro mensal e o Business em formato anual (melhor custo por mês). No app, em Planos, você vê valores atualizados, trial quando disponível e pode gerenciar assinatura.",
-                },
-                {
-                  q: "Funciona no celular?",
-                  a: "Sim. O app é responsivo e pode ser instalado como PWA na tela inicial no Android (Chrome) e no iPhone (Safari).",
-                },
-                {
-                  q: "O PDF do orçamento pode ter minha marca?",
-                  a: "Sim. Cadastre logo e dados da empresa na aba Conta no app; o orçamento em PDF usa essas informações no cabeçalho.",
-                },
-                {
-                  q: "Posso usar com CPF?",
-                  a: "Sim. Na calculadora você define pessoa física ou jurídica para refletir melhor as regras de marketplace; venda direta continua configurável.",
-                },
-              ].map((item) => (
-                <li
-                  key={item.q}
-                  className="rounded-xl border border-slate-800 bg-slate-950/80 p-5"
-                >
-                  <h3 className="font-semibold text-slate-100">{item.q}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                    {item.a}
-                  </p>
-                </li>
-              ))}
-            </ul>
+            <FaqAccordion items={faqItems} />
           </div>
         </section>
 
