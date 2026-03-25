@@ -11,17 +11,20 @@ import {
   secondaryNavLinksBeforeDivider,
 } from "./navLinks";
 import { useAdminWhoami } from "@/hooks/useAdminWhoami";
+import { useAlertCount } from "@/hooks/useAlertCount";
 
 function NavLinkRow({
   href,
   label,
   icon: Icon,
   pathname,
+  badge,
 }: {
   href: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
   pathname: string;
+  badge?: number;
 }) {
   const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
   return (
@@ -33,8 +36,13 @@ function NavLinkRow({
           : "text-slate-400 hover:bg-slate-900/70 hover:text-slate-100"
       }`}
     >
-      <Icon className="h-4 w-4" />
-      <span>{label}</span>
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="flex-1">{label}</span>
+      {badge != null && badge > 0 ? (
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold leading-none text-white">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -42,6 +50,7 @@ function NavLinkRow({
 export function Sidebar() {
   const pathname = usePathname();
   const isAdmin = useAdminWhoami();
+  const alertCount = useAlertCount();
 
   return (
     <aside
@@ -75,6 +84,7 @@ export function Sidebar() {
               label={label}
               icon={icon}
               pathname={pathname}
+              badge={href === "/alertas" ? alertCount : undefined}
             />
           ))}
         </div>
