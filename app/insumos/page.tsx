@@ -16,14 +16,14 @@ type DraftSupply = {
   name: string;
   category: SupplyCategory;
   unit: string;
-  unitCost: number;
-  stockQty: number;
-  minStockQty?: number;
+  unitCost: number | "";
+  stockQty: number | "";
+  minStockQty: number | "";
   color?: string;
   purchaseLink?: string;
   // Campos auxiliares para filamento (entrada em kg e preço do rolo)
-  rollKg?: number;
-  rollPrice?: number;
+  rollKg: number | "";
+  rollPrice: number | "";
 };
 
 function newId(prefix: string) {
@@ -41,19 +41,19 @@ function toDraft(s?: SupplyItem | null): DraftSupply {
       name: "",
       category: "filament",
       unit: "g",
-      unitCost: 0,
-      stockQty: 0,
-      minStockQty: 0,
+      unitCost: "",
+      stockQty: "",
+      minStockQty: "",
       color: "",
       purchaseLink: "",
-      rollKg: 1,
-      rollPrice: 0,
+      rollKg: "",
+      rollPrice: "",
     };
   }
 
   // Para filamento em gramas, tenta reconstruir peso do rolo e preço total
-  let rollKg: number | undefined;
-  let rollPrice: number | undefined;
+  let rollKg: number | "" = "";
+  let rollPrice: number | "" = "";
   if (s.category === "filament" && s.unit === "g" && s.stockQty && s.stockQty > 0 && s.unitCost && s.unitCost > 0) {
     rollKg = (s.stockQty ?? 0) / 1000;
     rollPrice = (s.stockQty ?? 0) * (s.unitCost ?? 0);
@@ -64,9 +64,9 @@ function toDraft(s?: SupplyItem | null): DraftSupply {
     name: s.name,
     category: s.category,
     unit: s.unit,
-    unitCost: s.unitCost ?? 0,
-    stockQty: s.stockQty ?? 0,
-    minStockQty: s.minStockQty ?? 0,
+    unitCost: s.unitCost ?? "",
+    stockQty: s.stockQty ?? "",
+    minStockQty: s.minStockQty ?? "",
     color: s.color ?? "",
     purchaseLink: s.purchaseLink ?? "",
     rollKg,
@@ -95,7 +95,7 @@ export default function InsumosPage() {
   const [openMoveModal, setOpenMoveModal] = useState(false);
   const [moveSupply, setMoveSupply] = useState<SupplyItem | null>(null);
   const [moveKind, setMoveKind] = useState<StockMovementKind>("in");
-  const [moveQty, setMoveQty] = useState<number>(0);
+  const [moveQty, setMoveQty] = useState<number | "">("");
   const [moveNote, setMoveNote] = useState<string>("");
   const [movements, setMovements] = useState<SupplyMovement[]>([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
@@ -267,7 +267,7 @@ export default function InsumosPage() {
   const openMovements = async (s: SupplyItem) => {
     setMoveSupply(s);
     setMoveKind("in");
-    setMoveQty(0);
+    setMoveQty("");
     setMoveNote("");
     setOpenMoveModal(true);
     await loadMovements(s.id);
@@ -277,7 +277,7 @@ export default function InsumosPage() {
     setOpenMoveModal(false);
     setMoveSupply(null);
     setMovements([]);
-    setMoveQty(0);
+    setMoveQty("");
     setMoveNote("");
     setMoveKind("in");
   };
@@ -326,7 +326,7 @@ export default function InsumosPage() {
 
       setSupplies((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
       setMoveSupply(updated);
-      setMoveQty(0);
+      setMoveQty("");
       setMoveNote("");
       await loadMovements(updated.id);
     } catch (e: any) {
@@ -655,7 +655,7 @@ export default function InsumosPage() {
                   step="0.01"
                   className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                   value={draft.unitCost}
-                  onChange={(e) => setDraft((d) => ({ ...d, unitCost: Number(e.target.value) || 0 }))}
+                  onChange={(e) => setDraft((d) => ({ ...d, unitCost: e.target.value === "" ? "" : Number(e.target.value) }))}
                   disabled={draft.category === "filament"}
                 />
                 {draft.category === "filament" ? (
@@ -674,7 +674,7 @@ export default function InsumosPage() {
                       step="0.01"
                       className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                       value={draft.rollKg ?? 1}
-                      onChange={(e) => setDraft((d) => ({ ...d, rollKg: Number(e.target.value) || 0 }))}
+                      onChange={(e) => setDraft((d) => ({ ...d, rollKg: e.target.value === "" ? "" : Number(e.target.value) }))}
                     />
                     <p className="mt-1 text-[11px] text-slate-500">Ex.: rolo padrão de 1 kg.</p>
                   </div>
@@ -685,7 +685,7 @@ export default function InsumosPage() {
                       step="0.01"
                       className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                       value={draft.rollPrice ?? 0}
-                      onChange={(e) => setDraft((d) => ({ ...d, rollPrice: Number(e.target.value) || 0 }))}
+                      onChange={(e) => setDraft((d) => ({ ...d, rollPrice: e.target.value === "" ? "" : Number(e.target.value) }))}
                     />
                     <p className="mt-1 text-[11px] text-slate-500">
                       Usamos esse valor dividido pelos gramas para calcular o custo por unidade.
@@ -701,7 +701,7 @@ export default function InsumosPage() {
                   step="0.01"
                   className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                   value={draft.stockQty}
-                  onChange={(e) => setDraft((d) => ({ ...d, stockQty: Number(e.target.value) || 0 }))}
+                  onChange={(e) => setDraft((d) => ({ ...d, stockQty: e.target.value === "" ? "" : Number(e.target.value) }))}
                 />
               </div>
 
@@ -712,7 +712,7 @@ export default function InsumosPage() {
                   step="0.01"
                   className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                   value={draft.minStockQty}
-                  onChange={(e) => setDraft((d) => ({ ...d, minStockQty: Number(e.target.value) || 0 }))}
+                  onChange={(e) => setDraft((d) => ({ ...d, minStockQty: e.target.value === "" ? "" : Number(e.target.value) }))}
                 />
               </div>
 
@@ -807,7 +807,7 @@ export default function InsumosPage() {
                       step="0.01"
                       className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                       value={moveQty}
-                      onChange={(e) => setMoveQty(Number(e.target.value) || 0)}
+                      onChange={(e) => setMoveQty(e.target.value === "" ? "" : Number(e.target.value))}
                     />
                     <p className="mt-1 text-[11px] text-slate-500">
                       Em “Ajuste”, use valor negativo para reduzir (ex.: -50).

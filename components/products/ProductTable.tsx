@@ -53,7 +53,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
   const [bomLoading, setBomLoading] = useState(false);
   const [bomError, setBomError] = useState<string | null>(null);
   const [addSupplyId, setAddSupplyId] = useState<string>("");
-  const [addQty, setAddQty] = useState<number>(0);
+  const [addQty, setAddQty] = useState<number | "">("");
 
   // ficha técnica
   const [techOpen, setTechOpen] = useState(false);
@@ -156,7 +156,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
     setMaterials([]);
     setBomError(null);
     setAddSupplyId("");
-    setAddQty(0);
+    setAddQty("");
   };
 
   const openTechnical = async (product: Product) => {
@@ -249,7 +249,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
         }
         return [saved, ...prev];
       });
-      setAddQty(0);
+      setAddQty("");
     } catch (e: any) {
       setBomError(e?.message ?? "Falha ao salvar material.");
     } finally {
@@ -494,7 +494,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                       step="0.01"
                       className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                       value={addQty}
-                      onChange={(e) => setAddQty(Number(e.target.value) || 0)}
+                      onChange={(e) => setAddQty(e.target.value === "" ? "" : Number(e.target.value))}
                       disabled={bomLoading}
                     />
                   </div>

@@ -93,7 +93,7 @@ export default function OrcamentosPage() {
   const [items, setItems] = useState<QuoteItem[]>([]);
 
   // Valores
-  const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [discountPercent, setDiscountPercent] = useState<number | "">(0);
 
   const productsById = useMemo(() => new Map(products.map((p) => [p.id, p] as const)), [products]);
   const unitPriceForProduct = (productId: string) => productsById.get(productId)?.price ?? 0;
@@ -719,7 +719,7 @@ export default function OrcamentosPage() {
                     step={0.1}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                     value={discountPercent}
-                    onChange={(e) => setDiscountPercent(Number(e.target.value) || 0)}
+                    onChange={(e) => setDiscountPercent(e.target.value === "" ? "" : Number(e.target.value))}
                   />
                 </div>
                 <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
