@@ -91,7 +91,12 @@ export default function ImpressorasPage() {
       const items = await listPrinters(user.id);
       setPrinters(items);
     } catch (e: any) {
-      setError(e?.message ?? "Falha ao carregar impressoras.");
+      const msg: string = e?.message ?? "";
+      setError(
+        msg.toLowerCase().includes("fetch") || msg.toLowerCase().includes("network")
+          ? "Sem conexão com o servidor. Verifique sua internet e tente novamente."
+          : "Falha ao carregar impressoras. Tente novamente.",
+      );
     } finally {
       setLoading(false);
     }
@@ -210,8 +215,15 @@ export default function ImpressorasPage() {
       ) : null}
 
       {error ? (
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
-          {error}
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="shrink-0 rounded-lg border border-rose-500/30 px-3 py-1 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20"
+          >
+            Tentar novamente
+          </button>
         </div>
       ) : null}
 
