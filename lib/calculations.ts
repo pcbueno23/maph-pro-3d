@@ -302,7 +302,10 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
   const precoComDesconto = full.precoComDesconto;
   const lucroLiquidoReal = full.lucroLiquidoReal;
   const margemReal = full.margemReal;
-  const alertaLucroAbaixoDaMeta = margemReal < (input.pricing.desiredMargin ?? 0);
+  // Tolerância de 0.1 p.p. para erros de ponto flutuante: quando o imposto já está
+  // embutido na fórmula do preço, a margem real pode ser 19.9999...% em vez de 20%
+  // exatos, o que dispararia o alerta de forma errada.
+  const alertaLucroAbaixoDaMeta = margemReal < (input.pricing.desiredMargin ?? 0) - 0.1;
 
   // Para evitar divergência entre "detalhamentos" e "lucro real",
   // os detalhamentos por canal devem usar o mesmo custo-base dos ajustes avançados.

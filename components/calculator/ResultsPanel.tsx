@@ -105,7 +105,8 @@ export function ResultsPanel({ results, isDirty }: Props) {
   ];
 
   const profitPositive = profitPerSale >= 0;
-  const realMarginLow = margemReal < 20;
+  // Usa a margem desejada como limiar (com tolerância de 0.1 p.p. para ponto flutuante)
+  const realMarginLow = margemReal < (margin ?? 20) - 0.1;
   const lossAbs = lucroLiquidoReal - profitPerSale;
   const lossPct = profitPerSale !== 0 ? (lossAbs / Math.abs(profitPerSale)) * 100 : 0;
   const lossOver20 = lossAbs < 0 && Math.abs(lossPct) > 20;
