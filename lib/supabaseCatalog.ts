@@ -41,7 +41,17 @@ export async function upsertCatalogSettings(
   input: { publicSlug?: string; showPrices?: boolean },
 ): Promise<CatalogSettings> {
   const client = mustClient();
-  const slug = (input.publicSlug?.trim() || randomSlug()).toLowerCase().replace(/[^a-z0-9-]/g, "-");
+
+  // Se não foi passado um slug explícito, preserva o existente no banco
+  // para não sobrescrever com um slug aleatório a cada salvamento parcial.
+  let slug: string;
+  if (input.publicSlug?.trim()) {
+    slug = input.publicSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
+  } else {
+    const existing = await fetchCatalogSettings(userId);
+    slug = existing?.publicSlug || randomSlug();
+  }
+
   const payload = {
     user_id: userId,
     public_slug: slug,
