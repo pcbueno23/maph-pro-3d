@@ -11,12 +11,12 @@ type DraftPrinter = {
   id?: string;
   name: string;
   model?: string;
-  powerW: number;
-  energyRateBrlKwh: number;
+  powerW: number | "";
+  energyRateBrlKwh: number | "";
   status: PrinterStatus;
-  purchaseValue?: number;
-  usefulLifeHours?: number;
-  annualMaintenance?: number | "";
+  purchaseValue: number | "";
+  usefulLifeHours: number | "";
+  annualMaintenance: number | "";
 };
 
 function normalizeNumber(value: unknown, fallback = 0) {
@@ -40,11 +40,11 @@ function toDraft(p?: Printer | null): DraftPrinter {
     return {
       name: "",
       model: "",
-      powerW: 0,
-      energyRateBrlKwh: 0,
+      powerW: "",
+      energyRateBrlKwh: "",
       status: "available",
-      purchaseValue: 0,
-      usefulLifeHours: 0,
+      purchaseValue: "",
+      usefulLifeHours: "",
       annualMaintenance: "",
     };
   }
@@ -52,11 +52,11 @@ function toDraft(p?: Printer | null): DraftPrinter {
     id: p.id,
     name: p.name,
     model: p.model ?? "",
-    powerW: p.powerW ?? 0,
-    energyRateBrlKwh: p.energyRateBrlKwh ?? 0,
+    powerW: p.powerW ?? "",
+    energyRateBrlKwh: p.energyRateBrlKwh ?? "",
     status: p.status ?? "available",
-    purchaseValue: p.purchaseValue ?? 0,
-    usefulLifeHours: p.usefulLifeHours ?? 0,
+    purchaseValue: p.purchaseValue ?? "",
+    usefulLifeHours: p.usefulLifeHours ?? "",
     annualMaintenance: p.annualMaintenance == null ? "" : Number(p.annualMaintenance),
   };
 }
@@ -367,7 +367,7 @@ export default function ImpressorasPage() {
                   step="1"
                   className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                   value={draft.powerW}
-                  onChange={(e) => setDraft((d) => ({ ...d, powerW: Number(e.target.value) || 0 }))}
+                  onChange={(e) => setDraft((d) => ({ ...d, powerW: e.target.value === "" ? "" : Number(e.target.value) }))}
                 />
               </div>
 
@@ -378,7 +378,7 @@ export default function ImpressorasPage() {
                   step="0.01"
                   className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                   value={draft.energyRateBrlKwh}
-                  onChange={(e) => setDraft((d) => ({ ...d, energyRateBrlKwh: Number(e.target.value) || 0 }))}
+                  onChange={(e) => setDraft((d) => ({ ...d, energyRateBrlKwh: e.target.value === "" ? "" : Number(e.target.value) }))}
                 />
               </div>
 
@@ -389,7 +389,7 @@ export default function ImpressorasPage() {
                   step="10"
                   className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                   value={draft.purchaseValue}
-                  onChange={(e) => setDraft((d) => ({ ...d, purchaseValue: Number(e.target.value) || 0 }))}
+                  onChange={(e) => setDraft((d) => ({ ...d, purchaseValue: e.target.value === "" ? "" : Number(e.target.value) }))}
                 />
               </div>
 
@@ -400,7 +400,7 @@ export default function ImpressorasPage() {
                   step="10"
                   className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                   value={draft.usefulLifeHours}
-                  onChange={(e) => setDraft((d) => ({ ...d, usefulLifeHours: Number(e.target.value) || 0 }))}
+                  onChange={(e) => setDraft((d) => ({ ...d, usefulLifeHours: e.target.value === "" ? "" : Number(e.target.value) }))}
                 />
               </div>
 
