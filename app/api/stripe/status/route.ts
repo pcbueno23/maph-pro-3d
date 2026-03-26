@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { requireUserSession } from "@/lib/adminApiAuth";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const priceProMonthly = process.env.STRIPE_PRICE_PRO_MONTHLY;
@@ -15,6 +16,9 @@ const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 type PlanEntitlement = "free" | "pro" | "business";
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUserSession(req);
+  if (!auth.ok) return auth.response;
+
   if (!stripe) {
     return NextResponse.json({ error: "Stripe não configurado." }, { status: 500 });
   }
@@ -23,6 +27,9 @@ export async function POST(req: NextRequest) {
     const { email } = (await req.json()) as { email?: string | null };
     if (!email) {
       return NextResponse.json({ error: "E-mail obrigatório." }, { status: 400 });
+    }
+    if (email.trim().toLowerCase() !== auth.user.email!.toLowerCase()) {
+      return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
     }
 
     if (!priceProMonthly || !priceBusinessAnnual) {

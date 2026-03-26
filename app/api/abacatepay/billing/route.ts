@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUserSession } from "@/lib/adminApiAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
 import {
   createBilling,
   createCheckoutV2,
@@ -31,6 +33,43 @@ function publicOrigin(req: NextRequest): string {
   return "http://localhost:3000";
 }
 
+function isValidCPF(digits: string): boolean {
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i);
+  let r = (sum * 10) % 11;
+  if (r === 10 || r === 11) r = 0;
+  if (r !== parseInt(digits[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i);
+  r = (sum * 10) % 11;
+  if (r === 10 || r === 11) r = 0;
+  return r === parseInt(digits[10]);
+}
+
+function isValidCNPJ(digits: string): boolean {
+  if (/^(\d)\1{13}$/.test(digits)) return false;
+  const calc = (d: string, weights: number[]) => {
+    let sum = 0;
+    for (let i = 0; i < weights.length; i++) sum += parseInt(d[i]) * weights[i];
+    const r = sum % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  return (
+    calc(digits, w1) === parseInt(digits[12]) &&
+    calc(digits, w2) === parseInt(digits[13])
+  );
+}
+
+function isValidTaxId(taxId: string): boolean {
+  const digits = taxId.replace(/\D/g, "");
+  if (digits.length === 11) return isValidCPF(digits);
+  if (digits.length === 14) return isValidCNPJ(digits);
+  return false;
+}
+
 /** Só envia customer se tiver dados reais — a API rejeita CPF/CNPJ fictício (ex.: 000.000.000-00). */
 function canSendCustomer(body: {
   email?: string | null;
@@ -46,10 +85,9 @@ function canSendCustomer(body: {
   const email = body.email?.trim();
   const name = body.name?.trim();
   const cellphone = body.cellphone?.trim();
-  const digits = body.taxId?.replace(/\D/g, "") ?? "";
+  const taxId = body.taxId ?? "";
   if (!email || !name || !cellphone) return false;
-  // CPF 11 ou CNPJ 14 dígitos
-  if (digits.length !== 11 && digits.length !== 14) return false;
+  if (!isValidTaxId(taxId)) return false;
   return true;
 }
 
@@ -136,6 +174,18 @@ function checkoutProductImageUrl(
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUserSession(req);
+  if (!auth.ok) return auth.response;
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rl = checkRateLimit(`abacatepay-billing:${ip}`, 10);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Muitas tentativas. Aguarde um momento e tente novamente." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+    );
+  }
+
   if (!token) {
     return NextResponse.json(
       { error: "AbacatePay não configurado (ABACATEPAY_TOKEN)." },
@@ -172,6 +222,9 @@ export async function POST(req: NextRequest) {
     }
 
     const { plan, email } = body;
+    if (email && email.trim().toLowerCase() !== auth.user.email!.toLowerCase()) {
+      return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+    }
     if (!plan || (plan !== "pro" && plan !== "business")) {
       return NextResponse.json(
         { error: "Plano inválido. Use 'pro' ou 'business'." },

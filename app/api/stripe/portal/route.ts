@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { resolveStripeAppOrigin } from "@/lib/stripeAppOrigin";
+import { requireUserSession } from "@/lib/adminApiAuth";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
@@ -14,6 +15,9 @@ if (!stripeSecretKey) {
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUserSession(req);
+  if (!auth.ok) return auth.response;
+
   if (!stripe) {
     return NextResponse.json(
       { error: "Stripe não configurado." },
@@ -29,6 +33,9 @@ export async function POST(req: NextRequest) {
         { error: "E-mail obrigatório para abrir o portal." },
         { status: 400 },
       );
+    }
+    if (email.trim().toLowerCase() !== auth.user.email!.toLowerCase()) {
+      return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
     }
 
     const customers = await stripe.customers.list({

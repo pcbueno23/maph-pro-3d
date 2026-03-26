@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAbacatePayPaidEntitlement } from "@/lib/abacatepayPaidPlan";
+import { requireUserSession } from "@/lib/adminApiAuth";
 
 const token = process.env.ABACATEPAY_TOKEN?.trim();
 
@@ -9,6 +10,9 @@ type PlanEntitlement = "free" | "pro" | "business";
  * Mesmo contrato de POST /api/stripe/status — para o painel Planos em modo AbacatePay.
  */
 export async function POST(req: NextRequest) {
+  const auth = await requireUserSession(req);
+  if (!auth.ok) return auth.response;
+
   if (!token) {
     return NextResponse.json(
       { error: "AbacatePay não configurado (ABACATEPAY_TOKEN)." },
@@ -20,6 +24,9 @@ export async function POST(req: NextRequest) {
     const { email } = (await req.json()) as { email?: string | null };
     if (!email) {
       return NextResponse.json({ error: "E-mail obrigatório." }, { status: 400 });
+    }
+    if (email.trim().toLowerCase() !== auth.user.email!.toLowerCase()) {
+      return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
     }
 
     const ent = await getAbacatePayPaidEntitlement(token, email);

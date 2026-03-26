@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { resolveStripeAppOrigin } from "@/lib/stripeAppOrigin";
+import { requireUserSession } from "@/lib/adminApiAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
 const priceProMonthly = process.env.STRIPE_PRICE_PRO_MONTHLY?.trim();
@@ -27,6 +29,18 @@ function validatePriceId(id: string, envName: string): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUserSession(req);
+  if (!auth.ok) return auth.response;
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rl = checkRateLimit(`stripe-checkout:${ip}`, 10);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Muitas tentativas. Aguarde um momento e tente novamente." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+    );
+  }
+
   if (!stripe) {
     return NextResponse.json(
       { error: "Stripe não configurado (falta STRIPE_SECRET_KEY no servidor)." },
@@ -45,6 +59,9 @@ export async function POST(req: NextRequest) {
         { error: "E-mail obrigatório para criar o checkout." },
         { status: 400 },
       );
+    }
+    if (email.trim().toLowerCase() !== auth.user.email!.toLowerCase()) {
+      return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
     }
 
     let priceId: string | undefined;
