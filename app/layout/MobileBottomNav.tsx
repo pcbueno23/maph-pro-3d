@@ -24,7 +24,7 @@ export function MobileBottomNav() {
   const alertCount = useAlertCount();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 flex border-t border-slate-800 bg-slate-950/95 backdrop-blur-md md:hidden">
+    <nav className="fixed bottom-0 inset-x-0 z-50 flex border-t border-slate-800 bg-slate-950/95 backdrop-blur-md lg:hidden">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
         const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
         const isAlertas = href === "/alertas";

@@ -47,7 +47,6 @@ export const navGroups: NavGroup[] = [
       { href: "/calculator", label: "Calculadora de markup", icon: Calculator },
       { href: "/margem-certa", label: "Margem certa", icon: Target },
       { href: "/orcamentos", label: "Orçamentos", icon: FileText },
-      { href: "/promocoes", label: "Promoções", icon: Percent },
     ],
   },
   {
@@ -59,7 +58,6 @@ export const navGroups: NavGroup[] = [
       { href: "/ordens", label: "Ordens de produção", icon: Printer },
       { href: "/impressoras", label: "Impressoras", icon: Printer },
       { href: "/insumos", label: "Insumos", icon: FlaskConical },
-      { href: "/fornecedores", label: "Fornecedores", icon: Store },
     ],
   },
   {
@@ -77,6 +75,8 @@ export const navGroups: NavGroup[] = [
 export const secondaryNavLinksBeforeDivider: NavLinkItem[] = [
   { href: "/tutorial", label: "Tutorial", icon: GraduationCap },
   { href: "/suporte", label: "Suporte", icon: MessageCircle },
+  { href: "/promocoes", label: "Promoções", icon: Percent },
+  { href: "/fornecedores", label: "Fornecedores", icon: Store },
 ];
 
 /** Links secundários — abaixo do divisor */
