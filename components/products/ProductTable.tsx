@@ -211,7 +211,8 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
   const addOrUpdateMaterial = async () => {
     if (!user || !bomProduct) return;
     if (!addSupplyId) return;
-    if (!Number.isFinite(addQty) || addQty <= 0) return;
+    const addQtyNum = typeof addQty === "number" ? addQty : 0;
+    if (!Number.isFinite(addQtyNum) || addQtyNum <= 0) return;
     // Produtos antigos podem ter IDs não-UUID (ex.: "prod_123"). Esses não são compatíveis
     // com a tabela do Supabase (UUID). Nesse caso, mostramos uma mensagem amigável
     // em vez de deixar o erro "invalid input syntax for type uuid" aparecer.
@@ -229,11 +230,11 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
       const existing = materials.find((m) => m.supplyId === addSupplyId);
       const now = new Date().toISOString();
       const base: Omit<ProductMaterial, "userId" | "id"> & { id?: string } = existing
-        ? { ...existing, qty: addQty, updatedAt: now }
+        ? { ...existing, qty: addQtyNum, updatedAt: now }
         : {
             productId: bomProduct.id,
             supplyId: addSupplyId,
-            qty: addQty,
+            qty: addQtyNum,
             unit: null,
             createdAt: now,
             updatedAt: now,

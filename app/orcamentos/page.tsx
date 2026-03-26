@@ -99,7 +99,7 @@ export default function OrcamentosPage() {
   const unitPriceForProduct = (productId: string) => productsById.get(productId)?.price ?? 0;
 
   const subtotal = useMemo(() => items.reduce((acc, it) => acc + (it.lineTotal ?? it.unitPrice * it.quantity), 0), [items]);
-  const discountAmount = useMemo(() => (subtotal * Math.max(0, discountPercent)) / 100, [subtotal, discountPercent]);
+  const discountAmount = useMemo(() => (subtotal * Math.max(0, discountPercent === "" ? 0 : discountPercent)) / 100, [subtotal, discountPercent]);
   const total = useMemo(() => subtotal - discountAmount, [subtotal, discountAmount]);
 
   const quoteStatus: QuoteStatus = "draft";

@@ -181,7 +181,7 @@ export default function InsumosPage() {
       setError("Informe o nome do insumo.");
       return;
     }
-    if (!Number.isFinite(draft.stockQty) || draft.stockQty < 0) {
+    if (draft.stockQty === "" || draft.stockQty < 0) {
       setError("Informe um estoque válido.");
       return;
     }
@@ -200,7 +200,7 @@ export default function InsumosPage() {
 
       unit = "g";
       // se o usuário não informar estoque manualmente, assume rolo cheio
-      if (!draft.stockQty || draft.stockQty <= 0) {
+      if (!draft.stockQty || normalizeNumber(draft.stockQty, 0) <= 0) {
         stockQty = totalGrams;
       }
       if (totalGrams > 0 && rollPrice > 0) {
@@ -292,7 +292,8 @@ export default function InsumosPage() {
 
   const submitMovement = async () => {
     if (!user || !moveSupply) return;
-    if (!Number.isFinite(moveQty) || moveQty === 0) {
+    const moveQtyNum = normalizeNumber(moveQty, 0);
+    if (!moveQtyNum) {
       setError("Informe uma quantidade (diferente de 0).");
       return;
     }
@@ -303,12 +304,12 @@ export default function InsumosPage() {
       await createSupplyMovement(user.id, {
         supplyId: moveSupply.id,
         kind: moveKind,
-        qty: moveQty,
+        qty: moveQtyNum,
         note: moveNote.trim() || null,
       });
 
       // Atualiza o estoque no registro do insumo (MVP: atualização sequencial)
-      const nextStock = applyMovementToStock(moveSupply.stockQty ?? 0, moveKind, moveQty);
+      const nextStock = applyMovementToStock(moveSupply.stockQty ?? 0, moveKind, moveQtyNum);
       const nowIso = new Date().toISOString();
       const updated = await upsertSupply(user.id, {
         id: moveSupply.id,
@@ -673,7 +674,7 @@ export default function InsumosPage() {
                       type="number"
                       step="0.01"
                       className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                      value={draft.rollKg ?? 1}
+                      value={draft.rollKg}
                       onChange={(e) => setDraft((d) => ({ ...d, rollKg: e.target.value === "" ? "" : Number(e.target.value) }))}
                     />
                     <p className="mt-1 text-[11px] text-slate-500">Ex.: rolo padrão de 1 kg.</p>
@@ -684,7 +685,7 @@ export default function InsumosPage() {
                       type="number"
                       step="0.01"
                       className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                      value={draft.rollPrice ?? 0}
+                      value={draft.rollPrice}
                       onChange={(e) => setDraft((d) => ({ ...d, rollPrice: e.target.value === "" ? "" : Number(e.target.value) }))}
                     />
                     <p className="mt-1 text-[11px] text-slate-500">
