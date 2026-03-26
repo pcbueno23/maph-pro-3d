@@ -306,7 +306,7 @@ export default function ImpressorasPage() {
 
       {open ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4">
-          <div className="w-full max-w-xl rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-neon-cyan">
+          <div className="w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-neon-cyan" style={{ maxHeight: "calc(100dvh - 5rem)" }}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-slate-50">
