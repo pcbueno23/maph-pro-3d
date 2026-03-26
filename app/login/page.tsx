@@ -138,13 +138,14 @@ function LoginFormContent() {
           : typeof window !== "undefined"
             ? window.location.origin
             : "";
-      const redirectTo = appUrl
-        ? `${appUrl.replace(/\/$/, "")}/dashboard`
+      const base = appUrl ? appUrl.replace(/\/$/, "") : "";
+      const callbackUrl = base
+        ? `${base}/auth/callback?next=/`
         : undefined;
       await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo,
+          redirectTo: callbackUrl,
         },
       });
     } catch (err: unknown) {
