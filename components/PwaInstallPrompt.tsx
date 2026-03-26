@@ -59,12 +59,15 @@ export function PwaInstallPrompt() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed top-[72px] right-4 z-50 md:top-auto md:bottom-6 md:right-6">
       <button
         type="button"
         onClick={() => void installNow()}
-        className="rounded-2xl bg-cyan-500/15 px-4 py-3 text-sm font-semibold text-cyan-200 shadow-neon-cyan border border-cyan-500/30 hover:bg-cyan-500/25 transition"
+        className="flex items-center gap-2 rounded-2xl border border-cyan-500/30 bg-cyan-500/15 px-4 py-2.5 text-sm font-semibold text-cyan-200 shadow-neon-cyan transition hover:bg-cyan-500/25"
       >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
         Instalar app
       </button>
     </div>
