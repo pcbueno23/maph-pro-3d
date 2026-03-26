@@ -578,9 +578,9 @@ export default function InsumosPage() {
       </div>
 
       {openSupplyModal ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4 pb-20 lg:pb-4">
           <div className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-950/95 shadow-neon-cyan">
-            <div ref={supplyModalBodyRef} className="max-h-[85vh] overflow-y-auto p-4">
+            <div ref={supplyModalBodyRef} className="max-h-[calc(100dvh-9rem)] overflow-y-auto p-4 lg:max-h-[85vh]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-slate-50">{draft.id ? "Editar insumo" : "Novo insumo"}</p>
@@ -761,9 +761,9 @@ export default function InsumosPage() {
       ) : null}
 
       {openMoveModal && moveSupply ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4 pb-20 lg:pb-4">
           <div className="w-full max-w-3xl rounded-2xl border border-slate-800 bg-slate-950/95 shadow-neon-cyan">
-            <div ref={moveModalBodyRef} className="max-h-[85vh] overflow-y-auto p-4">
+            <div ref={moveModalBodyRef} className="max-h-[calc(100dvh-9rem)] overflow-y-auto p-4 lg:max-h-[85vh]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-slate-50">Movimentações — {moveSupply.name}</p>
