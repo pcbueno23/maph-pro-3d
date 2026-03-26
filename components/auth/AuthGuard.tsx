@@ -10,14 +10,14 @@ import { syncProductsOnLogin } from "@/lib/productSync";
 import { syncUserDataOnLogin } from "@/lib/userDataSync";
 import { PersistUserData } from "./PersistUserData";
 
-const PUBLIC_PATHS = ["/login", "/reset-password"];
+const PUBLIC_PATHS = ["/login", "/reset-password", "/termos", "/privacidade"];
 
 function isPublicCatalogPath(pathname: string | null): boolean {
   return Boolean(pathname?.startsWith("/c/"));
 }
 
 /** Com trial expirado o usuário só acessa estas rotas até assinar. */
-const PAYWALL_EXCEPTION_PATHS = ["/pricing", "/trial-expired", "/suporte"];
+const PAYWALL_EXCEPTION_PATHS = ["/pricing", "/trial-expired", "/suporte", "/termos", "/privacidade"];
 
 function isPaywallExceptionPath(pathname: string | null): boolean {
   if (!pathname) return false;
