@@ -177,7 +177,7 @@ export function PlansManagement({
       try {
         const data = await postJson<StripeStatusResponse>(statusUrl, {
           email: user.email,
-        });
+        }, session?.access_token);
         setStatus(data);
       } catch {
         setStatus({
