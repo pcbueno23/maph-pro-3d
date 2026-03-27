@@ -48,7 +48,7 @@ const PHASES: Phase[] = [
     ],
     randomTips: [
       "Dica: começa com 1 impressora e 3 insumos. Depois você vai refinando — não precisa virar planilha no dia 1.",
-      "Se a margem padrão estiver errada, tudo que vier depois vira "quase certo". Ajusta com calma.",
+      "Se a margem padrão estiver errada, tudo que vier depois vira 'quase certo'. Ajusta com calma.",
       "Custo de energia elétrica esquecido é prejuízo silencioso. Vale cadastrar hora-máquina logo de cara.",
     ],
   },
@@ -72,7 +72,7 @@ const PHASES: Phase[] = [
       { href: "/products", label: "Produtos" },
     ],
     randomTips: [
-      "Canal importa: ML e Shopee não são "só mais uma taxinha" — deixa o app mostrar o choque com carinho.",
+      "Canal importa: ML e Shopee não são 'só mais uma taxinha' — deixa o app mostrar o choque com carinho.",
       "Ajustes avançados existem por um motivo. Usa sem medo quando a conta não bater com a realidade.",
       "Compara dois canais lado a lado antes de decidir onde vender. A diferença às vezes passa de 15%.",
     ],
@@ -124,14 +124,14 @@ const PHASES: Phase[] = [
     randomTips: [
       "Estoque errado = custo errado = preço errado. O loop se fecha aqui.",
       "Alertas não são pra te stressar — é lembrete com pitaco técnico.",
-      "Registrar venda logo depois de fechar evita aquela confusão de "quanto eu vendi essa semana?".",
+      "Registrar venda logo depois de fechar evita aquela confusão de 'quanto eu vendi essa semana?'.",
     ],
   },
   {
     id: "visao",
     tag: "Chefão final",
     emoji: "🚀",
-    title: "Dashboard e relatórios: o "tá tudo sob controle?"",
+    title: "Dashboard e relatórios: o 'tá tudo sob controle?'",
     hook:
       "Quando a rotina aperta, você não quer planilha. Quer um lugar que diga se a semana foi verde, amarela ou modo sobrevivência.",
     accent: "from-emerald-500/25 via-slate-900/40 to-cyan-500/20",
