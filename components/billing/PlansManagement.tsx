@@ -509,9 +509,8 @@ export function PlansManagement({
                       Titular do pagamento
                     </h2>
                     <p className="mt-1 max-w-lg text-xs leading-relaxed text-slate-400">
-                      Leva menos de um minuto. O gateway exige{" "}
-                      <strong className="font-medium text-slate-300">dados reais</strong> do PIX ou
-                      cartão. Usamos o e-mail da sua conta; no modo AbacatePay nada vai para o Stripe.
+                      Leva menos de um minuto. Preencha com seus dados reais para gerar o PIX ou
+                      link de cartão. Usamos o e-mail da sua conta para enviar a confirmação.
                     </p>
                     {user?.email ? (
                       <p className="mt-2 text-[11px] text-slate-500">
