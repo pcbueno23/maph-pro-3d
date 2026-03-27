@@ -51,10 +51,12 @@ function isValidAbacatePayer(name: string, taxId: string, cellphone: string): bo
   return true;
 }
 
-async function postJson<T>(url: string, body: unknown): Promise<T> {
+async function postJson<T>(url: string, body: unknown, token?: string | null): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
     cache: "no-store",
   });
@@ -73,7 +75,7 @@ type PlansManagementProps = {
 export function PlansManagement({
   defaultPaymentProvider,
 }: PlansManagementProps = {}) {
-  const { user } = useAuthStore();
+  const { user, session } = useAuthStore();
   const bumpAccessCheck = useAccessStore((s) => s.bumpAccessCheck);
   const accessChecked = useAccessStore((s) => s.checked);
   const accessPaid = useAccessStore((s) => s.hasPaidPlan);
@@ -272,6 +274,7 @@ export function PlansManagement({
         const data = await postJson<{ url?: string; error?: string }>(
           checkoutPath,
           payload,
+          session?.access_token,
         );
         if (!data.url)
           throw new Error(data.error ?? "URL do checkout não encontrada.");
@@ -300,6 +303,7 @@ export function PlansManagement({
       const data = await postJson<{ url?: string; error?: string }>(
         "/api/stripe/portal",
         { email: user.email },
+        session?.access_token,
       );
       if (!data.url) throw new Error(data.error ?? "URL do portal não encontrada.");
       window.location.href = data.url;
