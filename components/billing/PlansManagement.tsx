@@ -354,54 +354,52 @@ export function PlansManagement({
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {checkoutSuccess ? (
+      {/* Modal de boas-vindas pós-pagamento */}
+      {checkoutSuccess && paidActive && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-md rounded-2xl border border-emerald-500/40 bg-slate-900 p-8 shadow-2xl text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20">
+              <PartyPopper className="h-8 w-8 text-emerald-400" />
+            </div>
+            <h2 className="mb-2 text-2xl font-bold text-slate-50">Bem-vindo ao Pro!</h2>
+            <p className="mb-1 text-sm text-slate-300">
+              Seu pagamento foi confirmado e o plano já está ativo.
+            </p>
+            <p className="mb-6 text-xs text-slate-400">
+              Agora você tem acesso completo à precificação 3D, produção, estoque e relatórios.
+            </p>
+            <Link
+              href="/dashboard"
+              className="block w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400"
+              onClick={clearCheckoutQuery}
+            >
+              Ir para o Dashboard
+            </Link>
+            <button
+              type="button"
+              onClick={clearCheckoutQuery}
+              className="mt-3 text-xs text-slate-500 hover:text-slate-400"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {checkoutSuccess && !paidActive ? (
         <div
-          className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 sm:flex-row sm:items-start sm:justify-between ${
-            paidActive
-              ? "border-emerald-500/50 bg-emerald-500/10"
-              : "border-cyan-500/40 bg-cyan-500/10"
-          }`}
+          className="flex flex-col gap-3 rounded-2xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-4 sm:flex-row sm:items-start sm:justify-between"
           role="status"
         >
           <div className="flex gap-3">
-            <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                paidActive ? "bg-emerald-500/20" : "bg-cyan-500/20"
-              }`}
-            >
-              <PartyPopper
-                className={`h-5 w-5 ${paidActive ? "text-emerald-300" : "text-cyan-300"}`}
-              />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20">
+              <PartyPopper className="h-5 w-5 text-cyan-300" />
             </div>
             <div className="min-w-0 space-y-1">
-              <p className="text-sm font-semibold text-slate-50">
-                {paidActive
-                  ? "Pagamento confirmado — plano ativo"
-                  : "Pagamento recebido"}
-              </p>
+              <p className="text-sm font-semibold text-slate-50">Pagamento recebido</p>
               <p className="text-xs leading-relaxed text-slate-300">
-                {paidActive ? (
-                  <>
-                    Sua assinatura já está liberada no app. Você pode voltar ao{" "}
-                    <Link
-                      href="/dashboard"
-                      className="font-medium text-cyan-400 underline decoration-cyan-500/50 underline-offset-2 hover:text-cyan-300"
-                    >
-                      painel
-                    </Link>{" "}
-                    ou continuar por aqui.
-                  </>
-                ) : (
-                  <>
-                    Obrigado! Estamos confirmando seu pagamento
-                    {paymentProvider === "abacatepay"
-                      ? " na AbacatePay"
-                      : " no Stripe"}{" "}
-                    — o bloco &quot;Painel de Assinatura&quot; deve atualizar em alguns
-                    segundos. Se continuar como Free,{" "}
-                    <strong className="text-slate-200">atualize a página (F5)</strong>.
-                  </>
-                )}
+                Obrigado! Confirmando seu pagamento — o plano deve ativar em instantes.
+                Se continuar como Free, <strong className="text-slate-200">atualize a página (F5)</strong>.
               </p>
             </div>
           </div>
