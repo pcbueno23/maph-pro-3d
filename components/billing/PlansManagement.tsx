@@ -212,10 +212,25 @@ export function PlansManagement({
 
     if (qpSuccess) {
       setStickySuccessBanner(true);
-      const now = Date.now();
-      if (now - lastBumpAfterStripeMs > 800) {
-        lastBumpAfterStripeMs = now;
-        bumpAccessCheck();
+      // Verifica o billing pelo ID armazenado antes do redirect
+      const pendingBillingId = localStorage.getItem("abacatepay_pending_billing_id");
+      if (pendingBillingId && session?.access_token && paymentProvider === "abacatepay") {
+        localStorage.removeItem("abacatepay_pending_billing_id");
+        postJson("/api/abacatepay/verify-payment", { billingId: pendingBillingId }, session.access_token)
+          .catch(() => null)
+          .finally(() => {
+            const now = Date.now();
+            if (now - lastBumpAfterStripeMs > 800) {
+              lastBumpAfterStripeMs = now;
+              bumpAccessCheck();
+            }
+          });
+      } else {
+        const now = Date.now();
+        if (now - lastBumpAfterStripeMs > 800) {
+          lastBumpAfterStripeMs = now;
+          bumpAccessCheck();
+        }
       }
     }
     if (qpCanceled) {
@@ -271,13 +286,14 @@ export function PlansManagement({
           payload.taxId = payerTaxId.trim();
           payload.cellphone = payerCellphone.trim();
         }
-        const data = await postJson<{ url?: string; error?: string }>(
+        const data = await postJson<{ url?: string; id?: string; error?: string }>(
           checkoutPath,
           payload,
           session?.access_token,
         );
         if (!data.url)
           throw new Error(data.error ?? "URL do checkout não encontrada.");
+        if (data.id) localStorage.setItem("abacatepay_pending_billing_id", data.id);
         window.location.href = data.url;
       } catch (e: unknown) {
         const msg =
