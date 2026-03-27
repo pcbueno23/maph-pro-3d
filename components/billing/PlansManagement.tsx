@@ -192,7 +192,7 @@ export function PlansManagement({
     };
 
     void run();
-  }, [user?.email, defaultPaymentProvider]);
+  }, [user?.email, session?.access_token, defaultPaymentProvider]);
 
   const isOnTrial = Boolean(status?.isTrialing);
   const plan = status?.plan ?? "free";
