@@ -257,6 +257,16 @@ export function PlansManagement({
     }
   }, [status]);
 
+  const paidPeriodEnd = useMemo(() => {
+    if (!status?.currentPeriodEnd) return null;
+    if (status.isTrialing) return null;
+    try {
+      return new Date(status.currentPeriodEnd).toLocaleDateString("pt-BR");
+    } catch {
+      return null;
+    }
+  }, [status]);
+
   const handleCheckout = useCallback(
     async (nextPlan: "pro" | "business") => {
       if (!user) {
@@ -718,6 +728,7 @@ export function PlansManagement({
                     <p className="text-xs text-slate-500">
                       Plano pago
                       {paymentProvider === "abacatepay" ? " · AbacatePay" : " · Stripe"}
+                      {paidPeriodEnd ? ` · até ${paidPeriodEnd}` : ""}
                     </p>
                   )}
                 </div>
