@@ -31,11 +31,20 @@ export async function POST(req: NextRequest) {
 
     // Fast-path: webhook já confirmou pagamento via user_metadata
     if (auth.user.user_metadata?.abacatepay_paid_at) {
+      const meta = auth.user.user_metadata;
+      let periodEnd: string | null = meta.abacatepay_period_end ?? null;
+      // Fallback para contas sem period_end (corrigidas manualmente): +30d pro / +365d business
+      if (!periodEnd && meta.abacatepay_paid_at) {
+        const plan: PlanEntitlement = meta.abacatepay_plan ?? "pro";
+        const base = new Date(meta.abacatepay_paid_at);
+        base.setDate(base.getDate() + (plan === "business" ? 365 : 30));
+        periodEnd = base.toISOString();
+      }
       return NextResponse.json({
-        plan: "pro" as PlanEntitlement,
+        plan: (meta.abacatepay_plan ?? "pro") as PlanEntitlement,
         subscriptionStatus: "PAID",
         isTrialing: false,
-        currentPeriodEnd: null,
+        currentPeriodEnd: periodEnd,
       });
     }
 
