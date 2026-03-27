@@ -29,6 +29,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
     }
 
+    // Fast-path: webhook já confirmou pagamento via user_metadata
+    if (auth.user.user_metadata?.abacatepay_paid_at) {
+      return NextResponse.json({
+        plan: "pro" as PlanEntitlement,
+        subscriptionStatus: "PAID",
+        isTrialing: false,
+        currentPeriodEnd: null,
+      });
+    }
+
     const ent = await getAbacatePayPaidEntitlement(token, email);
 
     if (!ent.paid) {
