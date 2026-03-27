@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceRole } from "@/lib/adminApiAuth";
+import { listBillings } from "@/lib/abacatepay";
 
 export const dynamic = "force-dynamic";
 
@@ -8,9 +9,9 @@ export const dynamic = "force-dynamic";
  *
  * Configuração no painel AbacatePay:
  *   URL: https://seu-dominio.com/api/abacatepay/webhook
- *   Secret: valor de ABACATEPAY_WEBHOOK_SECRET no .env
  *
- * Segurança: valida header `x-webhook-token` contra ABACATEPAY_WEBHOOK_SECRET.
+ * Segurança: verifica o status do billing diretamente na API do AbacatePay
+ * antes de marcar o usuário como pago, evitando webhooks falsos.
  */
 
 interface AbacatePayWebhookPayload {
@@ -67,23 +68,7 @@ function extractUserEmail(billing: BillingData): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  const webhookSecret = process.env.ABACATEPAY_WEBHOOK_SECRET?.trim();
-
-  // Rejeita se o secret não estiver configurado no servidor — nunca opera sem proteção.
-  if (!webhookSecret) {
-    console.error("[abacatepay/webhook] ABACATEPAY_WEBHOOK_SECRET não configurado. Configure a variável de ambiente.");
-    return NextResponse.json({ error: "Servidor não configurado corretamente." }, { status: 500 });
-  }
-
-  // Valida o secret enviado pelo AbacatePay no header
-  const token =
-    req.headers.get("x-webhook-token") ??
-    req.headers.get("x-abacatepay-token") ??
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-
-  if (!token || token !== webhookSecret) {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-  }
+  const abacateToken = process.env.ABACATEPAY_TOKEN?.trim();
 
   let body: AbacatePayWebhookPayload;
   try {
@@ -103,6 +88,22 @@ export async function POST(req: NextRequest) {
   if (status !== "PAID") {
     // Evento não é de pagamento confirmado — aceitar para não gerar reenvios
     return NextResponse.json({ ok: true });
+  }
+
+  // Verifica o billing diretamente na API do AbacatePay para evitar webhooks falsos.
+  // Se a chave estiver disponível, confirma que o billing existe e está PAID.
+  if (abacateToken && billing.id) {
+    try {
+      const billings = await listBillings(abacateToken);
+      const found = billings.find((b) => b.id === billing.id);
+      if (!found || String(found.status ?? "").toUpperCase() !== "PAID") {
+        console.warn("[abacatepay/webhook] Billing não encontrado ou não PAID na API:", billing.id);
+        return NextResponse.json({ ok: true });
+      }
+    } catch (err) {
+      // Se a verificação falhar por erro de rede, continua — evita perder evento real
+      console.error("[abacatepay/webhook] Erro ao verificar billing na API:", err);
+    }
   }
 
   const email = extractUserEmail(billing);
