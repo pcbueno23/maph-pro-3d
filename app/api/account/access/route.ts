@@ -70,11 +70,16 @@ export async function GET(req: NextRequest) {
   const abacateToken = process.env.ABACATEPAY_TOKEN?.trim();
 
   if (isAbacatePayPaymentProvider() && user.email && abacateToken) {
-    try {
-      const ent = await getAbacatePayPaidEntitlement(abacateToken, user.email);
-      hasPaidPlan = ent.paid;
-    } catch {
-      // Falha na listagem: mantém trial por data
+    // Fast-path: webhook já confirmou pagamento e gravou no user_metadata
+    if (user.user_metadata?.abacatepay_paid_at) {
+      hasPaidPlan = true;
+    } else {
+      try {
+        const ent = await getAbacatePayPaidEntitlement(abacateToken, user.email);
+        hasPaidPlan = ent.paid;
+      } catch {
+        // Falha na listagem: mantém trial por data
+      }
     }
   } else {
     const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
