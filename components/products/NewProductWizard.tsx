@@ -139,6 +139,8 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
   const [printMinutes, setPrintMinutes] = useState<number | "">(0);
   const [defaultPrinterId, setDefaultPrinterId] = useState<string | null>(null);
   const [materials, setMaterials] = useState<BomLine[]>([]);
+  /** Supply IDs que o usuário removeu explicitamente — o auto-fill não deve re-adicionar. */
+  const userRemovedAutoSupplyIds = useRef<Set<string>>(new Set());
   const [addSupplyId, setAddSupplyId] = useState("");
   const [addQty, setAddQty] = useState<number | "">("");
   const [mainImage, setMainImage] = useState<File | null>(null);
@@ -548,6 +550,8 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
     if (!supply) return;
 
     setMaterials((prev) => {
+      // Não re-adiciona insumos que o usuário removeu explicitamente.
+      if (userRemovedAutoSupplyIds.current.has(supplyId)) return prev;
       const existing = prev.find((m) => m.supplyId === supplyId);
       if (existing) {
         // Se a linha já veio da calculadora, mantém sincronizada com o peso da aba Informações.
@@ -690,6 +694,10 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
   }
 
   function removeMaterial(supplyId: string) {
+    const removed = materials.find((m) => m.supplyId === supplyId);
+    if (removed?.autoFromCalculator) {
+      userRemovedAutoSupplyIds.current.add(supplyId);
+    }
     setMaterials((prev) => prev.filter((m) => m.supplyId !== supplyId));
   }
 
@@ -829,7 +837,8 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
               updatedAt: nowIso,
             });
           }
-          if (canAutoBom && !materials.some((m) => m.supplyId === autoBomSupplyId)) {
+          const autoBomUserRemoved = userRemovedAutoSupplyIds.current.has(autoBomSupplyId);
+          if (canAutoBom && !autoBomUserRemoved && !materials.some((m) => m.supplyId === autoBomSupplyId)) {
             await upsertProductMaterial(user.id, {
               id: generateUuid(),
               productId,
@@ -853,7 +862,7 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
                 updatedAt: nowIso,
               });
             }
-          } else if (canAutoBom) {
+          } else if (canAutoBom && !userRemovedAutoSupplyIds.current.has(autoBomSupplyId)) {
             await upsertProductMaterial(user.id, {
               id: generateUuid(),
               productId,
