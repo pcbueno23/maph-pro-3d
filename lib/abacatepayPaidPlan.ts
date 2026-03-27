@@ -46,7 +46,9 @@ function planFromProducts(
     if (proIds.has(pid)) return "pro";
     if (bizIds.has(pid)) return "business";
   }
-  return "free";
+  // Se o AbacatePay não retornar externalId/productId, qualquer billing PAID
+  // deste usuário já é suficiente para conceder acesso (plano pro por padrão).
+  return "pro";
 }
 
 /**
@@ -90,13 +92,11 @@ export async function getAbacatePayPaidEntitlement(
     return st === "PAID" && billingMatchesEmail(b, email);
   });
 
-  const scored = paid
-    .map((b) => {
-      const plan = planFromProducts(b, proIds, bizIds);
-      const t = b.updatedAt ?? b.createdAt ?? "";
-      return { b, plan, t };
-    })
-    .filter((x) => x.plan !== "free");
+  const scored = paid.map((b) => {
+    const plan = planFromProducts(b, proIds, bizIds);
+    const t = b.updatedAt ?? b.createdAt ?? "";
+    return { b, plan, t };
+  });
 
   if (scored.length === 0) return empty;
 
