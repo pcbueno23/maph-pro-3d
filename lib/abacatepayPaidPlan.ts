@@ -41,7 +41,7 @@ function planFromProducts(
   for (const p of products) {
     const ext = String(p.externalId ?? "");
     if (ext.startsWith("precifica3d-pro")) return "pro";
-    if (ext.startsWith("precifica3d-lifetime")) return "business";
+    if (ext.startsWith("precifica3d-business") || ext.startsWith("precifica3d-lifetime")) return "business";
     const pid = String(p.id ?? "");
     if (proIds.has(pid)) return "pro";
     if (bizIds.has(pid)) return "business";
