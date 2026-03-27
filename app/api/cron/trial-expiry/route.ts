@@ -13,11 +13,16 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET?.trim();
-  if (cronSecret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-    }
+
+  // Rejeita se o secret não estiver configurado — nunca opera sem proteção.
+  if (!cronSecret) {
+    console.error("[cron/trial-expiry] CRON_SECRET não configurado. Configure a variável de ambiente.");
+    return NextResponse.json({ error: "Servidor não configurado corretamente." }, { status: 500 });
+  }
+
+  const auth = req.headers.get("authorization");
+  if (auth !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
   const admin = getSupabaseServiceRole();

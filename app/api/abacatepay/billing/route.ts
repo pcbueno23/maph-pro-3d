@@ -13,11 +13,17 @@ import { getSupabaseServiceRole } from "@/lib/adminApiAuth";
 
 const token = process.env.ABACATEPAY_TOKEN?.trim();
 
-/** URLs absolutas (formato uri) — a API exige URI completa, não só path. */
+/** URLs absolutas (formato uri) — a API exige URI completa, não só path.
+ *  SEGURANÇA: nunca usa o header `origin` do cliente como fonte confiável —
+ *  um atacante autenticado poderia enviar Origin: https://site-malicioso.com
+ *  e fazer o AbacatePay redirecionar o usuário para lá após o pagamento.
+ *  Fonte de verdade: NEXT_PUBLIC_APP_URL (env server-side) ou x-forwarded-host. */
 function publicOrigin(req: NextRequest): string {
-  const origin = req.headers.get("origin")?.trim();
-  if (origin && /^https?:\/\//i.test(origin)) return origin.replace(/\/$/, "");
+  // 1. Fonte mais confiável: variável de ambiente definida no servidor/Vercel
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
+  if (appUrl && /^https:\/\//i.test(appUrl)) return appUrl;
 
+  // 2. Fallback para desenvolvimento local via headers de proxy (não vem do cliente diretamente)
   const host =
     req.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ??
     req.headers.get("host")?.trim();
@@ -26,10 +32,6 @@ function publicOrigin(req: NextRequest): string {
     "http";
   if (host) return `${proto}://${host}`.replace(/\/$/, "");
 
-  const fallback = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (fallback && /^https?:\/\//i.test(fallback)) {
-    return fallback.replace(/\/$/, "");
-  }
   return "http://localhost:3000";
 }
 

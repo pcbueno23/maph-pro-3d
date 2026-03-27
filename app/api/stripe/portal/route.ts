@@ -55,11 +55,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const origin = req.headers.get("origin") ?? "";
+    // SEGURANÇA: nunca usar req.headers.get("origin") para URLs de redirecionamento —
+    // header controlado pelo cliente permite open redirect para domínios maliciosos.
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") ??
+      "http://localhost:3000";
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customer.id,
-      return_url: `${origin}/pricing`,
+      return_url: `${appUrl}/pricing`,
     });
 
     return NextResponse.json({ url: session.url });

@@ -69,16 +69,20 @@ function extractUserEmail(billing: BillingData): string | null {
 export async function POST(req: NextRequest) {
   const webhookSecret = process.env.ABACATEPAY_WEBHOOK_SECRET?.trim();
 
-  // Valida o secret enviado pelo AbacatePay no header
-  if (webhookSecret) {
-    const token =
-      req.headers.get("x-webhook-token") ??
-      req.headers.get("x-abacatepay-token") ??
-      req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  // Rejeita se o secret não estiver configurado no servidor — nunca opera sem proteção.
+  if (!webhookSecret) {
+    console.error("[abacatepay/webhook] ABACATEPAY_WEBHOOK_SECRET não configurado. Configure a variável de ambiente.");
+    return NextResponse.json({ error: "Servidor não configurado corretamente." }, { status: 500 });
+  }
 
-    if (!token || token !== webhookSecret) {
-      return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-    }
+  // Valida o secret enviado pelo AbacatePay no header
+  const token =
+    req.headers.get("x-webhook-token") ??
+    req.headers.get("x-abacatepay-token") ??
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+
+  if (!token || token !== webhookSecret) {
+    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
   let body: AbacatePayWebhookPayload;
