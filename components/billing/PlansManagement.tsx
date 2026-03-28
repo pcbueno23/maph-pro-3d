@@ -41,6 +41,12 @@ function digitsOnly(s: string): string {
 }
 
 /** Mesmas regras do backend (`canSendCustomer`): CPF 11 / CNPJ 14, celular com DDD. */
+function getRefCodeCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|;\s*)ref_code=([^;]+)/);
+  return match ? decodeURIComponent(match[1]).trim().toUpperCase() : null;
+}
+
 function isValidAbacatePayer(name: string, taxId: string, cellphone: string): boolean {
   const n = name.trim();
   const td = digitsOnly(taxId);
@@ -295,6 +301,9 @@ export function PlansManagement({
           payload.name = payerName.trim();
           payload.taxId = payerTaxId.trim();
           payload.cellphone = payerCellphone.trim();
+          // Passa o ref_code do cookie para o servidor registrar a conversão de afiliado
+          const refCode = getRefCodeCookie();
+          if (refCode) payload.ref_code = refCode;
         }
         const data = await postJson<{ url?: string; id?: string; error?: string }>(
           checkoutPath,

@@ -9,7 +9,7 @@ export async function proxy(req: NextRequest) {
   const ref = req.nextUrl.searchParams.get("ref");
   if (ref && /^[A-Z0-9_-]{3,20}$/i.test(ref.trim())) {
     res.cookies.set("ref_code", ref.trim().toUpperCase(), {
-      httpOnly: true,
+      httpOnly: false,   // JS precisa ler para passar no checkout
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 30,

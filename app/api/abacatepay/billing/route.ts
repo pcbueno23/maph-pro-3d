@@ -213,6 +213,7 @@ export async function POST(req: NextRequest) {
       /** CPF ou CNPJ válido (a AbacatePay valida; não use fictício). */
       taxId?: string | null;
       cellphone?: string | null;
+      ref_code?: string | null;
     };
     try {
       body = JSON.parse(rawBody) as typeof body;
@@ -267,7 +268,8 @@ export async function POST(req: NextRequest) {
 
     const storeProductId = useV1BillingOnly ? "" : storeProductIdRaw;
 
-    const refCode = req.cookies.get("ref_code")?.value?.trim().toUpperCase() ?? "";
+    // Prioridade: ref_code do body (enviado pelo frontend via cookie JS) > cookie httpOnly
+    const refCode = (body.ref_code?.trim().toUpperCase() || req.cookies.get("ref_code")?.value?.trim().toUpperCase()) ?? "";
 
     const appUserEmailMeta =
       email?.trim() != null && email.trim() !== ""
