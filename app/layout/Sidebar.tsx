@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Shield, ChevronDown } from "lucide-react";
+import { Shield, ChevronDown, Share2 } from "lucide-react";
 import {
   topNavLinks,
   navGroups,
@@ -14,6 +14,7 @@ import {
 } from "./navLinks";
 import { useAdminWhoami } from "@/hooks/useAdminWhoami";
 import { useAlertCount } from "@/hooks/useAlertCount";
+import { useAffiliateMe } from "@/hooks/useAffiliateMe";
 
 function NavLinkRow({
   href,
@@ -111,6 +112,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const isAdmin = useAdminWhoami();
   const alertCount = useAlertCount();
+  const affiliateState = useAffiliateMe();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden h-[100dvh] max-h-[100dvh] w-64 flex-col overflow-hidden border-r border-slate-800 bg-slate-950/80 px-4 py-6 lg:flex">
@@ -184,6 +186,14 @@ export function Sidebar() {
               pathname={pathname}
             />
           ))}
+          {affiliateState.status === "active" ? (
+            <NavLinkRow
+              href="/afiliados"
+              label="Afiliados"
+              icon={Share2}
+              pathname={pathname}
+            />
+          ) : null}
           {isAdmin ? (
             <NavLinkRow
               href="/admin"
