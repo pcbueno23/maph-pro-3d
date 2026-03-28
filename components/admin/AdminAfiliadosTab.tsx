@@ -160,6 +160,8 @@ function DetailModal({
   const [savingId, setSavingId] = useState<string | null>(null);
   const [payoutInput, setPayoutInput] = useState("");
   const [origin, setOrigin] = useState("");
+  const [editingPix, setEditingPix] = useState(false);
+  const [pixInput, setPixInput] = useState("");
 
   useEffect(() => {
     if (typeof window !== "undefined") setOrigin(window.location.origin);
@@ -227,6 +229,18 @@ function DetailModal({
     setPayoutInput("");
   }
 
+  async function savePix() {
+    setSavingId("pix");
+    await patch({ pix_key: pixInput.trim() || null });
+    setEditingPix(false);
+    setSavingId(null);
+  }
+
+  function startEditPix() {
+    setPixInput(data?.affiliate.pix_key ?? "");
+    setEditingPix(true);
+  }
+
   if (loading) return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="rounded-2xl bg-slate-900 p-6 text-sm text-slate-300">Carregando…</div>
@@ -269,7 +283,6 @@ function DetailModal({
           {[
             { label: "Código", val: affiliate.code },
             { label: "Comissão", val: pct(affiliate.commission_rate) },
-            { label: "Chave PIX", val: affiliate.pix_key ?? "—" },
             { label: "Conversões", val: String(stats.totalConversions) },
           ].map(({ label, val }) => (
             <div key={label} className="rounded-xl bg-slate-800 p-3">
@@ -277,6 +290,43 @@ function DetailModal({
               <p className="mt-0.5 text-sm font-medium text-slate-100">{val}</p>
             </div>
           ))}
+          {/* Chave PIX editável */}
+          <div className="rounded-xl bg-slate-800 p-3">
+            <p className="mb-1 text-xs text-slate-500">Chave PIX</p>
+            {editingPix ? (
+              <div className="flex gap-1">
+                <input
+                  autoFocus
+                  value={pixInput}
+                  onChange={(e) => setPixInput(e.target.value)}
+                  placeholder="CPF, e-mail ou chave"
+                  className="min-w-0 flex-1 rounded bg-slate-700 px-2 py-1 text-xs text-slate-100 outline-none focus:ring-1 focus:ring-cyan-500"
+                />
+                <button
+                  disabled={savingId === "pix"}
+                  onClick={() => { void savePix(); }}
+                  className="rounded bg-cyan-700 px-2 py-1 text-[10px] text-white hover:bg-cyan-600 disabled:opacity-50">
+                  {savingId === "pix" ? "…" : "OK"}
+                </button>
+                <button
+                  onClick={() => setEditingPix(false)}
+                  className="rounded bg-slate-700 px-2 py-1 text-[10px] text-slate-400 hover:bg-slate-600">
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <p className="flex-1 truncate text-sm font-medium text-slate-100">
+                  {affiliate.pix_key ?? <span className="text-slate-500">—</span>}
+                </p>
+                <button
+                  onClick={startEditPix}
+                  className="shrink-0 rounded bg-slate-700 px-2 py-0.5 text-[10px] text-slate-400 hover:bg-slate-600">
+                  Editar
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Stats financeiros */}

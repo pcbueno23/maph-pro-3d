@@ -22,6 +22,10 @@ export type AdminUserRow = {
   banned_until: string | null;
   /** `banned_until` ainda no futuro. */
   is_banned: boolean;
+  /** Usuário tem pagamento confirmado (abacatepay_paid_at no user_metadata). */
+  has_paid_plan: boolean;
+  /** ISO da data em que o pagamento foi confirmado via webhook. */
+  abacatepay_paid_at: string | null;
 };
 
 export function toAdminUserRow(u: User): AdminUserRow {
@@ -43,6 +47,9 @@ export function toAdminUserRow(u: User): AdminUserRow {
   const banned = (u as User & { banned_until?: string | null }).banned_until;
   const bannedStr =
     typeof banned === "string" && banned.trim() !== "" ? banned.trim() : null;
+  const paidAtRaw = u.user_metadata?.abacatepay_paid_at;
+  const abacatepayPaidAt =
+    typeof paidAtRaw === "string" && paidAtRaw.trim() !== "" ? paidAtRaw.trim() : null;
   return {
     id: u.id,
     email: u.email ?? "",
@@ -54,5 +61,7 @@ export function toAdminUserRow(u: User): AdminUserRow {
     admin_notes: adminNotes,
     banned_until: bannedStr,
     is_banned: isActiveBan(bannedStr),
+    has_paid_plan: abacatepayPaidAt !== null,
+    abacatepay_paid_at: abacatepayPaidAt,
   };
 }

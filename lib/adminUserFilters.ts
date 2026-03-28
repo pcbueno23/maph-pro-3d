@@ -1,6 +1,6 @@
 import type { AdminUserRow } from "@/lib/adminUserDto";
 
-export type AdminUserSegment = "all" | "in_trial" | "post_trial" | "banned";
+export type AdminUserSegment = "all" | "in_trial" | "post_trial" | "banned" | "paid";
 
 /** Filtros da lista admin (trial por data; não consulta Stripe). */
 export function matchesAdminUserFilters(
@@ -14,11 +14,15 @@ export function matchesAdminUserFilters(
 
   if (segment === "banned") {
     if (!row.is_banned) return false;
+  } else if (segment === "paid") {
+    if (!row.has_paid_plan) return false;
   } else if (segment === "in_trial") {
     if (row.is_banned) return false;
+    if (row.has_paid_plan) return false;
     if (!(now < trialEnd)) return false;
   } else if (segment === "post_trial") {
     if (row.is_banned) return false;
+    if (row.has_paid_plan) return false;
     if (!(now >= trialEnd)) return false;
   }
 

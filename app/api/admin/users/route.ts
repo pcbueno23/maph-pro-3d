@@ -17,7 +17,8 @@ function parseSegment(raw: string | null): AdminUserSegment {
   if (
     raw === "in_trial" ||
     raw === "post_trial" ||
-    raw === "banned"
+    raw === "banned" ||
+    raw === "paid"
   ) {
     return raw;
   }

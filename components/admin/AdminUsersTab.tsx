@@ -19,6 +19,7 @@ type ListResponse = {
 
 function accessLabel(u: AdminUserRow): string {
   if (u.is_banned) return "Banido";
+  if (u.has_paid_plan) return "Pago";
   const now = Date.now();
   const end = new Date(u.effective_trial_ends_at).getTime();
   return now < end ? "Em teste" : "Pós-trial";
@@ -280,6 +281,7 @@ export function AdminUsersTab() {
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-200"
             >
               <option value="all">Todas as contas</option>
+              <option value="paid">Pagos</option>
               <option value="in_trial">Em teste</option>
               <option value="post_trial">Pós-trial</option>
               <option value="banned">Banidas</option>
@@ -453,9 +455,11 @@ export function AdminUsersTab() {
                       className={
                         u.is_banned
                           ? "rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] text-red-300"
-                          : accessLabel(u) === "Em teste"
-                            ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300/95"
-                            : "rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] text-slate-400"
+                          : u.has_paid_plan
+                            ? "rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] text-cyan-300"
+                            : accessLabel(u) === "Em teste"
+                              ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300/95"
+                              : "rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] text-slate-400"
                       }
                     >
                       {accessLabel(u)}
