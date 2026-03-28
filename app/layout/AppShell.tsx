@@ -11,8 +11,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPublicCatalog = Boolean(pathname?.startsWith("/c/"));
   const isTrialExpired = pathname === "/trial-expired";
+  const isAffiliatePage = Boolean(pathname?.startsWith("/afiliados/"));
 
-  if (isPublicCatalog || isTrialExpired) {
+  if (isPublicCatalog || isTrialExpired || isAffiliatePage) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100">
         <main className="min-h-screen px-4 py-6 md:px-8">{children}</main>
