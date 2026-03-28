@@ -181,31 +181,47 @@ export default function AfiliadosPage() {
       {stats && (() => {
         const MIN_PAYOUT = 5000; // R$ 50,00 em centavos
         const approved = stats.approvedCommissionCents;
-        const pct = Math.min(100, Math.round((approved / MIN_PAYOUT) * 100));
-        const falta = Math.max(0, MIN_PAYOUT - approved);
+        const pending = stats.pendingCommissionCents;
+        const total = approved + pending;
+        const pctApproved = Math.min(100, Math.round((approved / MIN_PAYOUT) * 100));
+        const pctPending = Math.min(100 - pctApproved, Math.round((pending / MIN_PAYOUT) * 100));
+        const pctTotal = Math.min(100, Math.round((total / MIN_PAYOUT) * 100));
+        const falta = Math.max(0, MIN_PAYOUT - total);
         const canWithdraw = approved >= MIN_PAYOUT;
 
         return (
           <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-200">Saque mínimo: R$ 50,00</h2>
-              <span className={`text-sm font-bold ${canWithdraw ? "text-emerald-400" : "text-cyan-300"}`}>
-                {brl(approved)}
-              </span>
+              <div className="text-right">
+                {approved > 0 && (
+                  <span className="text-sm font-bold text-emerald-400">{brl(approved)} aprovado</span>
+                )}
+                {pending > 0 && (
+                  <span className={`text-sm font-bold text-yellow-300 ${approved > 0 ? " ml-2" : ""}`}>
+                    {brl(pending)} pendente
+                  </span>
+                )}
+                {approved === 0 && pending === 0 && (
+                  <span className="text-sm font-bold text-slate-400">{brl(0)}</span>
+                )}
+              </div>
             </div>
 
-            {/* Barra de progresso */}
-            <div className="mb-1 h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  canWithdraw ? "bg-emerald-500" : "bg-cyan-500"
-                }`}
-                style={{ width: `${pct}%` }}
-              />
+            {/* Barra de progresso segmentada */}
+            <div className="mb-1 h-2.5 w-full overflow-hidden rounded-full bg-slate-800 flex">
+              {canWithdraw ? (
+                <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: "100%" }} />
+              ) : (
+                <>
+                  <div className="h-full bg-cyan-500 transition-all duration-500" style={{ width: `${pctApproved}%` }} />
+                  <div className="h-full bg-yellow-500/70 transition-all duration-500" style={{ width: `${pctPending}%` }} />
+                </>
+              )}
             </div>
             <div className="mb-4 flex justify-between text-xs text-slate-500">
-              <span>{pct}% do mínimo</span>
-              {!canWithdraw && (
+              <span>{pctTotal}% do mínimo</span>
+              {!canWithdraw && falta > 0 && (
                 <span>Faltam <span className="text-cyan-400 font-medium">{brl(falta)}</span></span>
               )}
               {canWithdraw && (
@@ -215,6 +231,9 @@ export default function AfiliadosPage() {
 
             {!canWithdraw && (
               <p className="text-xs text-slate-500">
+                {pending > 0 && (
+                  <><span className="text-yellow-400 font-medium">{brl(pending)}</span> aguardando aprovação do admin. </>
+                )}
                 Continue indicando para acumular saldo. A cada nova assinatura aprovada, seu saldo aumenta.
                 {affiliate.pix_key && (
                   <> Quando atingir R$ 50,00, o pagamento será feito via PIX para <span className="text-slate-300">{affiliate.pix_key}</span>.</>
