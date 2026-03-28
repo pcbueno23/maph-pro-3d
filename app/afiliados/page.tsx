@@ -177,41 +177,88 @@ export default function AfiliadosPage() {
         </div>
       )}
 
-      {/* Solicitar saque */}
-      {stats && stats.approvedCommissionCents >= 5000 && (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-          <h2 className="mb-1 text-sm font-semibold text-slate-200">Solicitar saque</h2>
-          <p className="mb-3 text-xs text-slate-500">
-            Saldo aprovado disponível:{" "}
-            <span className="font-medium text-cyan-300">{brl(stats.approvedCommissionCents)}</span>.
-            {affiliate.pix_key && (
-              <> Chave PIX: <span className="text-slate-300">{affiliate.pix_key}</span>.</>
+      {/* Progresso para saque / Solicitar saque */}
+      {stats && (() => {
+        const MIN_PAYOUT = 5000; // R$ 50,00 em centavos
+        const approved = stats.approvedCommissionCents;
+        const pct = Math.min(100, Math.round((approved / MIN_PAYOUT) * 100));
+        const falta = Math.max(0, MIN_PAYOUT - approved);
+        const canWithdraw = approved >= MIN_PAYOUT;
+
+        return (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-200">Saque mínimo: R$ 50,00</h2>
+              <span className={`text-sm font-bold ${canWithdraw ? "text-emerald-400" : "text-cyan-300"}`}>
+                {brl(approved)}
+              </span>
+            </div>
+
+            {/* Barra de progresso */}
+            <div className="mb-1 h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  canWithdraw ? "bg-emerald-500" : "bg-cyan-500"
+                }`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <div className="mb-4 flex justify-between text-xs text-slate-500">
+              <span>{pct}% do mínimo</span>
+              {!canWithdraw && (
+                <span>Faltam <span className="text-cyan-400 font-medium">{brl(falta)}</span></span>
+              )}
+              {canWithdraw && (
+                <span className="text-emerald-400 font-medium">Disponível para saque!</span>
+              )}
+            </div>
+
+            {!canWithdraw && (
+              <p className="text-xs text-slate-500">
+                Continue indicando para acumular saldo. A cada nova assinatura aprovada, seu saldo aumenta.
+                {affiliate.pix_key && (
+                  <> Quando atingir R$ 50,00, o pagamento será feito via PIX para <span className="text-slate-300">{affiliate.pix_key}</span>.</>
+                )}
+              </p>
             )}
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min="50"
-              step="0.01"
-              placeholder="50.00"
-              value={payoutInput}
-              onChange={(e) => setPayoutInput(e.target.value)}
-              className="flex-1 rounded-xl bg-slate-800 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-cyan-500 border border-slate-700"
-            />
-            <button
-              disabled={payoutLoading || !payoutInput}
-              onClick={() => { void requestPayout(); }}
-              className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:opacity-50">
-              {payoutLoading ? "…" : "Solicitar"}
-            </button>
+
+            {canWithdraw && (
+              <>
+                <p className="mb-3 text-xs text-slate-500">
+                  Saldo aprovado disponível:{" "}
+                  <span className="font-medium text-emerald-300">{brl(approved)}</span>.
+                  {affiliate.pix_key && (
+                    <> Pagamento via PIX para <span className="text-slate-300">{affiliate.pix_key}</span>.</>
+                  )}
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="50"
+                    max={approved / 100}
+                    step="0.01"
+                    placeholder="50.00"
+                    value={payoutInput}
+                    onChange={(e) => setPayoutInput(e.target.value)}
+                    className="flex-1 rounded-xl bg-slate-800 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-cyan-500 border border-slate-700"
+                  />
+                  <button
+                    disabled={payoutLoading || !payoutInput}
+                    onClick={() => { void requestPayout(); }}
+                    className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50">
+                    {payoutLoading ? "…" : "Solicitar PIX"}
+                  </button>
+                </div>
+                {payoutMsg && (
+                  <p className={`mt-2 text-xs ${payoutMsg.type === "ok" ? "text-emerald-400" : "text-red-400"}`}>
+                    {payoutMsg.text}
+                  </p>
+                )}
+              </>
+            )}
           </div>
-          {payoutMsg && (
-            <p className={`mt-2 text-xs ${payoutMsg.type === "ok" ? "text-emerald-400" : "text-red-400"}`}>
-              {payoutMsg.text}
-            </p>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {/* Conversões */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
