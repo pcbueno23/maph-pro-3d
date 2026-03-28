@@ -16,6 +16,10 @@ function isPublicCatalogPath(pathname: string | null): boolean {
   return Boolean(pathname?.startsWith("/c/"));
 }
 
+function isPublicAffiliatePath(pathname: string | null): boolean {
+  return Boolean(pathname?.startsWith("/afiliados/"));
+}
+
 /** Com trial expirado o usuário só acessa estas rotas até assinar. */
 const PAYWALL_EXCEPTION_PATHS = ["/pricing", "/trial-expired", "/suporte", "/termos", "/privacidade"];
 
@@ -45,7 +49,7 @@ export function AuthGuard({ children }: Props) {
   /** Id do último usuário que passou pelo sync (SPA). No refresh da página o ref zera — não limpamos dados nesse caso. */
   const previousSyncedUserIdRef = useRef<string | null>(null);
 
-  const isPublic = PUBLIC_PATHS.includes(pathname) || isPublicCatalogPath(pathname);
+  const isPublic = PUBLIC_PATHS.includes(pathname) || isPublicCatalogPath(pathname) || isPublicAffiliatePath(pathname);
   const isPaywallException = isPaywallExceptionPath(pathname);
 
   useEffect(() => {

@@ -7,6 +7,7 @@ import { AdminMetricsTab } from "@/components/admin/AdminMetricsTab";
 import { AdminSiteConfigTab } from "@/components/admin/AdminSiteConfigTab";
 import { AdminAuditTab } from "@/components/admin/AdminAuditTab";
 import { AdminHealthTab } from "@/components/admin/AdminHealthTab";
+import { AdminAfiliadosTab } from "@/components/admin/AdminAfiliadosTab";
 
 type AdminTab =
   | "users"
@@ -14,7 +15,8 @@ type AdminTab =
   | "metrics"
   | "site"
   | "audit"
-  | "health";
+  | "health"
+  | "afiliados";
 
 const tabs: { id: AdminTab; label: string }[] = [
   { id: "users", label: "Contas e trial" },
@@ -23,6 +25,7 @@ const tabs: { id: AdminTab; label: string }[] = [
   { id: "site", label: "Site e banner" },
   { id: "audit", label: "Auditoria" },
   { id: "health", label: "Integrações" },
+  { id: "afiliados", label: "Afiliados" },
 ];
 
 // Proteção de acesso feita no servidor: middleware.ts + app/admin/layout.tsx
@@ -60,6 +63,7 @@ export default function AdminPage() {
       {tab === "site" ? <AdminSiteConfigTab /> : null}
       {tab === "audit" ? <AdminAuditTab /> : null}
       {tab === "health" ? <AdminHealthTab /> : null}
+      {tab === "afiliados" ? <AdminAfiliadosTab /> : null}
     </div>
   );
 }

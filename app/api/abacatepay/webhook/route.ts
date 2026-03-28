@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceRole } from "@/lib/adminApiAuth";
 import { listBillings } from "@/lib/abacatepay";
+import { getAffiliateByCode, createConversion } from "@/lib/affiliates";
+import { PLAN_PRICING } from "@/lib/planPricing";
 
 export const dynamic = "force-dynamic";
 
@@ -141,6 +143,36 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     // Falha ao atualizar metadata não deve bloquear o ACK do webhook
     console.error("[abacatepay/webhook] Erro ao atualizar metadata:", err);
+  }
+
+  // Registrar conversão de afiliado se houver ref_code no metadata
+  try {
+    const meta = billing.metadata ?? {};
+    const refCode = typeof meta.ref_code === "string" ? meta.ref_code.trim().toUpperCase() : null;
+    const plan = typeof meta.plan === "string" ? meta.plan : null;
+
+    if (refCode && plan && email) {
+      const affiliate = await getAffiliateByCode(refCode);
+      if (affiliate && affiliate.status === "active") {
+        const planKey = plan as keyof typeof PLAN_PRICING;
+        const amountCents =
+          typeof billing.amount === "number" && billing.amount > 0
+            ? billing.amount
+            : (PLAN_PRICING[planKey]?.priceCents ?? 0);
+        const commissionCents = Math.round(amountCents * affiliate.commission_rate);
+
+        await createConversion({
+          affiliate_id: affiliate.id,
+          referred_user_email: email,
+          plan,
+          amount_cents: amountCents,
+          commission_cents: commissionCents,
+          billing_id: billing.id ?? null,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("[abacatepay/webhook] Erro ao registrar conversão de afiliado:", err);
   }
 
   return NextResponse.json({ ok: true });

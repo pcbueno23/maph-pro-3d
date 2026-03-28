@@ -267,10 +267,17 @@ export async function POST(req: NextRequest) {
 
     const storeProductId = useV1BillingOnly ? "" : storeProductIdRaw;
 
+    const refCode = req.cookies.get("ref_code")?.value?.trim().toUpperCase() ?? "";
+
     const appUserEmailMeta =
       email?.trim() != null && email.trim() !== ""
-        ? { metadata: { app_user_email: email.trim().toLowerCase() } }
-        : {};
+        ? {
+            metadata: {
+              app_user_email: email.trim().toLowerCase(),
+              ...(refCode ? { ref_code: refCode, plan } : {}),
+            },
+          }
+        : (refCode ? { metadata: { ref_code: refCode, plan } } : {});
 
     const skipCheckoutProductImage =
       process.env.ABACATEPAY_CHECKOUT_SKIP_PRODUCT_IMAGE === "true" ||
@@ -333,8 +340,13 @@ export async function POST(req: NextRequest) {
           completionUrl: `${base}/pricing?success=1`,
           ...(checkoutCustomerId ? { customerId: checkoutCustomerId } : {}),
           externalId: `precifica3d-${plan}-${Date.now()}`,
-          ...(email?.trim()
-            ? { metadata: { app_user_email: email.trim().toLowerCase() } }
+          ...(email?.trim() || refCode
+            ? {
+                metadata: {
+                  ...(email?.trim() ? { app_user_email: email.trim().toLowerCase() } : {}),
+                  ...(refCode ? { ref_code: refCode, plan } : {}),
+                },
+              }
             : {}),
         });
         return NextResponse.json({ url: billing.url, id: billing.id });
