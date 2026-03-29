@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(find 'c:\\\\Users\\\\User\\\\Desktop\\\\projeto saas precificadora' -path *auth* -name *.tsx -o -path *auth* -name *.ts)",
+      "Bash(find 'c:\\\\Users\\\\User\\\\Desktop\\\\projeto saas precificadora' -type f \\\\\\(-name *manifest* -o -name *service*worker* -o -name *email* -o -name *resend* -o -name *sendgrid* \\\\\\))",
+      "Bash(npm install:*)"
+    ]
+  }
+}

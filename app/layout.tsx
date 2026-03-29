@@ -3,10 +3,10 @@ import "./globals.css";
 import { AppShell } from "./layout/AppShell";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { PrintingTimerAlertsHost } from "@/components/orders/PrintingTimerAlertsHost";
-import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
-import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { ServiceWorkerRegister } from "@/components/providers/ServiceWorkerRegister";
+import { PwaInstallPrompt } from "@/components/providers/PwaInstallPrompt";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
-import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { GoogleAnalytics } from "@/components/providers/GoogleAnalytics";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID ?? "";
 

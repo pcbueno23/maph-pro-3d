@@ -9,3 +9,4 @@ node_modules/
 
 # Supabase CLI
 supabase/.temp/
+.vercel

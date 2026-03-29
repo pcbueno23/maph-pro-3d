@@ -25,10 +25,26 @@ export async function POST(req: NextRequest) {
 
   // Verifica se o billing está PAID na API do AbacatePay
   let isPaid = false;
+  let periodEnd: string | null = null;
+  let planType: "pro" | "business" = "pro";
   try {
     const billings = await listBillings(abacateToken);
     const found = billings.find((b) => b.id === billingId);
     isPaid = !!found && String(found.status ?? "").toUpperCase() === "PAID";
+    if (found) {
+      periodEnd = found.nextBilling ?? null;
+      const ext = String(found.products?.[0]?.externalId ?? "");
+      if (ext.startsWith("precifica3d-business") || ext.startsWith("precifica3d-lifetime")) {
+        planType = "business";
+      }
+      // Calcula período com base no plano se AbacatePay não retornar nextBilling
+      if (!periodEnd) {
+        const paidAt = new Date();
+        const daysToAdd = planType === "business" ? 365 : 30;
+        paidAt.setDate(paidAt.getDate() + daysToAdd);
+        periodEnd = paidAt.toISOString();
+      }
+    }
   } catch (err) {
     console.error("[verify-payment] Erro ao listar billings:", err);
     return NextResponse.json({ error: "Erro ao verificar pagamento." }, { status: 500 });
@@ -47,6 +63,8 @@ export async function POST(req: NextRequest) {
           ...auth.user.user_metadata,
           abacatepay_paid_at: new Date().toISOString(),
           abacatepay_paid_billing_id: billingId,
+          abacatepay_plan: planType,
+          abacatepay_period_end: periodEnd,
         },
       });
     } catch (err) {
@@ -54,5 +72,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ paid: true });
+  return NextResponse.json({ paid: true, periodEnd, plan: planType });
 }

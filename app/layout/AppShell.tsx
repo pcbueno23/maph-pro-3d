@@ -3,8 +3,8 @@
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import { SiteBanner } from "@/components/SiteBanner";
-import { SitePublicLinks } from "@/components/SitePublicLinks";
+import { SiteBanner } from "@/components/layout/SiteBanner";
+import { SitePublicLinks } from "@/components/layout/SitePublicLinks";
 import { MobileBottomNav } from "./MobileBottomNav";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
