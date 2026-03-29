@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminEmail } from "@/lib/adminApiAuth";
 
-export async function proxy(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
 
   // Captura ?ref= e salva cookie de afiliado (30 dias)
