@@ -6,6 +6,7 @@ import { PrintingTimerAlertsHost } from "@/components/orders/PrintingTimerAlerts
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID ?? "";
 
@@ -27,20 +28,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className="dark">
-      <head>
-        {GA_ID ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-            <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');`,
-              }}
-            />
-          </>
-        ) : null}
-      </head>
       <body className="min-h-screen bg-slate-950 text-slate-100">
+        {GA_ID && <GoogleAnalytics id={GA_ID} />}
         <AuthGuard>
           <AppShell>{children}</AppShell>
           <PrintingTimerAlertsHost />
