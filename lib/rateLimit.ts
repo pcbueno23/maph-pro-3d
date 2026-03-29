@@ -1,59 +1,61 @@
 /**
- * Rate limiter in-memory simples.
+ * Rate limiter global via Upstash Redis.
  *
- * Funciona em dev e em deploy single-instance (ex: VPS, Railway, Fly.io).
- * Em ambientes serverless/multi-instância (Vercel Edge, Lambda), use Redis
- * (ex: Upstash com @upstash/ratelimit) para garantir consistência global.
+ * Funciona corretamente em ambientes serverless/multi-instância (Vercel, Lambda).
+ * Requer UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN nas env vars.
+ *
+ * Fallback: se as env vars não estiverem configuradas (dev sem .env.local),
+ * permite todas as requisições para não bloquear o desenvolvimento local.
  */
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
+import { Redis } from "@upstash/redis";
+import { Ratelimit } from "@upstash/ratelimit";
 
-const store = new Map<string, RateLimitEntry>();
+// Cache de instâncias por configuração (limit + window) para não recriar a cada request
+const limiterCache = new Map<string, Ratelimit>();
 
-/** Remove entradas expiradas para não deixar o Map crescer indefinidamente. */
-function cleanup() {
-  const now = Date.now();
-  for (const [key, entry] of store) {
-    if (entry.resetAt <= now) store.delete(key);
+function getLimiter(limit: number, windowMs: number): Ratelimit | null {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return null; // fallback: sem Redis configurado
   }
-}
 
-let cleanupScheduled = false;
-function scheduleCleanup() {
-  if (cleanupScheduled) return;
-  cleanupScheduled = true;
-  setTimeout(() => {
-    cleanup();
-    cleanupScheduled = false;
-  }, 60_000);
+  const cacheKey = `${limit}:${windowMs}`;
+  if (limiterCache.has(cacheKey)) return limiterCache.get(cacheKey)!;
+
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+
+  const limiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(limit, `${windowMs / 1000} s`),
+    analytics: false,
+  });
+
+  limiterCache.set(cacheKey, limiter);
+  return limiter;
 }
 
 /**
  * Verifica se a chave ultrapassou o limite.
- * @param key    Identificador único (ex: `ip:endpoint`)
- * @param limit  Máximo de requisições no janela
+ * @param key      Identificador único (ex: `stripe-checkout:1.2.3.4`)
+ * @param limit    Máximo de requisições na janela
  * @param windowMs Duração da janela em ms (padrão: 60 000 = 1 min)
  * @returns `{ allowed: boolean; remaining: number; resetAt: number }`
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   key: string,
   limit: number,
   windowMs = 60_000,
-): { allowed: boolean; remaining: number; resetAt: number } {
-  scheduleCleanup();
+): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+  const limiter = getLimiter(limit, windowMs);
 
-  const now = Date.now();
-  const entry = store.get(key);
-
-  if (!entry || entry.resetAt <= now) {
-    store.set(key, { count: 1, resetAt: now + windowMs });
-    return { allowed: true, remaining: limit - 1, resetAt: now + windowMs };
+  // Sem Redis configurado: permite tudo (útil em dev)
+  if (!limiter) {
+    return { allowed: true, remaining: limit, resetAt: Date.now() + windowMs };
   }
 
-  entry.count += 1;
-  const remaining = Math.max(0, limit - entry.count);
-  return { allowed: entry.count <= limit, remaining, resetAt: entry.resetAt };
+  const { success, remaining, reset } = await limiter.limit(key);
+  return { allowed: success, remaining, resetAt: reset };
 }

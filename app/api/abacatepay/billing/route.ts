@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  const rl = checkRateLimit(`abacatepay-billing:${ip}`, 10);
+  const rl = await checkRateLimit(`abacatepay-billing:${ip}`, 10);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Muitas tentativas. Aguarde um momento e tente novamente." },

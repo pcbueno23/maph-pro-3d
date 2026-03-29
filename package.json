@@ -27,6 +27,8 @@
     "@types/node": "^25.4.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.37.0",
     "autoprefixer": "^10.4.27",
     "class-variance-authority": "^0.7.1",
     "fast-xml-parser": "^5.5.1",
