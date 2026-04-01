@@ -218,7 +218,7 @@ export function ResultsPanel({ results, isDirty }: Props) {
                 Venda direta
               </p>
               <p className="mt-1 text-[11px] text-slate-500">
-                Sem comissão de marketplace · margem alvo{" "}
+                Sem comissão · margem{" "}
                 <span className="font-semibold text-emerald-200/95">
                   {typeof directSaleMarginPercent === "number"
                     ? `${directSaleMarginPercent.toFixed(1)}%`
@@ -226,12 +226,12 @@ export function ResultsPanel({ results, isDirty }: Props) {
                 </span>
               </p>
               <div className="mt-2 space-y-1.5">
-                <div className="flex justify-between gap-2 text-xs text-slate-400">
-                  <span>PIX (sem taxa de cartão)</span>
+                <div className="flex justify-between gap-1 text-xs text-slate-400">
+                  <span className="shrink-0">PIX / débito</span>
                   <span className="font-semibold text-slate-50">{fmt(directPix)}</span>
                 </div>
-                <div className="flex justify-between gap-2 text-xs text-slate-400">
-                  <span>Cartão (taxa do gateway)</span>
+                <div className="flex justify-between gap-1 text-xs text-slate-400">
+                  <span className="shrink-0">Crédito</span>
                   <span className="font-semibold text-slate-50">{fmt(directCard)}</span>
                 </div>
               </div>
