@@ -194,45 +194,49 @@ export function ResultsPanel({ results, isDirty }: Props) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
             Por quanto eu vendo?
           </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            <div className="rounded-xl bg-slate-950/40 p-3">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Shopee</p>
-              <p className="mt-1 text-lg font-semibold text-slate-50">{fmt(suggestedPriceShopee)}</p>
-              {shopeeBelowAdjustedCost ? (
-                <p className="mt-1 text-[11px] font-medium text-rose-300">
-                  Abaixo do custo real ajustado
-                </p>
-              ) : null}
-            </div>
-            <div className="rounded-xl bg-slate-950/40 p-3">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Mercado Livre</p>
-              <p className="mt-1 text-lg font-semibold text-slate-50">{fmt(suggestedPriceML)}</p>
-              {mlBelowAdjustedCost ? (
-                <p className="mt-1 text-[11px] font-medium text-rose-300">
-                  Abaixo do custo real ajustado
-                </p>
-              ) : null}
+          <div className="mt-3 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-slate-950/40 p-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Shopee</p>
+                <p className="mt-1 text-lg font-semibold text-slate-50">{fmt(suggestedPriceShopee)}</p>
+                {shopeeBelowAdjustedCost ? (
+                  <p className="mt-1 text-[11px] font-medium text-rose-300">
+                    Abaixo do custo real ajustado
+                  </p>
+                ) : null}
+              </div>
+              <div className="rounded-xl bg-slate-950/40 p-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Mercado Livre</p>
+                <p className="mt-1 text-lg font-semibold text-slate-50">{fmt(suggestedPriceML)}</p>
+                {mlBelowAdjustedCost ? (
+                  <p className="mt-1 text-[11px] font-medium text-rose-300">
+                    Abaixo do custo real ajustado
+                  </p>
+                ) : null}
+              </div>
             </div>
             <div className="rounded-xl border border-emerald-900/35 bg-emerald-950/15 p-3">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-500/90">
-                Venda direta
-              </p>
-              <p className="mt-1 text-[11px] text-slate-500">
-                Sem comissão · margem{" "}
-                <span className="font-semibold text-emerald-200/95">
-                  {typeof directSaleMarginPercent === "number"
-                    ? `${directSaleMarginPercent.toFixed(1)}%`
-                    : "—"}
-                </span>
-              </p>
-              <div className="mt-2 space-y-1.5">
-                <div className="flex justify-between gap-1 text-xs text-slate-400">
-                  <span className="shrink-0">PIX / débito</span>
-                  <span className="font-semibold text-slate-50">{fmt(directPix)}</span>
-                </div>
-                <div className="flex justify-between gap-1 text-xs text-slate-400">
-                  <span className="shrink-0">Crédito</span>
-                  <span className="font-semibold text-slate-50">{fmt(directCard)}</span>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-500/90">
+                  Venda direta
+                  <span className="ml-2 normal-case tracking-normal text-slate-500">
+                    · sem comissão · margem{" "}
+                    <span className="font-semibold text-emerald-200/95">
+                      {typeof directSaleMarginPercent === "number"
+                        ? `${directSaleMarginPercent.toFixed(1)}%`
+                        : "—"}
+                    </span>
+                  </span>
+                </p>
+                <div className="flex items-center gap-4 text-xs text-slate-400">
+                  <div className="flex items-center gap-2">
+                    <span>PIX / débito</span>
+                    <span className="font-semibold text-slate-50">{fmt(directPix)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>Crédito</span>
+                    <span className="font-semibold text-slate-50">{fmt(directCard)}</span>
+                  </div>
                 </div>
               </div>
               {directBelowAdjustedCost ? (
