@@ -12,6 +12,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isPublicCatalog = Boolean(pathname?.startsWith("/c/"));
   const isTrialExpired = pathname === "/trial-expired";
   const isAffiliatePage = Boolean(pathname?.startsWith("/afiliados/"));
+  const isPublicCalculator = pathname === "/calculadora-gratuita";
+
+  if (isPublicCalculator) {
+    return <>{children}</>;
+  }
 
   if (isPublicCatalog || isTrialExpired || isAffiliatePage) {
     return (
