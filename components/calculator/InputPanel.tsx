@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { UseFormReturn } from "react-hook-form";
 import type { CalculatorFormValues, Printer, SupplyItem } from "@/types";
 import { FormNumericInput } from "@/components/calculator/FormNumericInput";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useAuthStore } from "@/store/authStore";
 import { listPrinters, listSupplies } from "@/lib/supabaseProduction";
+import { parseGcode } from "@/lib/gcodeParser";
+import { FileCode2 } from "lucide-react";
 
 // Afrouxamos levemente o tipo genérico aqui para evitar
 // incompatibilidades entre versões de TypeScript/react-hook-form
@@ -68,6 +70,42 @@ export function InputPanel({
   const [durationHourDraft, setDurationHourDraft] = useState<string | null>(null);
   const [durationMinDraft, setDurationMinDraft] = useState<string | null>(null);
   const [cep, setCep] = useState("");
+
+  const gcodeInputRef = useRef<HTMLInputElement>(null);
+  const [gcodeImport, setGcodeImport] = useState<{ time: boolean; weight: boolean } | null>(null);
+  const [gcodeLoading, setGcodeLoading] = useState(false);
+
+  async function handleGcodeFile(file: File) {
+    if (!file.name.toLowerCase().endsWith(".gcode")) return;
+    setGcodeLoading(true);
+    setGcodeImport(null);
+    try {
+      const result = await parseGcode(file);
+      let filledTime = false;
+      let filledWeight = false;
+      if (result.productName) {
+        const current = form.getValues("productName");
+        if (!current || current.trim() === "") {
+          setValue("productName", result.productName, { shouldDirty: true });
+        }
+      }
+      if (result.printTimeSeconds && result.printTimeSeconds > 0) {
+        setValue("time.hours", result.printTimeSeconds / 3600, { shouldDirty: true });
+        filledTime = true;
+      }
+      if (result.weightGrams && result.weightGrams > 0) {
+        setValue("material.weight", result.weightGrams, { shouldDirty: true });
+        filledWeight = true;
+      }
+      setGcodeImport({ time: filledTime, weight: filledWeight });
+      setTimeout(() => setGcodeImport(null), 5000);
+    } catch {
+      // silencia — arquivo inválido
+    } finally {
+      setGcodeLoading(false);
+      if (gcodeInputRef.current) gcodeInputRef.current.value = "";
+    }
+  }
   const [isFetchingCep, setIsFetchingCep] = useState(false);
 
   useEffect(() => {
@@ -135,9 +173,48 @@ export function InputPanel({
 
   return (
     <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-      <h2 className="text-sm font-semibold text-slate-100">
-        Parâmetros da impressão
-      </h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-slate-100">
+          Parâmetros da impressão
+        </h2>
+        <button
+          type="button"
+          disabled={gcodeLoading}
+          onClick={() => gcodeInputRef.current?.click()}
+          className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/60 px-2.5 py-1.5 text-[11px] text-slate-300 transition hover:border-cyan-500/50 hover:text-cyan-300 disabled:opacity-50"
+        >
+          <FileCode2 className="h-3.5 w-3.5" />
+          {gcodeLoading ? "Lendo…" : "Importar .gcode"}
+        </button>
+        <input
+          ref={gcodeInputRef}
+          type="file"
+          accept=".gcode"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGcodeFile(f); }}
+        />
+      </div>
+
+      {gcodeImport && (
+        <div className="flex flex-wrap gap-1.5">
+          {gcodeImport.time && (
+            <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-[11px] text-cyan-300">
+              ✓ Tempo preenchido
+            </span>
+          )}
+          {gcodeImport.weight && (
+            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] text-emerald-300">
+              ✓ Peso preenchido
+            </span>
+          )}
+          {!gcodeImport.time && !gcodeImport.weight && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-300">
+              Tempo e peso não encontrados no arquivo
+            </span>
+          )}
+        </div>
+      )}
+
       <input type="hidden" {...register("time.printerId")} />
 
       <div>

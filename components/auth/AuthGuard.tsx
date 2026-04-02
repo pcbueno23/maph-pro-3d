@@ -10,7 +10,7 @@ import { syncProductsOnLogin } from "@/lib/productSync";
 import { syncUserDataOnLogin } from "@/lib/userDataSync";
 import { PersistUserData } from "./PersistUserData";
 
-const PUBLIC_PATHS = ["/login", "/reset-password", "/termos", "/privacidade", "/calculadora-gratuita"];
+const PUBLIC_PATHS = ["/login", "/reset-password", "/termos", "/privacidade", "/calculadora-gratuita", "/test-gcode"];
 
 function isPublicCatalogPath(pathname: string | null): boolean {
   return Boolean(pathname?.startsWith("/c/"));
