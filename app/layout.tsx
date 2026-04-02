@@ -7,6 +7,7 @@ import { ServiceWorkerRegister } from "@/components/providers/ServiceWorkerRegis
 import { PwaInstallPrompt } from "@/components/providers/PwaInstallPrompt";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 import { GoogleAnalytics } from "@/components/providers/GoogleAnalytics";
+import { GoogleAds } from "@/components/providers/GoogleAds";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID ?? "";
 
@@ -30,6 +31,7 @@ export default function RootLayout({
     <html lang="pt-BR" className="dark">
       <body className="min-h-screen bg-slate-950 text-slate-100">
         {GA_ID && <GoogleAnalytics id={GA_ID} />}
+        <GoogleAds />
         <AuthGuard>
           <AppShell>{children}</AppShell>
           <PrintingTimerAlertsHost />

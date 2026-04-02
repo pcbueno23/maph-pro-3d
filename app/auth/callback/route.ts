@@ -34,10 +34,18 @@ export async function GET(req: NextRequest) {
       },
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       const safeNext = next.startsWith("/") && !next.includes("://") ? next : "/";
-      return NextResponse.redirect(new URL(safeNext, origin));
+      const redirectUrl = new URL(safeNext, origin);
+
+      // Sinaliza novo cadastro para o cliente disparar a conversão Google Ads
+      if (data.user?.created_at) {
+        const ageMs = Date.now() - new Date(data.user.created_at).getTime();
+        if (ageMs < 30_000) redirectUrl.searchParams.set("new_user", "1");
+      }
+
+      return NextResponse.redirect(redirectUrl);
     }
   }
 

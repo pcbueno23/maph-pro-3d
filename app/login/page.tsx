@@ -8,6 +8,7 @@ import { LogIn, Mail, Lock, Chrome, Phone } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { upsertUserContact } from "@/lib/supabaseUserContact";
 import { userFacingAuthError } from "@/lib/authUserMessages";
+import { fireSignupConversion } from "@/components/providers/GoogleAds";
 
 function LoginFormContent() {
   const router = useRouter();
@@ -105,6 +106,7 @@ function LoginFormContent() {
           },
         });
         if (signUpError) throw signUpError;
+        fireSignupConversion();
         const uid = signUpData.user?.id;
         if (uid && signUpData.session) {
           try {
