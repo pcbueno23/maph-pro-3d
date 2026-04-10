@@ -27,6 +27,18 @@ const nextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
+          // Report-only para não quebrar integrações/inline scripts agora.
+          // Quando estabilizar, dá para migrar para CSP "enforced" com nonce/hash.
+          {
+            key: "Content-Security-Policy-Report-Only",
+            value:
+              "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; " +
+              "img-src 'self' data: https:; font-src 'self' data: https:; " +
+              "style-src 'self' 'unsafe-inline' https:; " +
+              // Next em dev usa eval; em prod não deveria precisar, mas manter em report-only evita bloqueio.
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; " +
+              "connect-src 'self' https: wss:;",
+          },
         ],
       },
     ];
@@ -35,8 +47,18 @@ const nextConfig = {
     return [
       {
         source: "/calculadora-local",
-        destination: "/margem-certa",
+        destination: "/calculadoras/custo",
         permanent: true,
+      },
+      {
+        source: "/calculator",
+        destination: "/calculadoras/custo",
+        permanent: false,
+      },
+      {
+        source: "/margem-certa",
+        destination: "/calculadoras/custo",
+        permanent: false,
       },
     ];
   },

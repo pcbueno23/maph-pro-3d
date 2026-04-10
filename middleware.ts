@@ -11,6 +11,7 @@ export async function middleware(req: NextRequest) {
     res.cookies.set("ref_code", ref.trim().toUpperCase(), {
       httpOnly: false,   // JS precisa ler para passar no checkout
       sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
       path: "/",
       maxAge: 60 * 60 * 24 * 30,
     });

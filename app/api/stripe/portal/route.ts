@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { resolveStripeAppOrigin } from "@/lib/stripeAppOrigin";
 import { requireUserSession } from "@/lib/adminApiAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
@@ -17,6 +18,15 @@ const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 export async function POST(req: NextRequest) {
   const auth = await requireUserSession(req);
   if (!auth.ok) return auth.response;
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rl = await checkRateLimit(`stripe-portal:${ip}`, 10);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Muitas tentativas. Aguarde um momento e tente novamente." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+    );
+  }
 
   if (!stripe) {
     return NextResponse.json(
@@ -57,13 +67,11 @@ export async function POST(req: NextRequest) {
 
     // SEGURANÇA: nunca usar req.headers.get("origin") para URLs de redirecionamento —
     // header controlado pelo cliente permite open redirect para domínios maliciosos.
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") ??
-      "http://localhost:3000";
+    const origin = resolveStripeAppOrigin(req) ?? "http://localhost:3000";
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customer.id,
-      return_url: `${appUrl}/pricing`,
+      return_url: `${origin}/pricing`,
     });
 
     return NextResponse.json({ url: session.url });

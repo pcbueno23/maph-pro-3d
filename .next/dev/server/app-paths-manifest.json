@@ -1,7 +1,0 @@
-{
-  "/api/account/access/route": "app/api/account/access/route.js",
-  "/api/admin/whoami/route": "app/api/admin/whoami/route.js",
-  "/api/site-config/route": "app/api/site-config/route.js",
-  "/login/page": "app/login/page.js",
-  "/page": "app/page.js"
-}

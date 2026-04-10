@@ -8,6 +8,7 @@ import {
   createPayout,
 } from "@/lib/affiliates";
 import { createClient } from "@supabase/supabase-js";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireUserSession(req);
   if (!auth.ok) return auth.response;
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rl = await checkRateLimit(`affiliate-payout:${ip}`, 3);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Muitas tentativas. Aguarde um momento e tente novamente." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+    );
+  }
 
   let body: { amount_cents?: number };
   try {
