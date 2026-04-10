@@ -26,8 +26,8 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "calculo",
     label: "Faça seu primeiro cálculo",
-    description: "Descubra o preço mínimo e sugerido da sua primeira peça.",
-    href: "/calculator",
+    description: "Calcule o custo da peça e envie para a calculadora ML ou Shopee.",
+    href: "/precificacao-marketplaces",
   },
 ];
 

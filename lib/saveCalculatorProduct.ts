@@ -78,7 +78,7 @@ export async function saveCalculatorProductFromSnapshot(
   if (lastResults.suggestedPriceShopee < adjustedCost) riskyChannels.push("Shopee");
   if (lastResults.suggestedPriceML < adjustedCost) riskyChannels.push("Mercado Livre");
   if (directPrice < adjustedCost) riskyChannels.push("Direto");
-  const marginBelowTarget = lastResults.margemReal < desiredMargin;
+  const marginBelowTarget = lastResults.margemReal < desiredMargin - 0.05;
   if (typeof window !== "undefined" && (riskyChannels.length > 0 || marginBelowTarget)) {
     const reasons: string[] = [];
     if (riskyChannels.length > 0) {

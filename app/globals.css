@@ -84,3 +84,99 @@ body::before {
   animation: tutorial-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+@media print {
+  /* Remove fundo/efeitos e deixa o PDF “limpo” */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  body::before {
+    display: none !important;
+  }
+
+  /* Evita imprimir navegação do SaaS */
+  aside,
+  nav,
+  footer {
+    display: none !important;
+  }
+
+  /* Remove paddings do AppShell */
+  main {
+    padding: 0 !important;
+  }
+
+  /* Esconde botões/elementos interativos (inclui "Instalar app") */
+  button,
+  [role="button"],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /*
+    IMPORTANTÍSSIMO:
+    Muitos navegadores não imprimem backgrounds por padrão.
+    Como o app é dark, isso pode deixar texto claro “sumir”.
+    Forçamos um tema de impressão claro para garantir legibilidade.
+  */
+  body * {
+    color: #0f172a !important; /* slate-900 */
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Superfícies do app viram "cards" claros no PDF */
+  .glass-panel,
+  [class*="bg-slate-"],
+  [class*="bg-ink-"] {
+    background: white !important;
+  }
+  .glass-panel,
+  [class*="border-slate-"],
+  [class*="border-ink-"] {
+    border-color: #e2e8f0 !important; /* slate-200 */
+  }
+
+  /* Evita que CARDS/TABELAS quebrem no meio (não aplicar em todo div) */
+  .glass-panel,
+  table,
+  tr,
+  img,
+  svg {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Desarma layouts que criam páginas “em branco” */
+  .min-h-screen {
+    min-height: auto !important;
+  }
+  .h-screen {
+    height: auto !important;
+  }
+  .sticky,
+  .fixed {
+    position: static !important;
+  }
+  .overflow-hidden {
+    overflow: visible !important;
+  }
+
+  /* Margens do PDF */
+  @page {
+    margin: 10mm;
+  }
+
+  /* Links não precisam do azul padrão no print */
+  a {
+    color: #0f172a !important;
+    text-decoration: none !important;
+  }
+
+  /* Evita cortes estranhos e garante largura */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+

@@ -67,8 +67,7 @@ const PHASES: Phase[] = [
       { id: "t3", text: "Se rolar, salvar o produto quando o número estiver redondo" },
     ],
     shortcuts: [
-      { href: "/calculator", label: "Calculadora de markup" },
-      { href: "/margem-certa", label: "Margem certa" },
+      { href: "/precificacao-marketplaces", label: "Custos 3D → ML / Shopee" },
       { href: "/products", label: "Produtos" },
     ],
     randomTips: [

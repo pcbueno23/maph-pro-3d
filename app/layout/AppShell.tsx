@@ -13,8 +13,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isTrialExpired = pathname === "/trial-expired";
   const isAffiliatePage = Boolean(pathname?.startsWith("/afiliados/"));
   const isPublicCalculator = pathname === "/calculadora-gratuita";
+  const isPrintRoute = Boolean(pathname?.startsWith("/print/"));
 
-  if (isPublicCalculator) {
+  if (isPublicCalculator || isPrintRoute) {
     return <>{children}</>;
   }
 

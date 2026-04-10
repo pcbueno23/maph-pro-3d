@@ -15,6 +15,10 @@ import { useAdminWhoami } from "@/hooks/useAdminWhoami";
 
 const titles: Record<string, string> = {
   "/": "Visão geral",
+  "/calculadoras/custo": "Calculadora de custo 3D",
+  "/calculadoras/shopee": "Calculadora Shopee",
+  "/calculadoras/mercado-livre": "Calculadora Mercado Livre",
+  "/calculadoras/venda-direta": "Calculadora venda direta",
   "/calculator": "Calculadora de markup",
   "/margem-certa": "Calculadora margem certa",
   "/products": "Produtos salvos",
@@ -42,7 +46,11 @@ export function Header() {
   const accessDaysRemaining = useAccessStore((s) => s.daysRemaining);
   const accessTrialEndsAt = useAccessStore((s) => s.trialEndsAt);
   const requestNewSimulation = useCalculatorStore((s) => s.requestNewSimulation);
-  const isCalculator = pathname === "/calculator";
+  const isCalculatorLike =
+    pathname === "/calculator" ||
+    pathname === "/margem-certa" ||
+    pathname?.startsWith("/calculadoras/") ||
+    pathname === "/precificacao-marketplaces";
    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdmin = useAdminWhoami();
 
@@ -122,7 +130,7 @@ export function Header() {
               Beta para makers
             </span>
           )}
-          {isCalculator ? (
+          {isCalculatorLike ? (
             <button
               type="button"
               onClick={() => requestNewSimulation()}
@@ -132,7 +140,7 @@ export function Header() {
             </button>
           ) : (
             <Link
-              href="/calculator"
+              href="/calculadoras/custo"
               className="inline-flex rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-1.5 text-xs font-medium text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
             >
               Nova simulação

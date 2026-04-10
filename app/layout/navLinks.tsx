@@ -17,7 +17,6 @@ import {
   User,
   GraduationCap,
   MessageCircle,
-  Target,
 } from "lucide-react";
 
 export type NavLinkItem = {
@@ -44,8 +43,10 @@ export const navGroups: NavGroup[] = [
     id: "precificacao",
     label: "Precificação",
     links: [
-      { href: "/calculator", label: "Calculadora de markup", icon: Calculator },
-      { href: "/margem-certa", label: "Margem certa", icon: Target },
+      { href: "/calculadoras/custo", label: "Custo 3D", icon: Calculator },
+      { href: "/calculadoras/shopee", label: "Shopee", icon: Calculator },
+      { href: "/calculadoras/mercado-livre", label: "Mercado Livre", icon: Calculator },
+      { href: "/calculadoras/venda-direta", label: "Venda direta", icon: Calculator },
       { href: "/orcamentos", label: "Orçamentos", icon: FileText },
     ],
   },

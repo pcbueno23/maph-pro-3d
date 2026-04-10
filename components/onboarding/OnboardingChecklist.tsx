@@ -10,7 +10,9 @@ import { useOnboarding, ONBOARDING_STEPS } from "@/hooks/useOnboarding";
 const ROUTE_TO_STEP: Record<string, string> = {
   "/impressoras": "impressora",
   "/insumos": "insumo",
+  "/precificacao-marketplaces": "calculo",
   "/calculator": "calculo",
+  "/margem-certa": "calculo",
 };
 
 export function OnboardingChecklist() {
