@@ -366,7 +366,7 @@ Geração feita via MAPH PRO SHOPEE.
                         do que cobrando {formatBRL(badZone.baseline)}, por causa do salto na taxa fixa da Shopee.
                       </p>
                       <p className="mt-1 text-[11px] text-slate-300">
-                        Dica rápida: teste {formatBRL(badZone.baseline)} ou ajuste promo/cupom para sair dessa faixa.
+                        Dica rápida: teste {formatBRL(badZone.baseline)} ou ajuste o preço final (ao cliente) para sair dessa faixa.
                       </p>
                     </div>
                   </div>
