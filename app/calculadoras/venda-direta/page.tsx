@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Save, RotateCcw } from "lucide-react";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -158,6 +158,16 @@ export default function VendaDiretaCalculatorPage() {
     return typeof c === "number" && Number.isFinite(c) ? c : null;
   }, [lastResults?.custoTotalAjustado]);
 
+  const setCusto2 = useCallback((v: number) => setCusto(round2(v)), []);
+  const setMargem2 = useCallback((v: number) => setMargem(round2(v)), []);
+  const setTargetNet2 = useCallback((v: number) => setTargetNet(round2(v)), []);
+  const setImposto2 = useCallback((v: number) => setImposto(round2(v)), []);
+  const setPixDiscount2 = useCallback((v: number) => setPixDiscountPercent(round2(v)), []);
+  const setAnticipationRate2 = useCallback(
+    (v: number) => setAnticipationRatePerMonth(round2(v)),
+    [],
+  );
+
   const basePrice = useMemo(() => {
     const taxPercent = clampNum(imposto);
     if (mode === "receber_liquido") {
@@ -313,7 +323,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
             onPick={(p) => {
               setNomeProduto(p.name);
               if (typeof p.totalCost === "number" && Number.isFinite(p.totalCost)) {
-                setCusto(p.totalCost);
+                setCusto2(p.totalCost);
               }
             }}
           />
@@ -327,7 +337,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   <button
                     type="button"
                     onClick={() => {
-                      if (lastCost != null) setCusto(round2(lastCost));
+                      if (lastCost != null) setCusto2(lastCost);
                       const suggestedName =
                         typeof lastInput?.productName === "string"
                           ? lastInput.productName.trim()
@@ -343,7 +353,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                 <input
                   type="number"
                   value={custo}
-                  onChange={(e) => setCusto(round2(parseFloat(e.currentTarget.value) || 0))}
+                  onChange={(e) => setCusto2(parseFloat(e.currentTarget.value) || 0)}
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 />
               </div>
@@ -368,14 +378,14 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   <input
                     type="number"
                     value={margem}
-                    onChange={(e) => setMargem(round2(parseFloat(e.currentTarget.value) || 0))}
+                    onChange={(e) => setMargem2(parseFloat(e.currentTarget.value) || 0)}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                   />
                 ) : (
                   <input
                     type="number"
                     value={targetNet}
-                    onChange={(e) => setTargetNet(round2(parseFloat(e.currentTarget.value) || 0))}
+                    onChange={(e) => setTargetNet2(parseFloat(e.currentTarget.value) || 0)}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                   />
                 )}
@@ -387,7 +397,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                 <input
                   type="number"
                   value={imposto}
-                  onChange={(e) => setImposto(round2(parseFloat(e.currentTarget.value) || 0))}
+                  onChange={(e) => setImposto2(parseFloat(e.currentTarget.value) || 0)}
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 />
               </div>
@@ -398,9 +408,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                 <input
                   type="number"
                   value={pixDiscountPercent}
-                  onChange={(e) =>
-                    setPixDiscountPercent(round2(parseFloat(e.currentTarget.value) || 0))
-                  }
+                  onChange={(e) => setPixDiscount2(parseFloat(e.currentTarget.value) || 0)}
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 />
               </div>
@@ -462,9 +470,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   <input
                     type="number"
                     value={anticipationRatePerMonth}
-                    onChange={(e) =>
-                      setAnticipationRatePerMonth(round2(parseFloat(e.currentTarget.value) || 0))
-                    }
+                    onChange={(e) => setAnticipationRate2(parseFloat(e.currentTarget.value) || 0)}
                     disabled={!anticipationEnabled}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-2.5 px-3 text-sm text-slate-100 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                   />
