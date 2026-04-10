@@ -49,6 +49,10 @@ function pct(v: number) {
   return `${(v ?? 0).toFixed(1)}%`;
 }
 
+function round2(v: number) {
+  return Math.round((Number.isFinite(v) ? v : 0) * 100) / 100;
+}
+
 export default function ShopeeCalculatorPage() {
   const router = useRouter();
   const { settings } = useSettingsStore();
@@ -73,9 +77,23 @@ export default function ShopeeCalculatorPage() {
     }
   }, [inputs]);
 
-  const set = useCallback(
-    <K extends keyof ShopeeInputs>(k: K, v: ShopeeInputs[K]) => {
-      setInputs((p) => ({ ...p, [k]: v }));
+  const set = useCallback(<K extends keyof ShopeeInputs>(k: K, v: ShopeeInputs[K]) => {
+    setInputs((p) => ({ ...p, [k]: v }));
+  }, []);
+
+  const setNum = useCallback(
+    (k: keyof ShopeeInputs, v: number) => {
+      const value = round2(v);
+      // Regra existente: se custo 3D estiver preenchido, não somar com valorCompra.
+      if (k === "fullCustoUnidade") {
+        setInputs((p) => ({ ...p, fullCustoUnidade: value, valorCompra: value > 0 ? 0 : p.valorCompra }));
+        return;
+      }
+      if (k === "valorCompra") {
+        setInputs((p) => ({ ...p, valorCompra: value, fullCustoUnidade: value > 0 ? 0 : p.fullCustoUnidade }));
+        return;
+      }
+      setInputs((p) => ({ ...p, [k]: value } as ShopeeInputs));
     },
     [],
   );
@@ -273,12 +291,7 @@ export default function ShopeeCalculatorPage() {
                   onPick={(p) => {
                     setNomeProduto(p.name);
                     if (typeof p.totalCost === "number" && Number.isFinite(p.totalCost)) {
-                      setInputs((prev) => ({
-                        ...prev,
-                        fullCustoUnidade: Number(p.totalCost ?? 0),
-                        // não duplicar: `valorCompra` só é usado se `fullCustoUnidade` estiver zerado
-                        valorCompra: 0,
-                      }));
+                      setNum("fullCustoUnidade", Number(p.totalCost ?? 0));
                     }
                   }}
                 />
@@ -286,21 +299,21 @@ export default function ShopeeCalculatorPage() {
                 <InputField
                   label="Custo 3D / unidade"
                   value={inputs.fullCustoUnidade}
-                  onChange={(v) => set("fullCustoUnidade", v)}
+                  onChange={(v) => setNum("fullCustoUnidade", v)}
                   prefix="R$"
                   hint="Custo final calculado no módulo de custo 3D (recomendado)."
                 />
                 <InputField
                   label="Valor de compra (custo unitário)"
                   value={inputs.valorCompra}
-                  onChange={(v) => set("valorCompra", v)}
+                  onChange={(v) => setNum("valorCompra", v)}
                   prefix="R$"
                   hint="Se o custo 3D estiver preenchido, este campo vira opcional."
                 />
                 <InputField
                   label="Custo de envio"
                   value={inputs.custoEnvio}
-                  onChange={(v) => set("custoEnvio", v)}
+                  onChange={(v) => setNum("custoEnvio", v)}
                   prefix="R$"
                 />
 
@@ -320,7 +333,7 @@ export default function ShopeeCalculatorPage() {
                   <InputField
                     label="Quantidade no kit"
                     value={inputs.kitQtd}
-                    onChange={(v) => set("kitQtd", v)}
+                    onChange={(v) => setNum("kitQtd", v)}
                     step={1}
                     min={1}
                   />
@@ -347,7 +360,7 @@ export default function ShopeeCalculatorPage() {
                   <InputField
                     label="Meta de lucro (%)"
                     value={inputs.metaLucroPercent}
-                    onChange={(v) => set("metaLucroPercent", v)}
+                    onChange={(v) => setNum("metaLucroPercent", v)}
                     suffix="%"
                     step={0.1}
                   />
@@ -355,14 +368,14 @@ export default function ShopeeCalculatorPage() {
                   <InputField
                     label="Meta de lucro (R$)"
                     value={inputs.metaLucroRS}
-                    onChange={(v) => set("metaLucroRS", v)}
+                    onChange={(v) => setNum("metaLucroRS", v)}
                     prefix="R$"
                   />
                 ) : (
                   <InputField
                     label="Preço travado (final)"
                     value={inputs.precoTravado}
-                    onChange={(v) => set("precoTravado", v)}
+                    onChange={(v) => setNum("precoTravado", v)}
                     prefix="R$"
                   />
                 )}
@@ -370,28 +383,28 @@ export default function ShopeeCalculatorPage() {
                 <InputField
                   label="Tributação (%)"
                   value={inputs.tributacaoPercent}
-                  onChange={(v) => set("tributacaoPercent", v)}
+                  onChange={(v) => setNum("tributacaoPercent", v)}
                   suffix="%"
                   step={0.1}
                 />
                 <InputField
                   label="ROAS alvo"
                   value={inputs.roasAlvo}
-                  onChange={(v) => set("roasAlvo", v)}
+                  onChange={(v) => setNum("roasAlvo", v)}
                   step={0.1}
                 />
 
                 <InputField
                   label="Promoção (%)"
                   value={inputs.promocaoPercent}
-                  onChange={(v) => set("promocaoPercent", v)}
+                  onChange={(v) => setNum("promocaoPercent", v)}
                   suffix="%"
                   step={0.1}
                 />
                 <InputField
                   label="Cupom loja (%)"
                   value={inputs.cupomLojaPercent}
-                  onChange={(v) => set("cupomLojaPercent", v)}
+                  onChange={(v) => setNum("cupomLojaPercent", v)}
                   suffix="%"
                   step={0.1}
                 />
@@ -469,13 +482,13 @@ export default function ShopeeCalculatorPage() {
                 <InputField
                   label="Referência preço mercado"
                   value={inputs.referenciaPrecoMercado}
-                  onChange={(v) => set("referenciaPrecoMercado", v)}
+                  onChange={(v) => setNum("referenciaPrecoMercado", v)}
                   prefix="R$"
                 />
                 <InputField
                   label="Estimativa mensal (vendas)"
                   value={inputs.estimativaVendas}
-                  onChange={(v) => set("estimativaVendas", v)}
+                  onChange={(v) => setNum("estimativaVendas", v)}
                   step={1}
                   min={0}
                 />

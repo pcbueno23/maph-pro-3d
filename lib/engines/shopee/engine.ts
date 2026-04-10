@@ -267,13 +267,15 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     margemReal,
   } = custos;
 
-  const descTotal =
+  // Desconto total efetivo (promo + cupom) é multiplicativo:
+  // ex.: 20% + 10% => 1 - (0.8 * 0.9) = 0.28 = 28%
+  const descontoFracao =
     1 -
-    (1 - (promocaoPercent || 0) / 100) *
-      (1 - (cupomLojaPercent || 0) / 100);
+    (1 - (promocaoPercent || 0) / 100) * (1 - (cupomLojaPercent || 0) / 100);
+  const descTotal = Math.max(0, descontoFracao * 100);
   const precoCadastroSugerido =
-    descTotal > 0
-      ? Math.ceil(precoFinalSugerido / (1 - descTotal)) - 0.1
+    descontoFracao > 0
+      ? Math.ceil(precoFinalSugerido / (1 - descontoFracao)) - 0.1
       : precoFinalSugerido;
 
   const denominador =
