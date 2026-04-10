@@ -84,7 +84,24 @@ export default function MercadoLivreCalculatorPage() {
 
   const setNum = useCallback(
     (key: keyof MlInputs, value: number) => {
-      setInputs((p) => ({ ...p, [key]: value } as MlInputs));
+      setInputs((p) => {
+        // Regra: custo 3D e custo de compra são mutuamente exclusivos.
+        if (key === "fullCustoUnidade") {
+          return {
+            ...p,
+            fullCustoUnidade: value,
+            valorCompra: value > 0 ? 0 : p.valorCompra,
+          } as MlInputs;
+        }
+        if (key === "valorCompra") {
+          return {
+            ...p,
+            valorCompra: value,
+            fullCustoUnidade: value > 0 ? 0 : p.fullCustoUnidade,
+          } as MlInputs;
+        }
+        return { ...p, [key]: value } as MlInputs;
+      });
     },
     [],
   );
@@ -98,11 +115,11 @@ export default function MercadoLivreCalculatorPage() {
 
   const useLastCost = useCallback(() => {
     if (lastCost == null) return;
-    setInputs((p) => ({ ...p, fullCustoUnidade: lastCost }));
+    setNum("fullCustoUnidade", lastCost);
     const suggestedName =
       typeof lastInput?.productName === "string" ? lastInput.productName.trim() : "";
     if (suggestedName && !nomeProduto.trim()) setNomeProduto(suggestedName);
-  }, [lastCost, lastInput?.productName, nomeProduto]);
+  }, [lastCost, lastInput?.productName, nomeProduto, setNum]);
 
   async function handleSave() {
     if (!result) return;
@@ -331,10 +348,7 @@ export default function MercadoLivreCalculatorPage() {
                   onPick={(p) => {
                     setNomeProduto(p.name);
                     if (typeof p.totalCost === "number" && Number.isFinite(p.totalCost)) {
-                      setInputs((prev) => ({
-                        ...prev,
-                        fullCustoUnidade: Number(p.totalCost ?? 0),
-                      }));
+                      setNum("fullCustoUnidade", Number(p.totalCost ?? 0));
                     }
                   }}
                 />
