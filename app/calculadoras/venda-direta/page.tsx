@@ -18,6 +18,10 @@ function fmtPct(v: number) {
   return `${(v ?? 0).toFixed(2)}%`;
 }
 
+function round2(v: number) {
+  return Math.round((Number.isFinite(v) ? v : 0) * 100) / 100;
+}
+
 type MachineProfileId =
   | "custom"
   | "mercado_pago"
@@ -323,7 +327,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   <button
                     type="button"
                     onClick={() => {
-                      if (lastCost != null) setCusto(lastCost);
+                      if (lastCost != null) setCusto(round2(lastCost));
                       const suggestedName =
                         typeof lastInput?.productName === "string"
                           ? lastInput.productName.trim()
@@ -339,7 +343,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                 <input
                   type="number"
                   value={custo}
-                  onChange={(e) => setCusto(parseFloat(e.currentTarget.value) || 0)}
+                  onChange={(e) => setCusto(round2(parseFloat(e.currentTarget.value) || 0))}
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 />
               </div>
@@ -364,14 +368,14 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   <input
                     type="number"
                     value={margem}
-                    onChange={(e) => setMargem(parseFloat(e.currentTarget.value) || 0)}
+                    onChange={(e) => setMargem(round2(parseFloat(e.currentTarget.value) || 0))}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                   />
                 ) : (
                   <input
                     type="number"
                     value={targetNet}
-                    onChange={(e) => setTargetNet(parseFloat(e.currentTarget.value) || 0)}
+                    onChange={(e) => setTargetNet(round2(parseFloat(e.currentTarget.value) || 0))}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                   />
                 )}
@@ -383,7 +387,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                 <input
                   type="number"
                   value={imposto}
-                  onChange={(e) => setImposto(parseFloat(e.currentTarget.value) || 0)}
+                  onChange={(e) => setImposto(round2(parseFloat(e.currentTarget.value) || 0))}
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 />
               </div>
@@ -394,7 +398,9 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                 <input
                   type="number"
                   value={pixDiscountPercent}
-                  onChange={(e) => setPixDiscountPercent(parseFloat(e.currentTarget.value) || 0)}
+                  onChange={(e) =>
+                    setPixDiscountPercent(round2(parseFloat(e.currentTarget.value) || 0))
+                  }
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 />
               </div>
@@ -456,7 +462,9 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   <input
                     type="number"
                     value={anticipationRatePerMonth}
-                    onChange={(e) => setAnticipationRatePerMonth(parseFloat(e.currentTarget.value) || 0)}
+                    onChange={(e) =>
+                      setAnticipationRatePerMonth(round2(parseFloat(e.currentTarget.value) || 0))
+                    }
                     disabled={!anticipationEnabled}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-2.5 px-3 text-sm text-slate-100 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                   />

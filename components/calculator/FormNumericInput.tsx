@@ -12,6 +12,8 @@ type Props = Omit<
   name: Path<CalculatorFormValues>;
   /** Inteiros sem decimais (ex.: peças por impressão). */
   integerOnly?: boolean;
+  /** Quantidade de casas decimais para números (padrão: 2). */
+  decimals?: number;
   /** Campo vazio ao sair vira `undefined` (ex.: preço opcional). */
   emptyAsUndefined?: boolean;
   /** Valor ao sair com campo vazio (ex.: unidades por impressão mín. 1). */
@@ -30,10 +32,18 @@ function parseIntInput(raw: string): number {
   return parseInt(t, 10);
 }
 
+function roundTo(n: number, decimals: number) {
+  if (!Number.isFinite(n)) return 0;
+  const d = Math.max(0, Math.min(8, Math.round(decimals)));
+  const p = 10 ** d;
+  return Math.round(n * p) / p;
+}
+
 export function FormNumericInput({
   form,
   name,
   integerOnly,
+  decimals = 2,
   emptyAsUndefined,
   emptyFallback,
   className,
@@ -81,7 +91,7 @@ export function FormNumericInput({
         }
         const n = integerOnly ? parseIntInput(v) : parseDecimalInput(v);
         if (Number.isFinite(n)) {
-          field.onChange(n);
+          field.onChange(integerOnly ? n : roundTo(n, decimals));
         }
       }}
       onBlur={(e) => {
@@ -105,7 +115,7 @@ export function FormNumericInput({
 
         const n = integerOnly ? parseIntInput(rawStr) : parseDecimalInput(rawStr);
         if (Number.isFinite(n)) {
-          field.onChange(n);
+          field.onChange(integerOnly ? n : roundTo(n, decimals));
         } else if (emptyFallback !== undefined) {
           field.onChange(emptyFallback);
         } else {

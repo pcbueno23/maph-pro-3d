@@ -55,6 +55,10 @@ function pct(v: number) {
   return `${(v ?? 0).toFixed(1)}%`;
 }
 
+function round2(v: number) {
+  return Math.round((Number.isFinite(v) ? v : 0) * 100) / 100;
+}
+
 export default function MercadoLivreCalculatorPage() {
   const router = useRouter();
   const { settings } = useSettingsStore();
@@ -84,23 +88,24 @@ export default function MercadoLivreCalculatorPage() {
 
   const setNum = useCallback(
     (key: keyof MlInputs, value: number) => {
+      const v = round2(value);
       setInputs((p) => {
         // Regra: custo 3D e custo de compra são mutuamente exclusivos.
         if (key === "fullCustoUnidade") {
           return {
             ...p,
-            fullCustoUnidade: value,
-            valorCompra: value > 0 ? 0 : p.valorCompra,
+            fullCustoUnidade: v,
+            valorCompra: v > 0 ? 0 : p.valorCompra,
           } as MlInputs;
         }
         if (key === "valorCompra") {
           return {
             ...p,
-            valorCompra: value,
-            fullCustoUnidade: value > 0 ? 0 : p.fullCustoUnidade,
+            valorCompra: v,
+            fullCustoUnidade: v > 0 ? 0 : p.fullCustoUnidade,
           } as MlInputs;
         }
-        return { ...p, [key]: value } as MlInputs;
+        return { ...p, [key]: v } as MlInputs;
       });
     },
     [],
