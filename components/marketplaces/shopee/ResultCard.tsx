@@ -19,6 +19,23 @@ import {
 import type { ShopeeResult } from "@/lib/engines/shopee/engine";
 import { formatBRL, formatPct } from "@/lib/engines/shopee/engine";
 
+type ShopeeBadPriceZone = {
+  min: number;
+  max: number;
+  baseline: number;
+};
+
+function getBadPriceZone(precoClienteAposDescontos: number): ShopeeBadPriceZone | null {
+  const p = Number(precoClienteAposDescontos);
+  if (!Number.isFinite(p)) return null;
+  // “Zonas ruins” (efeito do salto na taxa fixa entre faixas de comissão Shopee).
+  // Regra pedida: alertar apenas se o preço exibido ao cliente cair nessas faixas.
+  if (p >= 80 && p <= 88.35) return { min: 80, max: 88.35, baseline: 79.99 };
+  if (p >= 100 && p <= 104.63) return { min: 100, max: 104.63, baseline: 99.99 };
+  if (p >= 200 && p <= 206.96) return { min: 200, max: 206.96, baseline: 199.99 };
+  return null;
+}
+
 function DonutChart({
   data,
   total,
@@ -282,6 +299,8 @@ Geração feita via MAPH PRO SHOPEE.
     if (!onPrint) window.print();
   };
 
+  const badZone = getBadPriceZone(precoFinalSugerido);
+
   return (
     <div className="flex flex-col gap-4 animate-slide-up print:grid print:grid-cols-2 print:items-start print:gap-3">
       <div className="glass-panel overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40 print:col-span-2">
@@ -332,6 +351,27 @@ Geração feita via MAPH PRO SHOPEE.
                   </span>
                 )}
               </p>
+
+              {badZone && (
+                <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-left print:hidden">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle size={14} className="mt-0.5 text-amber-300" />
+                    <div>
+                      <p className="text-xs font-semibold text-amber-200">
+                        Zona de preço ruim detectada
+                      </p>
+                      <p className="mt-0.5 text-[12px] leading-snug text-slate-200">
+                        Entre {formatBRL(badZone.min)} e {formatBRL(badZone.max)}, o seu{" "}
+                        <span className="font-semibold">valor líquido pode ficar menor</span>{" "}
+                        do que cobrando {formatBRL(badZone.baseline)}, por causa do salto na taxa fixa da Shopee.
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-300">
+                        Dica rápida: teste {formatBRL(badZone.baseline)} ou ajuste promo/cupom para sair dessa faixa.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
