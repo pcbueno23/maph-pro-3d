@@ -56,6 +56,12 @@ export async function checkRateLimit(
     return { allowed: true, remaining: limit, resetAt: Date.now() + windowMs };
   }
 
-  const { success, remaining, reset } = await limiter.limit(key);
-  return { allowed: success, remaining, resetAt: reset };
+  try {
+    const { success, remaining, reset } = await limiter.limit(key);
+    return { allowed: success, remaining, resetAt: reset };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[rateLimit] Upstash indisponível — liberando requisição:", err);
+    return { allowed: true, remaining: limit, resetAt: Date.now() + windowMs };
+  }
 }

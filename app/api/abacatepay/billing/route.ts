@@ -179,23 +179,23 @@ export async function POST(req: NextRequest) {
   const auth = await requireUserSession(req);
   if (!auth.ok) return auth.response;
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  const rl = await checkRateLimit(`abacatepay-billing:${ip}`, 10);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Muitas tentativas. Aguarde um momento e tente novamente." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
-    );
-  }
-
-  if (!token) {
-    return NextResponse.json(
-      { error: "AbacatePay não configurado (ABACATEPAY_TOKEN)." },
-      { status: 500 }
-    );
-  }
-
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const rl = await checkRateLimit(`abacatepay-billing:${ip}`, 10);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Muitas tentativas. Aguarde um momento e tente novamente." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+      );
+    }
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "AbacatePay não configurado (ABACATEPAY_TOKEN)." },
+        { status: 500 }
+      );
+    }
+
     const rawBody = await req.text();
     if (!rawBody?.trim()) {
       return NextResponse.json(

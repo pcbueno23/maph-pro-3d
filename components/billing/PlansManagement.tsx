@@ -85,7 +85,11 @@ async function postJson<T>(url: string, body: unknown, token?: string | null): P
         ? String((parsed as { error?: unknown }).error ?? "")
         : "";
     if (apiMsg) throw new Error(apiMsg);
-    if (!trimmed) throw new Error("Falha na requisição (resposta vazia).");
+    if (!trimmed) {
+      throw new Error(
+        `Falha na requisição (HTTP ${res.status}, resposta vazia). Tente atualizar a página; se continuar, o servidor ou a rede podem estar instáveis.`,
+      );
+    }
     if (/^\s*</.test(raw)) {
       throw new Error(`Falha na requisição (HTTP ${res.status}).`);
     }
