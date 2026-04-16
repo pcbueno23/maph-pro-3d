@@ -66,11 +66,39 @@ async function postJson<T>(url: string, body: unknown, token?: string | null): P
     body: JSON.stringify(body),
     cache: "no-store",
   });
-  const data = (await res.json()) as T;
-  if (!res.ok) {
-    throw new Error((data as any)?.error ?? "Falha na requisição.");
+  const raw = await res.text();
+  const trimmed = raw?.trim() ?? "";
+
+  // Alguns erros do Next podem voltar como HTML (500) ou body vazio; evitar JSON.parse quebrar a UI.
+  let parsed: unknown = null;
+  if (trimmed) {
+    try {
+      parsed = JSON.parse(trimmed) as unknown;
+    } catch {
+      parsed = null;
+    }
   }
-  return data;
+
+  if (!res.ok) {
+    const apiMsg =
+      parsed && typeof parsed === "object" && "error" in parsed
+        ? String((parsed as { error?: unknown }).error ?? "")
+        : "";
+    if (apiMsg) throw new Error(apiMsg);
+    if (!trimmed) throw new Error("Falha na requisição (resposta vazia).");
+    if (/^\s*</.test(raw)) {
+      throw new Error(`Falha na requisição (HTTP ${res.status}).`);
+    }
+    throw new Error(`Falha na requisição (HTTP ${res.status}): ${trimmed.slice(0, 240)}`);
+  }
+
+  // Em caso de sucesso com body vazio, devolve um objeto vazio para não quebrar quem espera JSON.
+  if (!trimmed) return {} as T;
+
+  if (parsed == null) {
+    throw new Error("Resposta inválida do servidor (não é JSON).");
+  }
+  return parsed as T;
 }
 
 type PlansManagementProps = {
@@ -98,7 +126,16 @@ export function PlansManagement({
       try {
         const res = await fetch("/api/site-config", { cache: "no-store" });
         if (!res.ok) return;
-        const j = (await res.json()) as { data?: Record<string, unknown> };
+        const raw = await res.text();
+        const trimmed = raw?.trim() ?? "";
+        if (!trimmed) return;
+        let j: { data?: Record<string, unknown> } | null = null;
+        try {
+          j = JSON.parse(trimmed) as { data?: Record<string, unknown> };
+        } catch {
+          j = null;
+        }
+        if (!j) return;
         if (j.data) setPricing(getPlanPricingFromConfig(j.data as Parameters<typeof getPlanPricingFromConfig>[0]));
       } catch {
         /* mantém defaults */
