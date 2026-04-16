@@ -15,7 +15,10 @@ import { Ratelimit } from "@upstash/ratelimit";
 const limiterCache = new Map<string, Ratelimit>();
 
 function getLimiter(limit: number, windowMs: number): Ratelimit | null {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+  /** Trim evita erro do cliente Upstash ("invalid URL") quando o .env/Vercel tem espaço no fim da URL. */
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (!url || !token) {
     return null; // fallback: sem Redis configurado
   }
 
@@ -23,8 +26,8 @@ function getLimiter(limit: number, windowMs: number): Ratelimit | null {
   if (limiterCache.has(cacheKey)) return limiterCache.get(cacheKey)!;
 
   const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    url,
+    token,
   });
 
   const limiter = new Ratelimit({
