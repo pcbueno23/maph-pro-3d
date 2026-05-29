@@ -8,11 +8,17 @@ import type { AdminUserRow } from "@/lib/adminUserDto";
 
 type Props = {
   userId: string;
+  freeAccessMode?: boolean;
   onClose: () => void;
   onUserUpdated: (u: AdminUserRow) => void;
 };
 
-export function UserDetailModal({ userId, onClose, onUserUpdated }: Props) {
+export function UserDetailModal({
+  userId,
+  freeAccessMode = false,
+  onClose,
+  onUserUpdated,
+}: Props) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [user, setUser] = useState<AdminUserRow | null>(null);
@@ -88,10 +94,14 @@ export function UserDetailModal({ userId, onClose, onUserUpdated }: Props) {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          trial_ends_at: trialDraft.trim() || null,
-          admin_notes: noteDraft.trim() || null,
-        }),
+        body: JSON.stringify(
+          freeAccessMode
+            ? { admin_notes: noteDraft.trim() || null }
+            : {
+                trial_ends_at: trialDraft.trim() || null,
+                admin_notes: noteDraft.trim() || null,
+              },
+        ),
       });
       const data = (await res.json()) as { error?: string; user?: AdminUserRow };
       if (!res.ok) {
@@ -256,6 +266,7 @@ export function UserDetailModal({ userId, onClose, onUserUpdated }: Props) {
               </div>
             ) : null}
 
+            {!freeAccessMode ? (
             <div>
               <label className="text-xs text-slate-500">Override trial (ISO)</label>
               <input
@@ -265,6 +276,11 @@ export function UserDetailModal({ userId, onClose, onUserUpdated }: Props) {
                 className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 font-mono text-xs"
               />
             </div>
+            ) : (
+              <p className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                Acesso liberado (modo gratuito). Trial não se aplica.
+              </p>
+            )}
 
             <div>
               <label className="text-xs text-slate-500">Nota interna (admin)</label>
@@ -299,7 +315,7 @@ export function UserDetailModal({ userId, onClose, onUserUpdated }: Props) {
                 onClick={() => void saveMeta()}
                 className="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-medium text-slate-950 disabled:opacity-50"
               >
-                Salvar trial e nota
+                {freeAccessMode ? "Salvar nota" : "Salvar trial e nota"}
               </button>
             </div>
 

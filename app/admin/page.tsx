@@ -21,7 +21,7 @@ type AdminTab =
   | "afiliados";
 
 const tabs: { id: AdminTab; label: string }[] = [
-  { id: "users", label: "Contas e trial" },
+  { id: "users", label: "Contas" },
   { id: "leads", label: "Leads (cadastro)" },
   { id: "marketing", label: "Fornecedores e promoções" },
   { id: "metrics", label: "Métricas" },

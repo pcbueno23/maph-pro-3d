@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import type { AdminUserRow } from "@/lib/adminUserDto";
 import type { AdminUserSegment } from "@/lib/adminUserFilters";
 import { UserDetailModal } from "@/components/admin/UserDetailModal";
+import { useFreeAccessMode } from "@/hooks/useFreeAccessMode";
 
 type ListResponse = {
   appTrialDays: number;
@@ -17,8 +18,9 @@ type ListResponse = {
   error?: string;
 };
 
-function accessLabel(u: AdminUserRow): string {
+function accessLabel(u: AdminUserRow, freeAccessMode: boolean): string {
   if (u.is_banned) return "Banido";
+  if (freeAccessMode) return "Liberada";
   if (u.has_paid_plan) return "Pago";
   const now = Date.now();
   const end = new Date(u.effective_trial_ends_at).getTime();
@@ -26,6 +28,7 @@ function accessLabel(u: AdminUserRow): string {
 }
 
 export function AdminUsersTab() {
+  const freeAccessMode = useFreeAccessMode();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [appTrialDays, setAppTrialDays] = useState(7);
   const [page, setPage] = useState(1);
@@ -253,12 +256,20 @@ export function AdminUsersTab() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-400">
-        Trial padrão:{" "}
-        <strong className="text-slate-200">{appTrialDays}</strong> dias (
-        <code className="text-xs text-cyan-300">APP_TRIAL_DAYS</code>). Override:{" "}
-        <code className="text-xs text-cyan-300">trial_ends_at</code>.
-      </p>
+      {freeAccessMode ? (
+        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+          <strong className="text-emerald-50">Modo gratuito ativo.</strong> Todas as
+          contas têm acesso liberado — colunas de trial ficam ocultas. Para cobrar de
+          novo, use <strong>Admin → Site e acesso</strong>.
+        </p>
+      ) : (
+        <p className="text-sm text-slate-400">
+          Trial padrão:{" "}
+          <strong className="text-slate-200">{appTrialDays}</strong> dias (
+          <code className="text-xs text-cyan-300">APP_TRIAL_DAYS</code>). Override:{" "}
+          <code className="text-xs text-cyan-300">trial_ends_at</code>.
+        </p>
+      )}
 
       <div className="rounded-xl border border-slate-800/90 bg-slate-950/40 p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
@@ -281,9 +292,13 @@ export function AdminUsersTab() {
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-200"
             >
               <option value="all">Todas as contas</option>
-              <option value="paid">Pagos</option>
-              <option value="in_trial">Em teste</option>
-              <option value="post_trial">Pós-trial</option>
+              {!freeAccessMode ? (
+                <>
+                  <option value="paid">Pagos</option>
+                  <option value="in_trial">Em teste</option>
+                  <option value="post_trial">Pós-trial</option>
+                </>
+              ) : null}
               <option value="banned">Banidas</option>
             </select>
           </label>
@@ -345,10 +360,12 @@ export function AdminUsersTab() {
             </button>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-slate-600">
-          “Em teste” / “Pós-trial” usam a data fim do trial (regra do app), não o
-          pagamento. Busca por e-mail continua abaixo.
-        </p>
+        {!freeAccessMode ? (
+          <p className="mt-2 text-[11px] text-slate-600">
+            “Em teste” / “Pós-trial” usam a data fim do trial (regra do app), não o
+            pagamento. Busca por e-mail continua abaixo.
+          </p>
+        ) : null}
       </div>
 
       <div className="relative">
@@ -429,20 +446,26 @@ export function AdminUsersTab() {
 
       {users.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full min-w-[800px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[640px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-800 bg-slate-900/60 text-xs uppercase tracking-wide text-slate-500">
                 <th className="px-3 py-3 font-medium">E-mail</th>
                 <th className="px-3 py-3 font-medium">Status</th>
                 <th className="px-3 py-3 font-medium">Criado</th>
                 <th className="px-3 py-3 font-medium">Último login</th>
-                <th className="px-3 py-3 font-medium">Fim trial</th>
-                <th className="px-3 py-3 font-medium">Override ISO</th>
+                {!freeAccessMode ? (
+                  <>
+                    <th className="px-3 py-3 font-medium">Fim trial</th>
+                    <th className="px-3 py-3 font-medium">Override ISO</th>
+                  </>
+                ) : null}
                 <th className="px-3 py-3 font-medium" />
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {users.map((u) => {
+                const label = accessLabel(u, freeAccessMode);
+                return (
                 <tr
                   key={u.id}
                   className="border-b border-slate-800/80 last:border-0 hover:bg-slate-900/30"
@@ -455,14 +478,16 @@ export function AdminUsersTab() {
                       className={
                         u.is_banned
                           ? "rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] text-red-300"
-                          : u.has_paid_plan
-                            ? "rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] text-cyan-300"
-                            : accessLabel(u) === "Em teste"
-                              ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300/95"
-                              : "rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] text-slate-400"
+                          : label === "Liberada"
+                            ? "rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-300"
+                            : u.has_paid_plan
+                              ? "rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] text-cyan-300"
+                              : label === "Em teste"
+                                ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300/95"
+                                : "rounded-full bg-slate-500/15 px-2 py-0.5 text-[10px] text-slate-400"
                       }
                     >
-                      {accessLabel(u)}
+                      {label}
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-400">
@@ -479,6 +504,8 @@ export function AdminUsersTab() {
                         })
                       : "—"}
                   </td>
+                  {!freeAccessMode ? (
+                    <>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <span
                       className={
@@ -512,6 +539,8 @@ export function AdminUsersTab() {
                       className="w-full rounded-lg border border-slate-700 bg-slate-950/80 px-2 py-1.5 font-mono text-xs text-slate-200 placeholder:text-slate-600 focus:border-cyan-500/50 focus:outline-none"
                     />
                   </td>
+                    </>
+                  ) : null}
                   <td className="whitespace-nowrap px-3 py-2">
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -521,6 +550,8 @@ export function AdminUsersTab() {
                       >
                         Detalhes
                       </button>
+                      {!freeAccessMode ? (
+                        <>
                       <button
                         type="button"
                         disabled={savingId === u.id}
@@ -537,10 +568,13 @@ export function AdminUsersTab() {
                       >
                         Padrão
                       </button>
+                        </>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
@@ -573,6 +607,7 @@ export function AdminUsersTab() {
       {detailUserId ? (
         <UserDetailModal
           userId={detailUserId}
+          freeAccessMode={freeAccessMode}
           onClose={() => setDetailUserId(null)}
           onUserUpdated={mergeUpdated}
         />
