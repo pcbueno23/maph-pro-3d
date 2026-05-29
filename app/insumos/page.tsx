@@ -695,8 +695,22 @@ export default function InsumosPage() {
                 </div>
               ) : null}
 
+              {draft.category === "filament" ? (
+                <div className="md:col-span-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2.5 text-xs text-cyan-100">
+                  <strong className="font-semibold text-cyan-50">Estoque em gramas (g).</strong>{" "}
+                  Informe quantidade em gramas nos campos abaixo — ex.:{" "}
+                  <strong className="text-cyan-200">1000</strong> = 1 kg de filamento.
+                </div>
+              ) : null}
+
+              <div className="md:col-span-2 grid gap-3 md:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs text-slate-300">Estoque atual</label>
+                <label className="mb-1 block text-xs text-slate-300">
+                  Estoque atual
+                  {draft.category === "filament" ? (
+                    <span className="ml-1 font-medium text-cyan-300">(g)</span>
+                  ) : null}
+                </label>
                 <input
                   type="number"
                   step="0.01"
@@ -704,10 +718,20 @@ export default function InsumosPage() {
                   value={draft.stockQty}
                   onChange={(e) => setDraft((d) => ({ ...d, stockQty: e.target.value === "" ? "" : Number(e.target.value) }))}
                 />
+                {draft.category === "filament" ? (
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Quantidade restante em gramas.
+                  </p>
+                ) : null}
               </div>
 
               <div>
-                <label className="mb-1 block text-xs text-slate-300">Estoque mínimo (alerta)</label>
+                <label className="mb-1 block text-xs text-slate-300">
+                  Estoque mínimo (alerta)
+                  {draft.category === "filament" ? (
+                    <span className="ml-1 font-medium text-cyan-300">(g)</span>
+                  ) : null}
+                </label>
                 <input
                   type="number"
                   step="0.01"
@@ -715,6 +739,12 @@ export default function InsumosPage() {
                   value={draft.minStockQty}
                   onChange={(e) => setDraft((d) => ({ ...d, minStockQty: e.target.value === "" ? "" : Number(e.target.value) }))}
                 />
+                {draft.category === "filament" ? (
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Alerta quando ficar abaixo deste valor (em g).
+                  </p>
+                ) : null}
+              </div>
               </div>
 
               <div>
