@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { PlansManagement } from "@/components/billing/PlansManagement";
-import { isAppPaywallDisabled } from "@/lib/appAccess";
+import { isAppPaywallDisabledAsync } from "@/lib/appAccess";
 import { isAbacatePayPaymentProvider } from "@/lib/abacatepayPaidPlan";
 
 /** Lê `APP_PAYMENT_PROVIDER` em cada request (Vercel / produção), não só no build. */
 export const dynamic = "force-dynamic";
 
-export default function PricingPage() {
-  if (isAppPaywallDisabled()) {
+export default async function PricingPage() {
+  if (await isAppPaywallDisabledAsync()) {
     redirect("/");
   }
 

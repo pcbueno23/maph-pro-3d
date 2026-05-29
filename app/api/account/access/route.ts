@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAppPaywallDisabled } from "@/lib/appAccess";
+import { isAppPaywallDisabledAsync } from "@/lib/appAccess";
 import { evaluateAccountAccessFromJwt } from "@/lib/accountAccessEvaluate";
 import type { AccountAccessResponse } from "@/lib/accountAccessEvaluate";
 
@@ -15,7 +15,7 @@ function getBearerToken(req: NextRequest): string | null {
 }
 
 export async function GET(req: NextRequest) {
-  if (isAppPaywallDisabled()) {
+  if (await isAppPaywallDisabledAsync()) {
     return NextResponse.json({
       allowed: true,
       reason: "paywall_disabled",

@@ -27,9 +27,9 @@ Stripe: se uma chave vazou, **revogue no Dashboard** e gere outra. Ver `docs/STR
 
 ### Acesso ao app
 
-**Modo gratuito (padrão):** sem variáveis de paywall, todo usuário logado usa o app completo; o menu **Assinaturas** some e `/pricing` redireciona para o dashboard. Stripe/AbacatePay permanecem no código para reativar depois.
+**Modo gratuito (padrão):** todo usuário logado usa o app completo; o menu **Assinaturas** some e `/pricing` redireciona para o dashboard.
 
-**Modo pago (trial + assinatura):** defina **`APP_PAYWALL_ENABLED=true`** na Vercel e configure `APP_PAYMENT_PROVIDER`.
+**Modo pago (trial + assinatura):** no painel **Admin → Site e acesso**, marque **Ativar modo pago** e salve. Alternativa: `APP_PAYWALL_ENABLED=true` na Vercel (o admin no banco tem prioridade quando `paywall_enabled` está definido).
 
 - Cada conta tem **teste grátis** por **`APP_TRIAL_DAYS`** (padrão 7), a partir de `user.created_at`.
 - Após o trial, o app **bloqueia** até **assinatura ativa** (Pro ou Business via Stripe ou AbacatePay).

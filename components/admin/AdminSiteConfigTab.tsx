@@ -78,11 +78,63 @@ export function AdminSiteConfigTab() {
     );
   }
 
+  const paywallOn = Boolean(data.paywall_enabled);
+
   return (
     <div className="max-w-xl space-y-4 text-sm">
       {err ? (
         <p className="text-xs text-amber-200">{err}</p>
       ) : null}
+
+      <section className="rounded-2xl border border-cyan-500/30 bg-gradient-to-b from-cyan-500/10 to-slate-950/40 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-50">Modo pago (cobrança)</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-400">
+              Liga ou desliga trial, bloqueio após o prazo e a página{" "}
+              <strong className="text-slate-300">Assinaturas</strong> no menu. Não precisa
+              alterar variáveis na Vercel — vale após salvar (usuários podem precisar
+              atualizar a página).
+            </p>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+              paywallOn
+                ? "border border-amber-500/40 bg-amber-500/15 text-amber-200"
+                : "border border-emerald-500/40 bg-emerald-500/15 text-emerald-200"
+            }`}
+          >
+            {paywallOn ? "Pago ativo" : "Grátis"}
+          </span>
+        </div>
+        <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700/80 bg-slate-950/60 px-3 py-3">
+          <input
+            type="checkbox"
+            checked={paywallOn}
+            onChange={(e) =>
+              setData((d) =>
+                d ? { ...d, paywall_enabled: e.target.checked } : d,
+              )
+            }
+            className="h-4 w-4 rounded border-slate-600"
+          />
+          <span className="text-slate-200">
+            Ativar modo pago (trial + assinatura Stripe/AbacatePay)
+          </span>
+        </label>
+        <ul className="mt-3 space-y-1 text-[11px] text-slate-500">
+          <li>
+            <strong className="text-slate-400">Desligado:</strong> acesso completo grátis;
+            menu Assinaturas oculto.
+          </li>
+          <li>
+            <strong className="text-slate-400">Ligado:</strong>{" "}
+            <code className="text-cyan-400/90">APP_TRIAL_DAYS</code> de teste e depois
+            cobrança até assinar.
+          </li>
+        </ul>
+      </section>
+
       <label className="block">
         <span className="text-xs text-slate-500">WhatsApp (URL)</span>
         <input

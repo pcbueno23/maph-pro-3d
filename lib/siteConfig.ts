@@ -14,6 +14,8 @@ export const siteConfigDataSchema = z.object({
   banner_message: z.string().optional(),
   plan_price_pro_cents: z.number().int().positive().optional(),
   plan_price_business_cents: z.number().int().positive().optional(),
+  /** false = gratuito para todos; true = trial + cobrança (controlado no admin). */
+  paywall_enabled: z.boolean().optional(),
 });
 
 export type SiteConfigData = z.infer<typeof siteConfigDataSchema>;
@@ -22,6 +24,7 @@ export const defaultSiteConfigData: SiteConfigData = {
   banner_enabled: false,
   banner_title: "",
   banner_message: "",
+  paywall_enabled: false,
 };
 
 export function parseSiteConfigData(raw: unknown): SiteConfigData {
@@ -32,5 +35,6 @@ export function parseSiteConfigData(raw: unknown): SiteConfigData {
     ...defaultSiteConfigData,
     ...d,
     banner_enabled: d.banner_enabled ?? false,
+    paywall_enabled: d.paywall_enabled ?? false,
   };
 }

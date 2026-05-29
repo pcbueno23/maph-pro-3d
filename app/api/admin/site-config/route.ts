@@ -4,6 +4,7 @@ import {
   getSupabaseServiceRole,
   requireAdminSession,
 } from "@/lib/adminApiAuth";
+import { clearPaywallAccessCache } from "@/lib/appAccess";
 import {
   defaultSiteConfigData,
   parseSiteConfigData,
@@ -96,6 +97,8 @@ export async function PUT(req: NextRequest) {
       { status: 500 },
     );
   }
+
+  clearPaywallAccessCache();
 
   await logAdminAudit({
     adminEmail: auth.user.email ?? "unknown",

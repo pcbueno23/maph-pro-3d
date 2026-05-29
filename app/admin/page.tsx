@@ -22,7 +22,7 @@ const tabs: { id: AdminTab; label: string }[] = [
   { id: "users", label: "Contas e trial" },
   { id: "marketing", label: "Fornecedores e promoções" },
   { id: "metrics", label: "Métricas" },
-  { id: "site", label: "Site e banner" },
+  { id: "site", label: "Site e acesso" },
   { id: "audit", label: "Auditoria" },
   { id: "health", label: "Integrações" },
   { id: "afiliados", label: "Afiliados" },
