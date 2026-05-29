@@ -25,14 +25,17 @@ Precifica3D é uma aplicação SaaS focada em empreendedores de impressão 3D qu
 
 Stripe: se uma chave vazou, **revogue no Dashboard** e gere outra. Ver `docs/STRIPE_SEGURANCA.md`.
 
-### Trial e acesso ao app (sem cartão)
+### Acesso ao app
 
-- Cada conta tem **teste grátis** por **`APP_TRIAL_DAYS`** (padrão 7), contado a partir da **data de criação do usuário no Supabase** (`user.created_at`).
-- Durante o teste **não é obrigatório** cartão. Depois do prazo, o app **bloqueia** o uso até existir **assinatura Stripe ativa** (Pro ou Business).
+**Modo gratuito (atual recomendado):** defina **`APP_PAYWALL_DISABLED=true`** (já está assim no `.env.example`). Todo usuário logado usa o app completo; Stripe/AbacatePay e a página `/pricing` permanecem no código para reativar cobrança depois.
+
+**Modo pago (trial + assinatura):** use **`APP_PAYWALL_DISABLED=false`** (ou remova a variável) e configure o provedor em `APP_PAYMENT_PROVIDER`.
+
+- Cada conta tem **teste grátis** por **`APP_TRIAL_DAYS`** (padrão 7), a partir de `user.created_at`.
+- Após o trial, o app **bloqueia** até **assinatura ativa** (Pro ou Business via Stripe ou AbacatePay).
 - Rotas liberadas com trial expirado: **`/pricing`** e **`/trial-expired`**.
-- **`APP_PAYWALL_DISABLED=true`**: desliga o bloqueio (útil só para migração ou debug).
-- Opcional: `user.user_metadata.trial_ends_at` (ISO) **sobrescreve** o fim do teste (para extensões manuais via Supabase).
-- **Contas infinitas** com e-mails diferentes ainda geram trials separados; para reduzir abuso, use **confirmação de e-mail** no Supabase e políticas de uso aceitável.
+- Opcional: `user.user_metadata.trial_ends_at` (ISO) **sobrescreve** o fim do teste (extensões via admin/Supabase).
+- Com paywall desligado, o cron de e-mail de trial (`/api/cron/trial-expiry`) não envia avisos.
 
 Checklist de deploy na Vercel (variáveis `APP_TRIAL_DAYS`, Stripe, etc.): **`docs/VERCEL_ENV.md`**.
 

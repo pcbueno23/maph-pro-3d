@@ -108,10 +108,13 @@ async function postJson<T>(url: string, body: unknown, token?: string | null): P
 type PlansManagementProps = {
   /** Definido no servidor (`/pricing`) a partir de `APP_PAYMENT_PROVIDER` — necessário na Vercel sem `NEXT_PUBLIC_*`. */
   defaultPaymentProvider?: "stripe" | "abacatepay";
+  /** `APP_PAYWALL_DISABLED=true` — exibe planos sem checkout (modo gratuito). */
+  freeAccessMode?: boolean;
 };
 
 export function PlansManagement({
   defaultPaymentProvider,
+  freeAccessMode = false,
 }: PlansManagementProps = {}) {
   const { user, session } = useAuthStore();
   const bumpAccessCheck = useAccessStore((s) => s.bumpAccessCheck);
@@ -406,14 +409,38 @@ export function PlansManagement({
     accessChecked && accessPaid && plan !== "free";
 
   const planCtaDisabledPro =
-    loadingAction || (plan === "pro" && !isOnTrial) || (paymentProvider === "abacatepay" && !abacatePayerValid);
+    freeAccessMode ||
+    loadingAction ||
+    (plan === "pro" && !isOnTrial) ||
+    (paymentProvider === "abacatepay" && !abacatePayerValid);
   const planCtaDisabledAnnual =
+    freeAccessMode ||
     loadingAction ||
     (plan === "business" && !isOnTrial) ||
     (paymentProvider === "abacatepay" && !abacatePayerValid);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {freeAccessMode ? (
+        <div
+          className="rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-4 sm:px-5"
+          role="status"
+        >
+          <p className="text-sm font-semibold text-emerald-100">
+            Acesso completo gratuito para todos
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-300">
+            O app está liberado sem cobrança. Os planos abaixo são referência para quando
+            assinaturas voltarem — o checkout ficará disponível em breve.
+          </p>
+          <Link
+            href="/"
+            className="mt-3 inline-flex rounded-xl bg-emerald-500/20 px-4 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/30"
+          >
+            Ir para o app →
+          </Link>
+        </div>
+      ) : null}
       {/* Modal de boas-vindas pós-pagamento */}
       {checkoutSuccess && paidActive && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -504,18 +531,27 @@ export function PlansManagement({
         <div className="order-1 space-y-8 lg:order-2 lg:col-span-8">
           <header className="space-y-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-400/90">
-              {paymentProvider === "abacatepay"
-                ? "Checkout seguro · AbacatePay"
-                : "Assinatura · Stripe"}
+              {freeAccessMode
+                ? "Modo gratuito"
+                : paymentProvider === "abacatepay"
+                  ? "Checkout seguro · AbacatePay"
+                  : "Assinatura · Stripe"}
             </p>
             <h1 className="text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
-              Desbloqueie o app completo
+              {freeAccessMode ? "Planos (referência)" : "Desbloqueie o app completo"}
             </h1>
             <p className="max-w-xl text-sm leading-relaxed text-slate-400">
-              Pro e anual têm{" "}
-              <span className="text-slate-300">as mesmas funções</span>. Quem usa o MAPH PRO 3D
-              toda semana costuma preferir o anual: menos por mês e um único pagamento.
+              {freeAccessMode
+                ? "Você já tem acesso a todas as ferramentas. Quando assinaturas forem reativadas, Pro e anual terão as mesmas funções — só muda a forma de cobrança."
+                : (
+                  <>
+                    Pro e anual têm{" "}
+                    <span className="text-slate-300">as mesmas funções</span>. Quem usa o MAPH PRO 3D
+                    toda semana costuma preferir o anual: menos por mês e um único pagamento.
+                  </>
+                )}
             </p>
+            {!freeAccessMode ? (
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/90 bg-slate-900/70 px-3 py-1.5 text-[11px] font-medium text-slate-300">
                 <Shield className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
@@ -530,6 +566,7 @@ export function PlansManagement({
                 Acesso imediato após confirmação
               </span>
             </div>
+            ) : null}
           </header>
 
           {error ? (
@@ -541,7 +578,7 @@ export function PlansManagement({
             </p>
           ) : null}
 
-          {paymentProvider === "abacatepay" ? (
+          {!freeAccessMode && paymentProvider === "abacatepay" ? (
             <section
               aria-labelledby="payer-step-title"
               className="rounded-2xl border border-cyan-500/25 bg-gradient-to-b from-slate-900/90 via-slate-950/80 to-slate-950/90 p-5 shadow-[0_20px_50px_-24px_rgba(34,211,238,0.35)] sm:p-6"
@@ -632,12 +669,14 @@ export function PlansManagement({
               </span>
               <div>
                 <h2 id="plans-step-title" className="text-base font-semibold text-slate-100">
-                  Escolha como pagar
+                  {freeAccessMode ? "Planos futuros" : "Escolha como pagar"}
                 </h2>
                 <p className="text-xs text-slate-500">
-                  {paymentProvider === "abacatepay"
-                    ? "Toque no plano desejado — você será redirecionado para finalizar na AbacatePay."
-                    : "Assinatura recorrente processada pelo Stripe."}
+                  {freeAccessMode
+                    ? "Checkout pausado — use o app normalmente pelo menu principal."
+                    : paymentProvider === "abacatepay"
+                      ? "Toque no plano desejado — você será redirecionado para finalizar na AbacatePay."
+                      : "Assinatura recorrente processada pelo Stripe."}
                 </p>
               </div>
             </div>
@@ -683,11 +722,13 @@ export function PlansManagement({
                   onClick={() => void handleCheckout("business")}
                   className="mt-auto w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:from-emerald-400 hover:to-teal-400 disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  {plan === "business" && !isOnTrial
-                    ? "Plano anual ativo"
-                    : paymentProvider === "abacatepay"
-                      ? "Quero o plano anual"
-                      : "Assinar plano anual (Stripe)"}
+                  {freeAccessMode
+                    ? "Em breve"
+                    : plan === "business" && !isOnTrial
+                      ? "Plano anual ativo"
+                      : paymentProvider === "abacatepay"
+                        ? "Quero o plano anual"
+                        : "Assinar plano anual (Stripe)"}
                 </button>
               </div>
 
@@ -728,11 +769,13 @@ export function PlansManagement({
                   onClick={() => void handleCheckout("pro")}
                   className="mt-auto w-full rounded-xl border-2 border-cyan-500/40 bg-cyan-500/10 py-3.5 text-sm font-bold text-cyan-100 transition hover:border-cyan-400/60 hover:bg-cyan-500/15 disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  {plan === "pro" && !isOnTrial
-                    ? "Plano mensal ativo"
-                    : paymentProvider === "abacatepay"
-                      ? "Prefiro mensal"
-                      : "Assinar mensal (Stripe)"}
+                  {freeAccessMode
+                    ? "Em breve"
+                    : plan === "pro" && !isOnTrial
+                      ? "Plano mensal ativo"
+                      : paymentProvider === "abacatepay"
+                        ? "Prefiro mensal"
+                        : "Assinar mensal (Stripe)"}
                 </button>
               </div>
             </div>
@@ -742,8 +785,12 @@ export function PlansManagement({
         <aside className="order-2 lg:order-1 lg:col-span-4">
           <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-5 shadow-[0_0_0_1px_rgba(6,182,212,0.08)] lg:sticky lg:top-24">
             <div className="mb-4 space-y-1">
-              <h2 className="text-lg font-semibold text-slate-50">Sua assinatura</h2>
-              <p className="text-xs text-slate-500">Resumo rápido do acesso.</p>
+              <h2 className="text-lg font-semibold text-slate-50">
+                {freeAccessMode ? "Seu acesso" : "Sua assinatura"}
+              </h2>
+              <p className="text-xs text-slate-500">
+                {freeAccessMode ? "Modo gratuito ativo." : "Resumo rápido do acesso."}
+              </p>
             </div>
 
             <div className="space-y-3">
@@ -753,9 +800,19 @@ export function PlansManagement({
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-50">
-                    {plan === "pro" ? "Pro" : plan === "business" ? "Business / anual" : "Free"}
+                    {freeAccessMode
+                      ? "Completo (grátis)"
+                      : plan === "pro"
+                        ? "Pro"
+                        : plan === "business"
+                          ? "Business / anual"
+                          : "Free"}
                   </p>
-                  {plan === "free" ? (
+                  {freeAccessMode ? (
+                    <p className="text-xs text-emerald-400/90">
+                      Todas as ferramentas liberadas sem cobrança.
+                    </p>
+                  ) : plan === "free" ? (
                     <div className="space-y-1">
                       <p className="text-xs text-slate-500">Modo com trial do app.</p>
                       {accessChecked &&

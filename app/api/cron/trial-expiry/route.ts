@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceRole } from "@/lib/adminApiAuth";
+import { isAppPaywallDisabled } from "@/lib/appAccess";
 import { getAppTrialDays, parseTrialEndsAt } from "@/lib/appTrial";
 import { sendTrialExpiringEmail } from "@/lib/email";
 
@@ -23,6 +24,10 @@ export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (auth !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  }
+
+  if (isAppPaywallDisabled()) {
+    return NextResponse.json({ ok: true, notified: 0, skipped: "paywall_disabled" });
   }
 
   const admin = getSupabaseServiceRole();

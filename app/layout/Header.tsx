@@ -42,9 +42,11 @@ export function Header() {
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
   const accessChecked = useAccessStore((s) => s.checked);
+  const accessReason = useAccessStore((s) => s.reason);
   const accessPaid = useAccessStore((s) => s.hasPaidPlan);
   const accessDaysRemaining = useAccessStore((s) => s.daysRemaining);
   const accessTrialEndsAt = useAccessStore((s) => s.trialEndsAt);
+  const freeAccessMode = accessReason === "paywall_disabled";
   const requestNewSimulation = useCalculatorStore((s) => s.requestNewSimulation);
   const isCalculatorLike =
     pathname === "/calculator" ||
@@ -108,8 +110,14 @@ export function Header() {
               {user.email}
             </span>
           )}
+          {user && accessChecked && freeAccessMode && (
+              <span className="inline-flex max-w-[11rem] truncate rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200 sm:max-w-none sm:px-3 sm:text-xs">
+                Acesso completo gratuito
+              </span>
+            )}
           {user &&
             accessChecked &&
+            !freeAccessMode &&
             !accessPaid &&
             accessDaysRemaining != null &&
             accessDaysRemaining > 0 &&

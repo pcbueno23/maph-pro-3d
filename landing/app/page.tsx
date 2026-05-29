@@ -61,8 +61,8 @@ export default function Home() {
       a: "Não. O Maph Pro 3D roda 100% no navegador — PC, celular ou tablet. Também pode ser instalado como PWA na tela inicial do Android (Chrome) e iPhone (Safari), sem precisar de loja de apps.",
     },
     {
-      q: "Como funciona o período de teste?",
-      a: "Ao criar sua conta você recebe 7 dias com acesso completo ao plano Pro, sem precisar de cartão de crédito. Depois do trial você escolhe o plano que faz mais sentido para o seu momento.",
+      q: "Preciso pagar para usar?",
+      a: "Não. Ao criar sua conta você tem acesso completo a todas as ferramentas — calculadoras, produtos, estoque, vendas e relatórios — sem cartão de crédito.",
     },
     {
       q: "A calculadora realmente calcula as taxas da Shopee e do ML?",
@@ -236,7 +236,7 @@ export default function Home() {
               href={APP_SIGNUP_URL}
               className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-4 text-center text-base font-bold text-slate-950 shadow-xl shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-emerald-400 sm:w-auto"
             >
-              Começar teste grátis — 7 dias sem cartão
+              Criar conta grátis — acesso completo
             </Link>
             <Link
               href={APP_CALC_URL}
@@ -247,7 +247,7 @@ export default function Home() {
           </div>
 
           <p className="mt-4 text-xs text-slate-500">
-            Sem cartão · Sem compromisso · Cancele quando quiser
+            Sem cartão · Acesso completo · 100% no navegador
           </p>
 
           {/* Stats */}
@@ -255,7 +255,7 @@ export default function Home() {
             {[
               { n: 8, suf: "+", label: "custos calculados por peça" },
               { n: 3, suf: "", label: "canais: Shopee, ML e direto" },
-              { n: 7, suf: " dias", label: "de teste grátis, sem cartão" },
+              { n: 0, suf: " R$", label: "para criar conta e usar tudo" },
               { n: 100, suf: "%", label: "online — PC e celular" },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl border border-slate-800/80 bg-slate-950/70 p-4 text-left">
@@ -385,7 +385,7 @@ export default function Home() {
                 href={APP_SIGNUP_URL}
                 className="inline-flex rounded-2xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-400"
               >
-                Acessar todas as ferramentas grátis por 7 dias →
+                Criar conta e usar todas as ferramentas grátis →
               </Link>
             </div>
           </div>
@@ -517,7 +517,7 @@ export default function Home() {
                 Simples e sem surpresa
               </h2>
               <p className="mt-4 text-base text-slate-400">
-                Comece com 7 dias de trial do Pro, sem cartão. Assine quando — e se — fizer sentido.
+                Tudo liberado na sua conta — sem cartão. Planos pagos podem voltar no futuro; por enquanto é gratuito.
               </p>
             </div>
 
@@ -527,7 +527,7 @@ export default function Home() {
                 <p className="text-sm font-semibold text-slate-400">Free</p>
                 <p className="mt-4 text-4xl font-extrabold tracking-tight text-slate-50">R$ 0</p>
                 <p className="mt-1 text-sm text-slate-500">para sempre</p>
-                <p className="mt-3 text-sm text-slate-400">Calculadora básica após o trial.</p>
+                <p className="mt-3 text-sm text-slate-400">Calculadora pública sem cadastro.</p>
                 <Link
                   href={APP_SIGNUP_URL}
                   className="mt-8 block rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-center text-sm font-semibold text-slate-300 transition hover:border-slate-600 hover:bg-slate-900"
@@ -543,10 +543,10 @@ export default function Home() {
                 <p className="mt-1 text-sm text-slate-500">/mês · cancele quando quiser</p>
                 <p className="mt-3 text-sm text-slate-400">Todas as ferramentas sem limite.</p>
                 <Link
-                  href={`${APP_BASE_URL}/pricing`}
+                  href={APP_SIGNUP_URL}
                   className="mt-8 block rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-3 text-center text-sm font-semibold text-cyan-200 transition hover:bg-cyan-500/15"
                 >
-                  Assinar mensal
+                  Criar conta grátis
                 </Link>
               </div>
 
@@ -560,16 +560,16 @@ export default function Home() {
                 <p className="mt-1 text-sm text-slate-500">/ano · ~R$ 16,66/mês</p>
                 <p className="mt-3 text-sm font-semibold text-emerald-400">Você economiza R$ 158,90 por ano.</p>
                 <Link
-                  href={`${APP_BASE_URL}/pricing`}
+                  href={APP_SIGNUP_URL}
                   className="mt-8 block rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-center text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-400"
                 >
-                  Assinar anual e economizar
+                  Criar conta grátis
                 </Link>
               </div>
             </div>
 
             <p className="mt-6 text-center text-xs text-slate-600">
-              Todos os planos incluem 7 dias de trial completo. Sem cartão para começar.
+              Conta gratuita com acesso completo. Sem cartão para começar.
             </p>
           </div>
         </section>
@@ -593,7 +593,7 @@ export default function Home() {
                 href={APP_SIGNUP_URL}
                 className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-4 text-center text-base font-bold text-slate-950 shadow-xl shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-emerald-400 sm:w-auto"
               >
-                Começar meu teste grátis agora
+                Criar minha conta grátis agora
               </Link>
               <Link
                 href={APP_CALC_URL}
@@ -631,7 +631,7 @@ export default function Home() {
                 Seu próximo produto já merece um preço correto.
               </h2>
               <p className="mx-auto mt-4 max-w-lg text-base text-slate-400">
-                Crie sua conta grátis, configure em 5 minutos e use todas as ferramentas por 7 dias sem custo.
+                Crie sua conta grátis, configure em 5 minutos e use todas as ferramentas sem custo.
               </p>
               <Link
                 href={APP_SIGNUP_URL}
@@ -640,7 +640,7 @@ export default function Home() {
                 Criar conta grátis agora →
               </Link>
               <p className="mt-4 text-xs text-slate-600">
-                Sem cartão · 7 dias de trial · Cancele quando quiser
+                Sem cartão · Acesso completo gratuito
               </p>
             </div>
           </div>

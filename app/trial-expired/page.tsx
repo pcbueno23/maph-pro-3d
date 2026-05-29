@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Clock, CreditCard, LifeBuoy, ShieldCheck, Zap } from "lucide-react";
 import { useAccessStore } from "@/store/accessStore";
@@ -12,8 +13,18 @@ import { clearUserData } from "@/lib/clearUserData";
 export default function TrialExpiredPage() {
   const router = useRouter();
   const { clearAuth } = useAuthStore();
+  const accessChecked = useAccessStore((s) => s.checked);
+  const allowed = useAccessStore((s) => s.allowed);
+  const accessReason = useAccessStore((s) => s.reason);
   const trialEndsAt = useAccessStore((s) => s.trialEndsAt);
   const accessError = useAccessStore((s) => s.error);
+
+  useEffect(() => {
+    if (!accessChecked) return;
+    if (allowed === true || accessReason === "paywall_disabled") {
+      router.replace("/");
+    }
+  }, [accessChecked, allowed, accessReason, router]);
 
   const endLabel =
     trialEndsAt != null
