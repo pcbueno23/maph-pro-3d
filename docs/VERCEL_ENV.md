@@ -7,20 +7,23 @@ Siga: **Vercel → seu projeto → Settings → Environment Variables**.
 - **Production**: domínio principal.
 - **Preview**: URLs `*.vercel.app` (recomendado repetir as mesmas chaves de **teste** Stripe em Preview, se for só testar).
 
-## 2. Modo gratuito (recomendado agora)
+## 2. Modo gratuito (padrão — nada extra obrigatório)
+
+O app já sai **gratuito** se você **não** definir `APP_PAYWALL_ENABLED=true`.
 
 | Nome | Valor | Observação |
 |------|--------|------------|
-| `APP_PAYWALL_DISABLED` | `true` | **Obrigatório** para liberar o app para todos sem trial nem bloqueio. |
 | `NEXT_PUBLIC_APP_URL` | `https://seu-dominio.vercel.app` | URL **exata** do app (sem barra no final). |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://xxx.supabase.co` | Igual ao projeto Supabase. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` | Chave **anon** (pública). |
 
-Stripe e AbacatePay **podem ficar configurados** mesmo em modo grátis — não cobram até você religar o paywall.
+Opcional: `APP_PAYWALL_DISABLED=true` (redundante com o padrão). Menu **Assinaturas** oculto; `/pricing` redireciona para `/`.
+
+Stripe e AbacatePay **podem ficar configurados** — não cobram até ligar o paywall.
 
 ## 3. Modo pago (trial + assinatura)
 
-Quando quiser cobrar de novo: remova `APP_PAYWALL_DISABLED` ou defina `false` e redeploy.
+Quando quiser cobrar: adicione `APP_PAYWALL_ENABLED=true` e redeploy.
 
 | Nome | Valor | Observação |
 |------|--------|------------|

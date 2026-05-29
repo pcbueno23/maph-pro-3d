@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { clearUserData } from "@/lib/clearUserData";
 import { mobileNavLinksFlat } from "./navLinks";
 import { useAdminWhoami } from "@/hooks/useAdminWhoami";
+import { useFreeAccessMode } from "@/hooks/useFreeAccessMode";
 
 const titles: Record<string, string> = {
   "/": "Visão geral",
@@ -35,18 +36,15 @@ const titles: Record<string, string> = {
   "/admin": "Admin",
 };
 
-const mobileLinks = mobileNavLinksFlat;
 
 export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
   const accessChecked = useAccessStore((s) => s.checked);
-  const accessReason = useAccessStore((s) => s.reason);
   const accessPaid = useAccessStore((s) => s.hasPaidPlan);
   const accessDaysRemaining = useAccessStore((s) => s.daysRemaining);
   const accessTrialEndsAt = useAccessStore((s) => s.trialEndsAt);
-  const freeAccessMode = accessReason === "paywall_disabled";
   const requestNewSimulation = useCalculatorStore((s) => s.requestNewSimulation);
   const isCalculatorLike =
     pathname === "/calculator" ||
@@ -55,6 +53,10 @@ export function Header() {
     pathname === "/precificacao-marketplaces";
    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdmin = useAdminWhoami();
+  const freeAccessMode = useFreeAccessMode();
+  const mobileLinks = freeAccessMode
+    ? mobileNavLinksFlat.filter((l) => l.href !== "/pricing")
+    : mobileNavLinksFlat;
 
   const title =
     Object.entries(titles)

@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Clock, CreditCard, LifeBuoy, ShieldCheck, Zap } from "lucide-react";
 import { useAccessStore } from "@/store/accessStore";
+import { useFreeAccessMode } from "@/hooks/useFreeAccessMode";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
 import { clearUserData } from "@/lib/clearUserData";
@@ -18,6 +19,9 @@ export default function TrialExpiredPage() {
   const accessReason = useAccessStore((s) => s.reason);
   const trialEndsAt = useAccessStore((s) => s.trialEndsAt);
   const accessError = useAccessStore((s) => s.error);
+  const freeAccessMode = useFreeAccessMode();
+  const plansHref = freeAccessMode ? "/" : "/pricing";
+  const plansLabel = freeAccessMode ? "Ir para o app" : "Ver planos e reativar";
 
   useEffect(() => {
     if (!accessChecked) return;
@@ -116,11 +120,11 @@ export default function TrialExpiredPage() {
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
               <Link
-                href="/pricing"
+                href={plansHref}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
               >
                 <CreditCard className="h-4 w-4" />
-                Ver planos e reativar
+                {plansLabel}
               </Link>
               <Link
                 href="/suporte"
@@ -201,11 +205,11 @@ export default function TrialExpiredPage() {
         </p>
         <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
           <Link
-            href="/pricing"
+            href={plansHref}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-7 py-3.5 text-sm font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
           >
             <CreditCard className="h-4 w-4" />
-            Ver planos
+            {plansLabel}
           </Link>
           <Link
             href="/suporte"

@@ -15,6 +15,7 @@ import {
 import { useAdminWhoami } from "@/hooks/useAdminWhoami";
 import { useAlertCount } from "@/hooks/useAlertCount";
 import { useAffiliateMe } from "@/hooks/useAffiliateMe";
+import { useFreeAccessMode } from "@/hooks/useFreeAccessMode";
 
 function NavLinkRow({
   href,
@@ -111,6 +112,10 @@ function NavGroupSection({
 export function Sidebar() {
   const pathname = usePathname();
   const isAdmin = useAdminWhoami();
+  const freeAccessMode = useFreeAccessMode();
+  const secondaryAfterDivider = freeAccessMode
+    ? secondaryNavLinksAfterDivider.filter((l) => l.href !== "/pricing")
+    : secondaryNavLinksAfterDivider;
   const alertCount = useAlertCount();
   const affiliateState = useAffiliateMe();
 
@@ -177,7 +182,7 @@ export function Sidebar() {
             role="separator"
             aria-hidden
           />
-          {secondaryNavLinksAfterDivider.map(({ href, label, icon }) => (
+          {secondaryAfterDivider.map(({ href, label, icon }) => (
             <NavLinkRow
               key={href}
               href={href}

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { PlansManagement } from "@/components/billing/PlansManagement";
 import { isAppPaywallDisabled } from "@/lib/appAccess";
@@ -7,10 +8,13 @@ import { isAbacatePayPaymentProvider } from "@/lib/abacatepayPaidPlan";
 export const dynamic = "force-dynamic";
 
 export default function PricingPage() {
+  if (isAppPaywallDisabled()) {
+    redirect("/");
+  }
+
   const defaultPaymentProvider = isAbacatePayPaymentProvider()
     ? "abacatepay"
     : "stripe";
-  const freeAccessMode = isAppPaywallDisabled();
 
   return (
     <Suspense
@@ -18,10 +22,7 @@ export default function PricingPage() {
         <p className="p-6 text-sm text-slate-400">Carregando planos…</p>
       }
     >
-      <PlansManagement
-        defaultPaymentProvider={defaultPaymentProvider}
-        freeAccessMode={freeAccessMode}
-      />
+      <PlansManagement defaultPaymentProvider={defaultPaymentProvider} />
     </Suspense>
   );
 }
