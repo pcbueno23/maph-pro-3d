@@ -8,9 +8,11 @@ import { AdminSiteConfigTab } from "@/components/admin/AdminSiteConfigTab";
 import { AdminAuditTab } from "@/components/admin/AdminAuditTab";
 import { AdminHealthTab } from "@/components/admin/AdminHealthTab";
 import { AdminAfiliadosTab } from "@/components/admin/AdminAfiliadosTab";
+import { AdminLeadsTab } from "@/components/admin/AdminLeadsTab";
 
 type AdminTab =
   | "users"
+  | "leads"
   | "marketing"
   | "metrics"
   | "site"
@@ -20,6 +22,7 @@ type AdminTab =
 
 const tabs: { id: AdminTab; label: string }[] = [
   { id: "users", label: "Contas e trial" },
+  { id: "leads", label: "Leads (cadastro)" },
   { id: "marketing", label: "Fornecedores e promoções" },
   { id: "metrics", label: "Métricas" },
   { id: "site", label: "Site e acesso" },
@@ -58,6 +61,7 @@ export default function AdminPage() {
       </div>
 
       {tab === "users" ? <AdminUsersTab /> : null}
+      {tab === "leads" ? <AdminLeadsTab /> : null}
       {tab === "marketing" ? <AdminMarketingSection /> : null}
       {tab === "metrics" ? <AdminMetricsTab /> : null}
       {tab === "site" ? <AdminSiteConfigTab /> : null}

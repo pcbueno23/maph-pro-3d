@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/authStore";
@@ -8,9 +8,13 @@ import { useAccessStore } from "@/store/accessStore";
 import { clearUserData } from "@/lib/clearUserData";
 import { syncProductsOnLogin } from "@/lib/productSync";
 import { syncUserDataOnLogin } from "@/lib/userDataSync";
+import { fetchUserContact } from "@/lib/supabaseUserContact";
+import { isValidBrazilWhatsapp } from "@/lib/phoneBr";
 import { PersistUserData } from "./PersistUserData";
 
 const PUBLIC_PATHS = ["/login", "/reset-password", "/termos", "/privacidade", "/calculadora-gratuita", "/test-gcode"];
+
+const PHONE_SKIP_PATHS = ["/completar-cadastro", "/login", "/reset-password"];
 
 function isPublicCatalogPath(pathname: string | null): boolean {
   return Boolean(pathname?.startsWith("/c/"));
@@ -46,11 +50,17 @@ export function AuthGuard({ children }: Props) {
   const resetAccess = useAccessStore((s) => s.reset);
   const accessNonce = useAccessStore((s) => s.accessNonce);
   const lastUserIdRef = useRef<string | null>(null);
+  const [phoneChecked, setPhoneChecked] = useState(false);
+  const [hasValidPhone, setHasValidPhone] = useState(true);
   /** Id do último usuário que passou pelo sync (SPA). No refresh da página o ref zera — não limpamos dados nesse caso. */
   const previousSyncedUserIdRef = useRef<string | null>(null);
 
   const isPublic = PUBLIC_PATHS.includes(pathname) || isPublicCatalogPath(pathname) || isPublicAffiliatePath(pathname);
   const isPaywallException = isPaywallExceptionPath(pathname);
+  const skipPhoneCheck =
+    isPublic ||
+    PHONE_SKIP_PATHS.includes(pathname ?? "") ||
+    pathname?.startsWith("/admin");
 
   useEffect(() => {
     if (!supabase) {
@@ -138,9 +148,42 @@ export function AuthGuard({ children }: Props) {
   }, [initialized, isPublic, pathname, router, user]);
 
   useEffect(() => {
+    if (!initialized || !user || skipPhoneCheck) {
+      setPhoneChecked(true);
+      setHasValidPhone(true);
+      return;
+    }
+    let cancelled = false;
+    setPhoneChecked(false);
+    void (async () => {
+      try {
+        const existing = await fetchUserContact(user.id);
+        if (!cancelled) {
+          setHasValidPhone(Boolean(existing && isValidBrazilWhatsapp(existing)));
+        }
+      } catch {
+        if (!cancelled) setHasValidPhone(false);
+      } finally {
+        if (!cancelled) setPhoneChecked(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialized, user?.id, skipPhoneCheck]);
+
+  useEffect(() => {
+    if (!initialized || !user || skipPhoneCheck || !phoneChecked) return;
+    if (hasValidPhone) return;
+    router.replace("/completar-cadastro");
+  }, [initialized, user, skipPhoneCheck, phoneChecked, hasValidPhone, router]);
+
+  useEffect(() => {
     if (!user) {
       lastUserIdRef.current = null;
       resetAccess();
+      setPhoneChecked(false);
+      setHasValidPhone(true);
       return;
     }
     const userChanged = lastUserIdRef.current !== user.id;
@@ -293,11 +336,42 @@ export function AuthGuard({ children }: Props) {
     allowed === false &&
     !isPaywallException;
 
+  const phoneGate =
+    Boolean(user) &&
+    !skipPhoneCheck &&
+    phoneChecked &&
+    !hasValidPhone;
+
   if (!initialized && !isPublic) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-200">
         <div className="rounded-2xl bg-slate-900/80 px-6 py-4 text-sm text-slate-300 shadow-neon-cyan">
           Carregando sessão...
+        </div>
+      </div>
+    );
+  }
+
+  if (phoneGate) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-200">
+        <div className="rounded-2xl bg-slate-900/80 px-6 py-4 text-sm text-slate-300 shadow-neon-cyan">
+          Redirecionando…
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    Boolean(user) &&
+    !isPublic &&
+    !skipPhoneCheck &&
+    !phoneChecked
+  ) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-200">
+        <div className="rounded-2xl bg-slate-900/80 px-6 py-4 text-sm text-slate-300 shadow-neon-cyan">
+          Verificando cadastro…
         </div>
       </div>
     );

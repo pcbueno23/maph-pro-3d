@@ -11,6 +11,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPublicCatalog = Boolean(pathname?.startsWith("/c/"));
   const isTrialExpired = pathname === "/trial-expired";
+  const isCompleteSignup = pathname === "/completar-cadastro";
   const isAffiliatePage = Boolean(pathname?.startsWith("/afiliados/"));
   const isPublicCalculator = pathname === "/calculadora-gratuita";
   const isPrintRoute = Boolean(pathname?.startsWith("/print/"));
@@ -19,7 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  if (isPublicCatalog || isTrialExpired || isAffiliatePage) {
+  if (isPublicCatalog || isTrialExpired || isCompleteSignup || isAffiliatePage) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100">
         <main className="min-h-screen px-4 py-6 md:px-8">{children}</main>

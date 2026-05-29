@@ -9,6 +9,11 @@ import { supabase } from "@/lib/supabaseClient";
 import { upsertUserContact } from "@/lib/supabaseUserContact";
 import { userFacingAuthError } from "@/lib/authUserMessages";
 import { fireSignupConversion } from "@/components/providers/GoogleAds";
+import {
+  isValidBrazilWhatsapp,
+  normalizeBrazilWhatsapp,
+  WHATSAPP_INVALID_MESSAGE,
+} from "@/lib/phoneBr";
 
 function LoginFormContent() {
   const router = useRouter();
@@ -94,14 +99,19 @@ function LoginFormContent() {
         if (signInError) throw signInError;
         router.replace(redirectTo as Parameters<typeof router.replace>[0]);
       } else {
-        const phoneTrim = phone.trim();
+        const phoneNormalized = normalizeBrazilWhatsapp(phone);
+        if (!isValidBrazilWhatsapp(phoneNormalized)) {
+          setError(WHATSAPP_INVALID_MESSAGE);
+          setLoading(false);
+          return;
+        }
         /** Chave `contact_whatsapp` evita conflito com campos reservados do Auth; cópia em `public.user_contact`. */
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
             data: {
-              contact_whatsapp: phoneTrim,
+              contact_whatsapp: phoneNormalized,
             },
           },
         });
@@ -110,10 +120,13 @@ function LoginFormContent() {
         const uid = signUpData.user?.id;
         if (uid && signUpData.session) {
           try {
-            await upsertUserContact(uid, phoneTrim);
+            await upsertUserContact(uid, phoneNormalized);
           } catch {
-            /* trigger em auth.users também preenche user_contact quando há metadata */
+            /* trigger em auth.users também preenche user_contact / signup_leads */
           }
+          router.replace(redirectTo as Parameters<typeof router.replace>[0]);
+          setLoading(false);
+          return;
         }
         setMessage(
           "Conta criada. Verifique seu e-mail para confirmar o acesso, se necessário.",
@@ -250,7 +263,7 @@ function LoginFormContent() {
           {mode === "signup" ? (
             <div className="space-y-2 text-sm">
               <label className="mb-1 block text-xs text-slate-300">
-                Telefone (WhatsApp)
+                WhatsApp <span className="text-rose-400">*</span>
               </label>
               <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2">
                 <Phone className="h-4 w-4 shrink-0 text-slate-500" />
@@ -258,15 +271,16 @@ function LoginFormContent() {
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
+                  required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-                  placeholder="DDD + número do WhatsApp"
+                  placeholder="DDD + número (ex.: 11 99999-9999)"
                 />
               </div>
               <p className="text-[11px] text-slate-500">
-                Usamos para falar com você sobre pedidos, suporte e novidades do
-                seu negócio.
+                Obrigatório para criar a conta. Usamos para suporte e novidades do seu
+                negócio.
               </p>
             </div>
           ) : null}
