@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Shield, ChevronDown, Share2 } from "lucide-react";
+import { Shield, ChevronDown, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
 import {
   topNavLinks,
   navGroups,
@@ -16,6 +16,7 @@ import { useAdminWhoami } from "@/hooks/useAdminWhoami";
 import { useAlertCount } from "@/hooks/useAlertCount";
 import { useAffiliateMe } from "@/hooks/useAffiliateMe";
 import { useFreeAccessMode } from "@/hooks/useFreeAccessMode";
+import { useUIStore } from "@/store/uiStore";
 
 function NavLinkRow({
   href,
@@ -24,6 +25,7 @@ function NavLinkRow({
   pathname,
   badge,
   indent,
+  collapsed,
 }: {
   href: string;
   label: string;
@@ -31,13 +33,16 @@ function NavLinkRow({
   pathname: string;
   badge?: number;
   indent?: boolean;
+  collapsed?: boolean;
 }) {
   const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const hasBadge = badge != null && badge > 0;
   return (
     <Link
       href={href as Parameters<typeof Link>[0]["href"]}
-      className={`group flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
-        indent ? "pl-5" : ""
+      title={collapsed ? label : undefined}
+      className={`group relative flex items-center gap-2 rounded-xl py-2 text-sm transition-colors ${
+        collapsed ? "justify-center px-2" : `px-3 ${indent ? "pl-5" : ""}`
       } ${
         active
           ? "bg-slate-900 text-cyan-400 shadow-neon-cyan"
@@ -45,12 +50,20 @@ function NavLinkRow({
       }`}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      <span className="flex-1">{label}</span>
-      {badge != null && badge > 0 ? (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold leading-none text-white">
-          {badge > 99 ? "99+" : badge}
-        </span>
-      ) : null}
+      {collapsed ? (
+        hasBadge ? (
+          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" />
+        ) : null
+      ) : (
+        <>
+          <span className="flex-1">{label}</span>
+          {hasBadge ? (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold leading-none text-white">
+              {badge! > 99 ? "99+" : badge}
+            </span>
+          ) : null}
+        </>
+      )}
     </Link>
   );
 }
@@ -58,9 +71,11 @@ function NavLinkRow({
 function NavGroupSection({
   group,
   pathname,
+  collapsed,
 }: {
   group: (typeof navGroups)[number];
   pathname: string;
+  collapsed?: boolean;
 }) {
   const isGroupActive = group.links.some((l) =>
     l.href === "/" ? pathname === "/" : pathname.startsWith(l.href)
@@ -71,6 +86,24 @@ function NavGroupSection({
   useEffect(() => {
     if (isGroupActive) setOpen(true);
   }, [isGroupActive]);
+
+  if (collapsed) {
+    // Sem espaço pro cabeçalho do grupo (texto) — mostra os ícones direto, sem indentação.
+    return (
+      <div className="space-y-0.5">
+        {group.links.map(({ href, label, icon }) => (
+          <NavLinkRow
+            key={href}
+            href={href}
+            label={label}
+            icon={icon}
+            pathname={pathname}
+            collapsed
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -118,11 +151,33 @@ export function Sidebar() {
     : secondaryNavLinksAfterDivider;
   const alertCount = useAlertCount();
   const affiliateState = useAffiliateMe();
+  const { sidebarCollapsed, toggleSidebar } = useUIStore();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden h-[100dvh] max-h-[100dvh] w-64 flex-col overflow-hidden border-r border-slate-800 bg-slate-950/80 px-4 py-6 lg:flex">
-      <div className="mb-8 flex shrink-0 items-center gap-3">
-        <div className="h-12 w-12 overflow-hidden rounded-2xl bg-slate-900/80">
+    <aside
+      className={`fixed inset-y-0 left-0 z-40 hidden h-[100dvh] max-h-[100dvh] flex-col overflow-hidden border-r border-slate-800 bg-slate-950/80 py-6 transition-[width] duration-200 lg:flex ${
+        sidebarCollapsed ? "w-20 px-2" : "w-64 px-4"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+        className="absolute -right-3 top-8 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-slate-400 shadow-md hover:border-cyan-500/50 hover:text-cyan-300"
+      >
+        {sidebarCollapsed ? (
+          <ChevronRight className="h-3.5 w-3.5" />
+        ) : (
+          <ChevronLeft className="h-3.5 w-3.5" />
+        )}
+      </button>
+
+      <div
+        className={`mb-8 flex shrink-0 items-center gap-3 ${
+          sidebarCollapsed ? "justify-center" : ""
+        }`}
+      >
+        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-900/80">
           <Image
             src="/logo-maph-pro-3d.png"
             alt="MAPH PRO 3D"
@@ -132,12 +187,14 @@ export function Sidebar() {
             priority
           />
         </div>
-        <div>
-          <p className="text-base font-semibold tracking-tight text-slate-50">
-            MAPH PRO 3D
-          </p>
-          <p className="text-[11px] text-slate-400">Profissionalize seu negócio 3D</p>
-        </div>
+        {sidebarCollapsed ? null : (
+          <div>
+            <p className="text-base font-semibold tracking-tight text-slate-50">
+              MAPH PRO 3D
+            </p>
+            <p className="text-[11px] text-slate-400">Profissionalize seu negócio 3D</p>
+          </div>
+        )}
       </div>
 
       <nav className="flex min-h-0 flex-1 flex-col">
@@ -151,6 +208,7 @@ export function Sidebar() {
               icon={icon}
               pathname={pathname}
               badge={href === "/alertas" ? alertCount : undefined}
+              collapsed={sidebarCollapsed}
             />
           ))}
 
@@ -161,6 +219,7 @@ export function Sidebar() {
                 key={group.id}
                 group={group}
                 pathname={pathname}
+                collapsed={sidebarCollapsed}
               />
             ))}
           </div>
@@ -175,6 +234,7 @@ export function Sidebar() {
               label={label}
               icon={icon}
               pathname={pathname}
+              collapsed={sidebarCollapsed}
             />
           ))}
           <div
@@ -189,6 +249,7 @@ export function Sidebar() {
               label={label}
               icon={icon}
               pathname={pathname}
+              collapsed={sidebarCollapsed}
             />
           ))}
           {affiliateState.status === "active" ? (
@@ -197,6 +258,7 @@ export function Sidebar() {
               label="Afiliados"
               icon={Share2}
               pathname={pathname}
+              collapsed={sidebarCollapsed}
             />
           ) : null}
           {isAdmin ? (
@@ -205,6 +267,7 @@ export function Sidebar() {
               label="Admin"
               icon={Shield}
               pathname={pathname}
+              collapsed={sidebarCollapsed}
             />
           ) : null}
         </div>

@@ -296,6 +296,8 @@ export interface Product {
   catalogVisible?: boolean;
   /** Ordem no catálogo (menor primeiro). */
   catalogSort?: number | null;
+  /** Oculta o produto da listagem "solta" na aba Produtos (continua aparecendo em kits). */
+  hiddenStandalone?: boolean;
 }
 
 /** Configuração do catálogo público (link + exibir preços). */

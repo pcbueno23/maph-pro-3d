@@ -6,9 +6,11 @@ import { Header } from "./Header";
 import { SiteBanner } from "@/components/layout/SiteBanner";
 import { SitePublicLinks } from "@/components/layout/SitePublicLinks";
 import { MobileBottomNav } from "./MobileBottomNav";
+import { useUIStore } from "@/store/uiStore";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const isPublicCatalog = Boolean(pathname?.startsWith("/c/"));
   const isTrialExpired = pathname === "/trial-expired";
   const isCompleteSignup = pathname === "/completar-cadastro";
@@ -32,7 +34,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col lg:pl-64">
+      <div
+        className={`flex min-w-0 flex-1 flex-col transition-[padding] duration-200 ${
+          sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"
+        }`}
+      >
         <SiteBanner />
         <Header />
         <main className="flex flex-1 flex-col px-4 pb-20 pt-4 lg:px-8 lg:pb-6 lg:pt-6">

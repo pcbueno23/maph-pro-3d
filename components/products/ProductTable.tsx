@@ -1,13 +1,30 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, Boxes, ClipboardList, Eye, FileText, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Boxes,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ClipboardList,
+  Eye,
+  EyeOff,
+  FileText,
+  Layers,
+  Trash2,
+  Undo2,
+  X,
+} from "lucide-react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { Printer, Product, ProductAsset } from "@/types";
 import { useProductsStore } from "@/store/productsStore";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useProductKits } from "@/hooks/useProductKits";
 import { deleteProduct, upsertProductsForUser } from "@/lib/supabaseProducts";
 import { useInventoryStore } from "@/store/inventoryStore";
 import { useSuppliesStore } from "@/store/suppliesStore";
@@ -38,6 +55,17 @@ function formatPct(value: number) {
   return `${value.toFixed(1)}%`;
 }
 
+/** Ex.: 135 -> "2h 15min" · 60 -> "1h" · 45 -> "45min" · null -> "—" */
+function formatDuration(minutes: number | null | undefined): string {
+  if (typeof minutes !== "number" || !Number.isFinite(minutes) || minutes <= 0) return "—";
+  const total = Math.round(minutes);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m}min`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}min`;
+}
+
 interface Props {
   products: Product[];
   /** Abre o fluxo completo (wizard) com dados do produto — foto, STL, materiais, preço. */
@@ -46,9 +74,13 @@ interface Props {
 
 const CHANNEL_ORDER: ChannelKey[] = ["shopee", "mercadoLivre", "tiktok", "vendaDireta"];
 
+/** Total de colunas da tabela (usado pra colSpan de linhas informativas). */
+const TOTAL_COLUMNS = 1 + 1 + 1 + 1 + 1 + 1 + CHANNEL_ORDER.length * 3 + 1;
+
 type SortKey =
   | "price"
   | "totalCost"
+  | "printTimeMinutes"
   | "best"
   | `${ChannelKey}.price`
   | `${ChannelKey}.marginPercent`
@@ -65,6 +97,7 @@ type Row = {
 function sortValue(row: Row, key: SortKey): number {
   if (key === "price") return row.product.price ?? -Infinity;
   if (key === "totalCost") return row.product.totalCost ?? -Infinity;
+  if (key === "printTimeMinutes") return row.product.printTimeMinutes ?? -Infinity;
   if (key === "best") return row.best?.metric.profitPerHour ?? -Infinity;
   const [channel, field] = key.split(".") as [ChannelKey, "price" | "marginPercent" | "profitPerHour"];
   const metric = row.metrics[channel];
@@ -148,12 +181,115 @@ function ChannelCell({ metric }: { metric: ChannelMetrics[ChannelKey] }) {
   );
 }
 
+/** Custo · tempo · melhor canal · 4×3 colunas de canal — reaproveitado por linha solta, membro de kit e resumo do kit. */
+function MetricsCells({
+  totalCost,
+  printTimeMinutes,
+  metrics,
+  best,
+}: {
+  totalCost: number;
+  printTimeMinutes: number | null | undefined;
+  metrics: ChannelMetrics;
+  best: ReturnType<typeof bestChannel>;
+}) {
+  return (
+    <>
+      <td className="px-2 py-2 text-right tabular-nums text-slate-300">{formatBRL(totalCost)}</td>
+      <td className="px-2 py-2 text-right tabular-nums text-slate-300">{formatDuration(printTimeMinutes)}</td>
+      <td className="px-2 py-2 text-right">
+        {best ? (
+          <span className="inline-flex flex-col items-end">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-cyan-300">
+              {best.metric.channelLabel}
+            </span>
+            <span className="tabular-nums text-emerald-300">{formatBRL(best.metric.profitPerHour!)}/h</span>
+          </span>
+        ) : (
+          <span className="text-slate-600">—</span>
+        )}
+      </td>
+      {CHANNEL_ORDER.map((ch) => (
+        <ChannelCell key={ch} metric={metrics[ch]} />
+      ))}
+    </>
+  );
+}
+
+const iconBtnClass =
+  "rounded-lg border border-slate-800 bg-slate-900/60 p-1.5 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200";
+
+/** Botões de ação (Abrir, Ficha técnica, Materiais, Ordem, Ocultar opcional, Remover) — reaproveitado por linha solta e membro de kit. */
+function ActionsCell({
+  onOpen,
+  onTechnical,
+  onBom,
+  onOrder,
+  onRemove,
+  onToggleHidden,
+}: {
+  onOpen: () => void;
+  onTechnical: () => void;
+  onBom: () => void;
+  onOrder: () => void;
+  onRemove: () => void;
+  onToggleHidden?: () => void;
+}) {
+  return (
+    <td className="px-2 py-2">
+      <div className="flex items-center justify-end gap-1">
+        <button type="button" onClick={onOpen} title="Abrir informações do produto" className={iconBtnClass}>
+          <Eye className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onTechnical}
+          title="Editar ficha técnica (SKU, tempo, impressora padrão)"
+          className={iconBtnClass}
+        >
+          <FileText className="h-3.5 w-3.5" />
+        </button>
+        <button type="button" onClick={onBom} title="Materiais (BOM) do produto" className={iconBtnClass}>
+          <Boxes className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onOrder}
+          title="Criar uma ordem de produção a partir deste produto"
+          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-1.5 text-emerald-300 hover:bg-emerald-500/15"
+        >
+          <ClipboardList className="h-3.5 w-3.5" />
+        </button>
+        {onToggleHidden ? (
+          <button
+            type="button"
+            onClick={onToggleHidden}
+            title="Ocultar da lista solta (continua aparecendo em kits)"
+            className={iconBtnClass}
+          >
+            <EyeOff className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={onRemove}
+          title="Remover item"
+          className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-1.5 text-rose-300 hover:bg-rose-500/15"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </td>
+  );
+}
+
 export function ProductTable({ products, onOpenProductWizard }: Props) {
   const router = useRouter();
   const removeProduct = useProductsStore((s) => s.removeProduct);
   const updateProduct = useProductsStore((s) => s.updateProduct);
   const { user } = useAuthStore();
   const { settings } = useSettingsStore();
+  const { kits, save: saveKit, remove: removeKit } = useProductKits();
   useInventoryStore();
   useSuppliesStore();
 
@@ -178,11 +314,60 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
 
   const [sort, setSort] = useState<SortState | null>({ key: "best", dir: "desc" });
 
+  // Seleção pra criar kit direto na tabela
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showKitNamePrompt, setShowKitNamePrompt] = useState(false);
+  const [kitNameInput, setKitNameInput] = useState("");
+
+  // Grupos de kit minimizados (estado local, não persiste)
+  const [collapsedKitIds, setCollapsedKitIds] = useState<Set<string>>(new Set());
+
+  // Rodapé de produtos ocultos
+  const [showHiddenList, setShowHiddenList] = useState(false);
+
   function handleSort(key: SortKey) {
     setSort((prev) => {
       if (prev?.key === key) return { key, dir: prev.dir === "desc" ? "asc" : "desc" };
       return { key, dir: "desc" };
     });
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleKitCollapsed(kitId: string) {
+    setCollapsedKitIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(kitId)) next.delete(kitId);
+      else next.add(kitId);
+      return next;
+    });
+  }
+
+  function handleCreateKit() {
+    const name = kitNameInput.trim();
+    if (!name || selectedIds.size < 2) return;
+    saveKit(
+      name,
+      Array.from(selectedIds).map((id) => ({ productId: id, qty: 1 })),
+    );
+    setSelectedIds(new Set());
+    setKitNameInput("");
+    setShowKitNamePrompt(false);
+  }
+
+  async function setHidden(product: Product, hidden: boolean) {
+    const updated: Product = { ...product, hiddenStandalone: hidden, updatedAt: new Date().toISOString() };
+    updateProduct(updated);
+    if (user) {
+      await upsertProductsForUser(user.id, useProductsStore.getState().products);
+    }
   }
 
   useEffect(() => {
@@ -226,18 +411,42 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
     };
   }, [products, user?.id]);
 
-  const rows = useMemo<Row[]>(() => {
-    return products.map((product) => {
+  const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+
+  const kitGroups = useMemo(() => {
+    return kits
+      .map((kit) => {
+        const members = kit.components
+          .map((c) => ({ product: productById.get(c.productId), qty: c.qty }))
+          .filter((m): m is { product: Product; qty: number } => !!m.product);
+        if (members.length === 0) return null;
+        const totalCost = members.reduce((sum, m) => sum + (m.product.totalCost ?? 0) * m.qty, 0);
+        const printTimeMinutes = members.reduce(
+          (sum, m) => sum + (m.product.printTimeMinutes ?? 0) * m.qty,
+          0,
+        );
+        const metrics = computeChannelMetrics({ totalCost, printTimeMinutes }, settings.marketplacePresets);
+        const best = bestChannel(metrics);
+        return { kit, members, totalCost, printTimeMinutes, metrics, best };
+      })
+      .filter((g): g is NonNullable<typeof g> => g !== null);
+  }, [kits, productById, settings.marketplacePresets]);
+
+  const standaloneProducts = useMemo(() => products.filter((p) => !p.hiddenStandalone), [products]);
+  const hiddenProducts = useMemo(() => products.filter((p) => p.hiddenStandalone), [products]);
+
+  const standaloneRows = useMemo<Row[]>(() => {
+    return standaloneProducts.map((product) => {
       const metrics = computeChannelMetrics(product, settings.marketplacePresets);
       return { product, metrics, best: bestChannel(metrics) };
     });
-  }, [products, settings.marketplacePresets]);
+  }, [standaloneProducts, settings.marketplacePresets]);
 
-  const sortedRows = useMemo(() => {
-    if (!sort) return rows;
+  const sortedStandaloneRows = useMemo(() => {
+    if (!sort) return standaloneRows;
     const dirMul = sort.dir === "asc" ? 1 : -1;
-    return [...rows].sort((a, b) => dirMul * (sortValue(a, sort.key) - sortValue(b, sort.key)));
-  }, [rows, sort]);
+    return [...standaloneRows].sort((a, b) => dirMul * (sortValue(a, sort.key) - sortValue(b, sort.key)));
+  }, [standaloneRows, sort]);
 
   const materialCost = useMemo(() => {
     if (!bomProduct) return 0;
@@ -431,20 +640,81 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
   return (
     <>
       <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-2">
-        <p className="px-2 pb-2 pt-1 text-[11px] text-slate-500">
-          Preço, margem e lucro/hora por marketplace são estimados a partir do custo de
-          produção do produto + o preset ativo de cada canal (configurado nas
-          calculadoras). Clique num cabeçalho pra ordenar.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-2 pb-2 pt-1">
+          <p className="text-[11px] text-slate-500">
+            Preço, margem e lucro/hora por marketplace são estimados a partir do custo de
+            produção do produto + o preset ativo de cada canal. Clique num cabeçalho pra
+            ordenar. Marque 2+ produtos pra agrupar num kit.
+          </p>
+          {selectedIds.size > 0 ? (
+            <div className="flex items-center gap-2">
+              {showKitNamePrompt ? (
+                <>
+                  <input
+                    autoFocus
+                    value={kitNameInput}
+                    onChange={(e) => setKitNameInput(e.currentTarget.value)}
+                    placeholder="Nome do kit"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleCreateKit();
+                      if (e.key === "Escape") setShowKitNamePrompt(false);
+                    }}
+                    className="rounded-lg border border-slate-800 bg-slate-950/60 px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/25"
+                  />
+                  <button
+                    type="button"
+                    disabled={!kitNameInput.trim()}
+                    onClick={handleCreateKit}
+                    className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-semibold text-cyan-200 disabled:opacity-40"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Confirmar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowKitNamePrompt(false)}
+                    className="rounded-lg p-1.5 text-slate-400 hover:text-slate-200"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs text-slate-400">{selectedIds.size} selecionado(s)</span>
+                  <button
+                    type="button"
+                    disabled={selectedIds.size < 2}
+                    onClick={() => setShowKitNamePrompt(true)}
+                    title={selectedIds.size < 2 ? "Selecione pelo menos 2 produtos" : "Criar kit com os selecionados"}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/70 px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-900 disabled:opacity-40"
+                  >
+                    <Layers className="h-3.5 w-3.5" />
+                    Criar kit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIds(new Set())}
+                    className="rounded-lg p-1.5 text-slate-400 hover:text-slate-200"
+                    title="Cancelar seleção"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+          ) : null}
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-xs">
             <thead className="text-[10px] uppercase tracking-[0.1em] text-slate-500">
               <tr className="border-b border-slate-800">
+                <th rowSpan={2} className="w-8 px-2 py-2 text-left align-bottom" />
                 <th rowSpan={2} className="px-2 py-2 text-left align-bottom">
                   Produto
                 </th>
                 <SortHeader label="Preço" sortKey="price" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
                 <SortHeader label="Custo" sortKey="totalCost" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
+                <SortHeader label="Tempo" sortKey="printTimeMinutes" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
                 <SortHeader label="Melhor canal" sortKey="best" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
                 {CHANNEL_ORDER.map((ch) => (
                   <th
@@ -461,9 +731,8 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
               </tr>
               <tr className="border-b border-slate-800">
                 {CHANNEL_ORDER.map((ch) => (
-                  <>
+                  <Fragment key={ch}>
                     <SortHeader
-                      key={`${ch}-price`}
                       label="Preço"
                       sortKey={`${ch}.price`}
                       sort={sort}
@@ -471,28 +740,143 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                       className="border-l border-slate-800"
                     />
                     <SortHeader
-                      key={`${ch}-margin`}
                       label="Margem"
                       sortKey={`${ch}.marginPercent`}
                       sort={sort}
                       onSort={handleSort}
                     />
                     <SortHeader
-                      key={`${ch}-hour`}
                       label="Margem/h"
                       sortKey={`${ch}.profitPerHour`}
                       sort={sort}
                       onSort={handleSort}
                     />
-                  </>
+                  </Fragment>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/70">
-              {sortedRows.map(({ product, metrics, best }) => {
+              {kitGroups.map(({ kit, members, totalCost, printTimeMinutes, metrics, best }) => {
+                const collapsed = collapsedKitIds.has(kit.id);
+                return (
+                  <Fragment key={kit.id}>
+                    <tr className="bg-slate-900/50">
+                      <td className="px-2 py-2" />
+                      <td className="px-2 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => toggleKitCollapsed(kit.id)}
+                            title={collapsed ? "Expandir kit" : "Minimizar kit"}
+                            className="rounded p-0.5 text-slate-400 hover:text-cyan-300"
+                          >
+                            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </button>
+                          <Layers className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
+                          <span className="text-sm font-semibold text-slate-100">{kit.name}</span>
+                          <span className="text-[10px] text-slate-500">({members.length} itens)</span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-right text-slate-600">—</td>
+                      <MetricsCells totalCost={totalCost} printTimeMinutes={printTimeMinutes} metrics={metrics} best={best} />
+                      <td className="px-2 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (typeof window !== "undefined" && !window.confirm(`Excluir o kit "${kit.name}"? Os produtos não são afetados.`))
+                              return;
+                            removeKit(kit.id);
+                          }}
+                          title="Excluir kit"
+                          className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-1.5 text-rose-300 hover:bg-rose-500/15"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                    {!collapsed &&
+                      members.map(({ product, qty }) => {
+                        const metricsRow = computeChannelMetrics(product, settings.marketplacePresets);
+                        const bestRow = bestChannel(metricsRow);
+                        return (
+                          <tr key={`${kit.id}-${product.id}`} className="bg-slate-950/20">
+                            <td className="px-2 py-2" />
+                            <td className="py-2 pl-8 pr-2">
+                              <div className="flex items-center gap-2 border-l-2 border-slate-800 pl-2.5">
+                                <p className="truncate text-sm text-slate-200">{product.name}</p>
+                                {qty !== 1 ? (
+                                  <span className="shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-300">
+                                    {qty}×
+                                  </span>
+                                ) : null}
+                              </div>
+                            </td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-100">
+                              {product.price.toLocaleString("pt-BR", { style: "currency", currency: product.currency })}
+                            </td>
+                            <MetricsCells
+                              totalCost={(product.totalCost ?? 0) * qty}
+                              printTimeMinutes={product.printTimeMinutes != null ? product.printTimeMinutes * qty : null}
+                              metrics={metricsRow}
+                              best={bestRow}
+                            />
+                            <ActionsCell
+                              onOpen={() => {
+                                if (!user) {
+                                  if (typeof window !== "undefined") window.alert("Faça login para abrir e editar o produto.");
+                                  return;
+                                }
+                                onOpenProductWizard?.(product);
+                              }}
+                              onTechnical={() => openTechnical(product)}
+                              onBom={() => openBom(product)}
+                              onOrder={() => {
+                                const params = new URLSearchParams();
+                                params.set("create", "1");
+                                params.set("productId", product.id);
+                                if (product.defaultPrinterId) params.set("printerId", product.defaultPrinterId);
+                                params.set("qty", "1");
+                                router.push(`/ordens?${params.toString()}`);
+                              }}
+                              onRemove={() => handleRemove(product)}
+                            />
+                          </tr>
+                        );
+                      })}
+                  </Fragment>
+                );
+              })}
+
+              {kitGroups.length > 0 && sortedStandaloneRows.length > 0 ? (
+                <tr>
+                  <td colSpan={TOTAL_COLUMNS} className="px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-slate-600">
+                    Produtos soltos
+                  </td>
+                </tr>
+              ) : null}
+
+              {sortedStandaloneRows.length === 0 ? (
+                <tr>
+                  <td colSpan={TOTAL_COLUMNS} className="px-2 py-4 text-center text-slate-500">
+                    {kitGroups.length > 0
+                      ? "Nenhum produto solto (todos ocultos ou só aparecem dentro de kits)."
+                      : "Nenhum produto."}
+                  </td>
+                </tr>
+              ) : null}
+
+              {sortedStandaloneRows.map(({ product, metrics, best }) => {
                 const unitCost = product.totalCost ?? 0;
                 return (
                   <tr key={product.id} className="hover:bg-slate-900/40">
+                    <td className="px-2 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(product.id)}
+                        onChange={() => toggleSelect(product.id)}
+                        className="h-4 w-4 accent-cyan-400"
+                      />
+                    </td>
                     <td className="px-2 py-2">
                       <div className="flex items-center gap-2.5">
                         <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-slate-700 bg-gradient-to-br from-cyan-500/20 to-emerald-500/20">
@@ -532,91 +916,70 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                         currency: product.currency,
                       })}
                     </td>
-                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">
-                      {formatBRL(unitCost)}
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      {best ? (
-                        <span className="inline-flex flex-col items-end">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-cyan-300">
-                            {best.metric.channelLabel}
-                          </span>
-                          <span className="tabular-nums text-emerald-300">
-                            {formatBRL(best.metric.profitPerHour!)}/h
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-600">—</span>
-                      )}
-                    </td>
-                    {CHANNEL_ORDER.map((ch) => (
-                      <ChannelCell key={ch} metric={metrics[ch]} />
-                    ))}
-                    <td className="px-2 py-2">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!user) {
-                              if (typeof window !== "undefined") {
-                                window.alert("Faça login para abrir e editar o produto.");
-                              }
-                              return;
-                            }
-                            onOpenProductWizard?.(product);
-                          }}
-                          title="Abrir informações do produto"
-                          className="rounded-lg border border-slate-800 bg-slate-900/60 p-1.5 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openTechnical(product)}
-                          title="Editar ficha técnica (SKU, tempo, impressora padrão)"
-                          className="rounded-lg border border-slate-800 bg-slate-900/60 p-1.5 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200"
-                        >
-                          <FileText className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openBom(product)}
-                          title="Materiais (BOM) do produto"
-                          className="rounded-lg border border-slate-800 bg-slate-900/60 p-1.5 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200"
-                        >
-                          <Boxes className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const params = new URLSearchParams();
-                            params.set("create", "1");
-                            params.set("productId", product.id);
-                            if (product.defaultPrinterId) params.set("printerId", product.defaultPrinterId);
-                            params.set("qty", "1");
-                            router.push(`/ordens?${params.toString()}`);
-                          }}
-                          title="Criar uma ordem de produção a partir deste produto"
-                          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-1.5 text-emerald-300 hover:bg-emerald-500/15"
-                        >
-                          <ClipboardList className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemove(product)}
-                          title="Remover item"
-                          className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-1.5 text-rose-300 hover:bg-rose-500/15"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
+                    <MetricsCells
+                      totalCost={unitCost}
+                      printTimeMinutes={product.printTimeMinutes}
+                      metrics={metrics}
+                      best={best}
+                    />
+                    <ActionsCell
+                      onOpen={() => {
+                        if (!user) {
+                          if (typeof window !== "undefined") {
+                            window.alert("Faça login para abrir e editar o produto.");
+                          }
+                          return;
+                        }
+                        onOpenProductWizard?.(product);
+                      }}
+                      onTechnical={() => openTechnical(product)}
+                      onBom={() => openBom(product)}
+                      onOrder={() => {
+                        const params = new URLSearchParams();
+                        params.set("create", "1");
+                        params.set("productId", product.id);
+                        if (product.defaultPrinterId) params.set("printerId", product.defaultPrinterId);
+                        params.set("qty", "1");
+                        router.push(`/ordens?${params.toString()}`);
+                      }}
+                      onRemove={() => handleRemove(product)}
+                      onToggleHidden={() => setHidden(product, true)}
+                    />
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+
+        {hiddenProducts.length > 0 ? (
+          <div className="mt-2 border-t border-slate-800 px-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowHiddenList((v) => !v)}
+              className="text-[11px] text-slate-500 hover:text-slate-300"
+            >
+              {showHiddenList ? "Esconder" : "Mostrar"} {hiddenProducts.length} produto(s) oculto(s) da lista
+            </button>
+            {showHiddenList ? (
+              <ul className="mt-1.5 space-y-1">
+                {hiddenProducts.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-2 text-xs text-slate-400">
+                    <span className="truncate">{p.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setHidden(p, false)}
+                      className="inline-flex shrink-0 items-center gap-1 text-cyan-300 hover:text-cyan-200"
+                    >
+                      <Undo2 className="h-3 w-3" />
+                      Mostrar de novo
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {bomOpen && bomProduct ? (

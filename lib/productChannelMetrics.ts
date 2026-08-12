@@ -28,13 +28,17 @@ function hoursFromMinutes(min: number | null | undefined): number | null {
   return min / 60;
 }
 
+export type ChannelMetricsCostSource = Pick<Product, "totalCost" | "printTimeMinutes">;
+
 /**
- * Preço/margem/lucro-por-hora estimados pra cada um dos 4 canais, a partir do custo de
- * produção do produto (`totalCost`) + o preset ativo daquele canal (mesma lógica das
- * caixinhas da aba Custo 3D). `null` quando o canal não tem preset ativo configurado.
+ * Preço/margem/lucro-por-hora estimados pra cada um dos 4 canais, a partir de um custo
+ * de produção (`totalCost`) + o preset ativo daquele canal (mesma lógica das caixinhas
+ * da aba Custo 3D). `null` quando o canal não tem preset ativo configurado. Aceita
+ * qualquer objeto com `totalCost`/`printTimeMinutes` — não só um `Product` salvo — pra
+ * dar pra calcular a linha resumida de um kit (custo/tempo somados dos componentes).
  */
 export function computeChannelMetrics(
-  product: Product,
+  product: ChannelMetricsCostSource,
   marketplacePresets: SettingsValues["marketplacePresets"],
 ): ChannelMetrics {
   const totalCost = product.totalCost ?? 0;

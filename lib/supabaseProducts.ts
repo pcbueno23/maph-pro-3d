@@ -25,6 +25,7 @@ export async function fetchUserProducts(userId: string): Promise<Product[]> {
         suggested_price_direct,
         catalog_visible,
         catalog_sort,
+        hidden_standalone,
         created_at,
         updated_at
       `,
@@ -59,6 +60,7 @@ export async function fetchUserProducts(userId: string): Promise<Product[]> {
       row.suggested_price_direct != null ? Number(row.suggested_price_direct) : undefined,
     catalogVisible: row.catalog_visible === true,
     catalogSort: row.catalog_sort != null ? Number(row.catalog_sort) : null,
+    hiddenStandalone: row.hidden_standalone === true,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   })) as Product[];
@@ -91,6 +93,7 @@ export async function upsertProductsForUser(
     suggested_price_direct: p.suggestedPriceDirect ?? null,
     catalog_visible: p.catalogVisible ?? false,
     catalog_sort: p.catalogSort ?? null,
+    hidden_standalone: p.hiddenStandalone ?? false,
     created_at: p.createdAt,
     updated_at: p.updatedAt,
   }));
