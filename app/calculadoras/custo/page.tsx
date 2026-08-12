@@ -314,20 +314,20 @@ export default function Custo3DPage() {
               <button
                 type="button"
                 disabled={unitCost == null}
-                onClick={() => router.push("/calculadoras/venda-direta")}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-900"
-              >
-                <ArrowRight className="h-4 w-4" />
-                Ir para Venda Direta
-              </button>
-              <button
-                type="button"
-                disabled={unitCost == null}
                 onClick={() => router.push("/calculadoras/tiktok")}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-900"
               >
                 <ArrowRight className="h-4 w-4" />
                 Ir para TikTok Shop
+              </button>
+              <button
+                type="button"
+                disabled={unitCost == null}
+                onClick={() => router.push("/calculadoras/venda-direta")}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-900"
+              >
+                <ArrowRight className="h-4 w-4" />
+                Ir para Venda Direta
               </button>
             </div>
             <p className="mt-3 text-xs text-slate-500">
@@ -390,6 +390,33 @@ export default function Custo3DPage() {
           </MarketplacePresetBox>
 
           <MarketplacePresetBox
+            title="TikTok Shop"
+            presetName={activeTiktokPreset?.name}
+            hasPreset={!!activeTiktokPreset}
+            onConfigure={() => router.push("/calculadoras/tiktok")}
+            quickMargin={tiktokQuickMargin}
+            onQuickMarginChange={setTiktokQuickMargin}
+          >
+            {tiktokResult && (
+              <div className="space-y-1.5">
+                <Row label="Preço sugerido" value={tiktokResult.precoFinalSugerido} />
+                <Row label="Lucro líquido" value={tiktokResult.lucroLiquido} />
+                <div className="flex justify-between gap-4 text-sm">
+                  <span className="text-slate-400">Margem real</span>
+                  <span
+                    className={`shrink-0 tabular-nums font-semibold ${
+                      tiktokResult.margemReal >= 0 ? "text-emerald-300" : "text-rose-300"
+                    }`}
+                  >
+                    {fmtPct(tiktokResult.margemReal)}
+                  </span>
+                </div>
+                <LucroHoraRow value={tiktokLucroHora} />
+              </div>
+            )}
+          </MarketplacePresetBox>
+
+          <MarketplacePresetBox
             title="Venda Direta"
             presetName={activeVdPreset?.name}
             hasPreset={!!activeVdPreset}
@@ -443,33 +470,6 @@ export default function Custo3DPage() {
                     </p>
                   )}
                 </div>
-              </div>
-            )}
-          </MarketplacePresetBox>
-
-          <MarketplacePresetBox
-            title="TikTok Shop"
-            presetName={activeTiktokPreset?.name}
-            hasPreset={!!activeTiktokPreset}
-            onConfigure={() => router.push("/calculadoras/tiktok")}
-            quickMargin={tiktokQuickMargin}
-            onQuickMarginChange={setTiktokQuickMargin}
-          >
-            {tiktokResult && (
-              <div className="space-y-1.5">
-                <Row label="Preço sugerido" value={tiktokResult.precoFinalSugerido} />
-                <Row label="Lucro líquido" value={tiktokResult.lucroLiquido} />
-                <div className="flex justify-between gap-4 text-sm">
-                  <span className="text-slate-400">Margem real</span>
-                  <span
-                    className={`shrink-0 tabular-nums font-semibold ${
-                      tiktokResult.margemReal >= 0 ? "text-emerald-300" : "text-rose-300"
-                    }`}
-                  >
-                    {fmtPct(tiktokResult.margemReal)}
-                  </span>
-                </div>
-                <LucroHoraRow value={tiktokLucroHora} />
               </div>
             )}
           </MarketplacePresetBox>
