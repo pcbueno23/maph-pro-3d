@@ -3,8 +3,8 @@ import { MARKETPLACES } from "@/lib/constants";
 
 export type Marketplace = (typeof MARKETPLACES)[number];
 
-/** Canal usado no card do produto (inclui venda direta, salva pela calculadora). */
-export type ProductMarketplaceChannel = Marketplace | "Venda Direta";
+/** Canal usado no card do produto (inclui venda direta e TikTok Shop, salvos pela calculadora). */
+export type ProductMarketplaceChannel = Marketplace | "Venda Direta" | "TikTok Shop";
 
 /** Padrões globais (Configurações) e fallback da calculadora — mesma forma do bloco `advanced` do formulário. */
 export const CALCULATOR_ADVANCED_DEFAULTS = {
@@ -387,6 +387,25 @@ const mlInputsSchema = z.object({
   estimativaVendas: z.number().default(100),
 });
 
+const tiktokInputsSchema = z.object({
+  fullCustoUnidade: z.number().default(0),
+  valorCompra: z.number().default(0),
+  custoEnvio: z.number().default(0),
+  isKit: z.boolean().default(false),
+  kitQtd: z.number().default(2),
+  modo: z.enum(["margem", "lucroRS", "precoTravado"]).default("margem"),
+  metaLucroPercent: z.number().default(20),
+  precoTravado: z.number().default(50),
+  metaLucroRS: z.number().default(10),
+  tributacaoPercent: z.number().default(0),
+  participaSFP: z.boolean().default(true),
+  comissaoAfiliadoPercent: z.number().default(0),
+  roasAlvo: z.number().default(0),
+  novoVendedorIsento: z.boolean().default(false),
+  estimativaVendas: z.number().default(100),
+  referenciaPrecoMercado: z.number().default(0),
+});
+
 const vendaDiretaInputsSchema = z.object({
   fullCustoUnidade: z.number().default(0),
   margem: z.number().default(25),
@@ -422,17 +441,21 @@ export const marketplacePresetsSchema = z
     shopee: presetListSchema(shopeeInputsSchema),
     mercadoLivre: presetListSchema(mlInputsSchema),
     vendaDireta: presetListSchema(vendaDiretaInputsSchema),
+    tiktok: presetListSchema(tiktokInputsSchema),
     activeShopeeId: z.string().nullable().default(null),
     activeMercadoLivreId: z.string().nullable().default(null),
     activeVendaDiretaId: z.string().nullable().default(null),
+    activeTiktokId: z.string().nullable().default(null),
   })
   .default({
     shopee: [],
     mercadoLivre: [],
     vendaDireta: [],
+    tiktok: [],
     activeShopeeId: null,
     activeMercadoLivreId: null,
     activeVendaDiretaId: null,
+    activeTiktokId: null,
   });
 
 export type MarketplacePresets = z.infer<typeof marketplacePresetsSchema>;

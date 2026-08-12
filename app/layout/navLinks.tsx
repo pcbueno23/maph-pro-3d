@@ -47,6 +47,7 @@ export const navGroups: NavGroup[] = [
       { href: "/calculadoras/shopee", label: "Shopee", icon: Calculator },
       { href: "/calculadoras/mercado-livre", label: "Mercado Livre", icon: Calculator },
       { href: "/calculadoras/venda-direta", label: "Venda direta", icon: Calculator },
+      { href: "/calculadoras/tiktok", label: "TikTok Shop", icon: Calculator },
       { href: "/orcamentos", label: "Orçamentos", icon: FileText },
     ],
   },

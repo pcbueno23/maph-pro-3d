@@ -12,6 +12,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { calcularPrecoShopee } from "@/lib/engines/shopee/engine";
 import { calcularPrecoML } from "@/lib/engines/ml/engine";
 import { calcularPrecoVendaDireta } from "@/lib/engines/vendaDireta/engine";
+import { calcularPrecoTikTok } from "@/lib/engines/tiktok/engine";
 
 function fmtBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -127,6 +128,7 @@ export default function Custo3DPage() {
   const activeShopeePreset = mp.shopee.find((p) => p.id === mp.activeShopeeId) ?? null;
   const activeMlPreset = mp.mercadoLivre.find((p) => p.id === mp.activeMercadoLivreId) ?? null;
   const activeVdPreset = mp.vendaDireta.find((p) => p.id === mp.activeVendaDiretaId) ?? null;
+  const activeTiktokPreset = mp.tiktok.find((p) => p.id === mp.activeTiktokId) ?? null;
 
   const [shopeeQuickMargin, setShopeeQuickMargin] = useState(20);
   useEffect(() => {
@@ -145,6 +147,12 @@ export default function Custo3DPage() {
     if (activeVdPreset) setVdQuickMargin(activeVdPreset.inputs.margem);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeVdPreset?.id]);
+
+  const [tiktokQuickMargin, setTiktokQuickMargin] = useState(20);
+  useEffect(() => {
+    if (activeTiktokPreset) setTiktokQuickMargin(activeTiktokPreset.inputs.metaLucroPercent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTiktokPreset?.id]);
 
   const shopeeResult = useMemo(() => {
     if (!activeShopeePreset || unitCost == null) return null;
@@ -178,6 +186,17 @@ export default function Custo3DPage() {
     });
   }, [activeVdPreset, unitCost, vdQuickMargin]);
 
+  const tiktokResult = useMemo(() => {
+    if (!activeTiktokPreset || unitCost == null) return null;
+    return calcularPrecoTikTok({
+      ...activeTiktokPreset.inputs,
+      fullCustoUnidade: unitCost,
+      valorCompra: 0,
+      modo: "margem",
+      metaLucroPercent: tiktokQuickMargin,
+    });
+  }, [activeTiktokPreset, unitCost, tiktokQuickMargin]);
+
   // Horas de impressão por peça (mesma base usada pelo motor genérico), pra calcular
   // lucro/h independente por marketplace e comparar qual canal vale mais produzir em escala.
   const hoursPerUnit = results?.printHoursPerUnit ?? 0;
@@ -188,6 +207,8 @@ export default function Custo3DPage() {
     vdResult && hoursPerUnit > 0 ? vdResult.lucroPix / hoursPerUnit : null;
   const vdLucroHoraCard =
     vdResult && hoursPerUnit > 0 ? vdResult.lucroCard / hoursPerUnit : null;
+  const tiktokLucroHora =
+    tiktokResult && hoursPerUnit > 0 ? tiktokResult.lucroLiquido / hoursPerUnit : null;
 
   const custoBreakdown = useMemo(() => {
     if (!results) return null;
@@ -298,6 +319,15 @@ export default function Custo3DPage() {
               >
                 <ArrowRight className="h-4 w-4" />
                 Ir para Venda Direta
+              </button>
+              <button
+                type="button"
+                disabled={unitCost == null}
+                onClick={() => router.push("/calculadoras/tiktok")}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-900"
+              >
+                <ArrowRight className="h-4 w-4" />
+                Ir para TikTok Shop
               </button>
             </div>
             <p className="mt-3 text-xs text-slate-500">
@@ -413,6 +443,33 @@ export default function Custo3DPage() {
                     </p>
                   )}
                 </div>
+              </div>
+            )}
+          </MarketplacePresetBox>
+
+          <MarketplacePresetBox
+            title="TikTok Shop"
+            presetName={activeTiktokPreset?.name}
+            hasPreset={!!activeTiktokPreset}
+            onConfigure={() => router.push("/calculadoras/tiktok")}
+            quickMargin={tiktokQuickMargin}
+            onQuickMarginChange={setTiktokQuickMargin}
+          >
+            {tiktokResult && (
+              <div className="space-y-1.5">
+                <Row label="Preço sugerido" value={tiktokResult.precoFinalSugerido} />
+                <Row label="Lucro líquido" value={tiktokResult.lucroLiquido} />
+                <div className="flex justify-between gap-4 text-sm">
+                  <span className="text-slate-400">Margem real</span>
+                  <span
+                    className={`shrink-0 tabular-nums font-semibold ${
+                      tiktokResult.margemReal >= 0 ? "text-emerald-300" : "text-rose-300"
+                    }`}
+                  >
+                    {fmtPct(tiktokResult.margemReal)}
+                  </span>
+                </div>
+                <LucroHoraRow value={tiktokLucroHora} />
               </div>
             )}
           </MarketplacePresetBox>

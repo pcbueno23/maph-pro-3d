@@ -6,15 +6,16 @@ import { useAuthStore } from "@/store/authStore";
 import { saveUserSettings } from "@/lib/supabaseUserData";
 import type { SettingsValues } from "@/types";
 
-export type MarketplacePresetChannel = "shopee" | "mercadoLivre" | "vendaDireta";
+export type MarketplacePresetChannel = "shopee" | "mercadoLivre" | "vendaDireta" | "tiktok";
 
 const ACTIVE_KEY: Record<
   MarketplacePresetChannel,
-  "activeShopeeId" | "activeMercadoLivreId" | "activeVendaDiretaId"
+  "activeShopeeId" | "activeMercadoLivreId" | "activeVendaDiretaId" | "activeTiktokId"
 > = {
   shopee: "activeShopeeId",
   mercadoLivre: "activeMercadoLivreId",
   vendaDireta: "activeVendaDiretaId",
+  tiktok: "activeTiktokId",
 };
 
 /**

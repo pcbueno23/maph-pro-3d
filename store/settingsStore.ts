@@ -52,9 +52,11 @@ export const defaultSettings: SettingsValues = {
     shopee: [],
     mercadoLivre: [],
     vendaDireta: [],
+    tiktok: [],
     activeShopeeId: null,
     activeMercadoLivreId: null,
     activeVendaDiretaId: null,
+    activeTiktokId: null,
   },
 };
 

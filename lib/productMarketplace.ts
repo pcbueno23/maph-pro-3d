@@ -1,7 +1,7 @@
 import type { Marketplace, ProductMarketplaceChannel } from "@/types";
 
 /** Escolha ao salvar produto a partir da calculadora. */
-export type SaveProductChannel = "shopee" | "mercado_livre" | "venda_direta";
+export type SaveProductChannel = "shopee" | "mercado_livre" | "venda_direta" | "tiktok";
 
 export function productMarketplaceFromSaveChannel(
   c: SaveProductChannel,
@@ -13,6 +13,8 @@ export function productMarketplaceFromSaveChannel(
       return "Mercado Livre";
     case "venda_direta":
       return "Venda Direta";
+    case "tiktok":
+      return "TikTok Shop";
   }
 }
 
@@ -20,7 +22,7 @@ export function productMarketplaceFromSaveChannel(
 export function calculatorMarketplaceFromProductChannel(
   m: ProductMarketplaceChannel,
 ): Marketplace {
-  if (m === "Venda Direta") return "Shopee";
+  if (m === "Venda Direta" || m === "TikTok Shop") return "Shopee";
   return m;
 }
 
@@ -35,6 +37,8 @@ export function productChannelBadgeLabel(m: ProductMarketplaceChannel): string {
       return "AMAZON";
     case "Venda Direta":
       return "VENDA DIRETA";
+    case "TikTok Shop":
+      return "TIKTOK SHOP";
     default:
       return String(m).toUpperCase();
   }
