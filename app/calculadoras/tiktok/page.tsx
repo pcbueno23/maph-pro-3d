@@ -145,6 +145,10 @@ export default function TikTokCalculatorPage() {
         channelMarginPercent: Number.isFinite(result.margemReal) ? result.margemReal : null,
         marketplace: "TikTok Shop",
         totalCost: result.custoBase,
+        printTimeMinutes:
+          typeof lastResults?.printHoursPerUnit === "number" && lastResults.printHoursPerUnit > 0
+            ? Math.round(lastResults.printHoursPerUnit * 60)
+            : null,
       },
       settings,
       user,

@@ -27,6 +27,8 @@ export type MarketplaceProductPayload = {
   suggestedPriceDirect?: number;
   /** Custo unitário base (custo 3D) */
   totalCost?: number;
+  /** Tempo de impressão da peça (minutos), pra métricas de lucro/hora. */
+  printTimeMinutes?: number | null;
 };
 
 export async function saveMarketplaceProduct(params: {
@@ -53,6 +55,7 @@ export async function saveMarketplaceProduct(params: {
     suggestedPriceML: payload.suggestedPriceML,
     suggestedPriceDirect: payload.suggestedPriceDirect,
     totalCost: payload.totalCost,
+    printTimeMinutes: payload.printTimeMinutes ?? null,
   };
 
   addProduct(product);

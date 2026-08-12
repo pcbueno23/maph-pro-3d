@@ -1,12 +1,13 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Boxes, ClipboardList, Eye, FileText, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { Printer, Product, ProductAsset } from "@/types";
 import { useProductsStore } from "@/store/productsStore";
 import { useAuthStore } from "@/store/authStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { deleteProduct, upsertProductsForUser } from "@/lib/supabaseProducts";
 import { useInventoryStore } from "@/store/inventoryStore";
 import { useSuppliesStore } from "@/store/suppliesStore";
@@ -21,9 +22,20 @@ import {
   upsertProductMaterial,
 } from "@/lib/supabaseProduction";
 import { productChannelBadgeLabel } from "@/lib/productMarketplace";
+import {
+  computeChannelMetrics,
+  bestChannel,
+  CHANNEL_LABELS,
+  type ChannelKey,
+  type ChannelMetrics,
+} from "@/lib/productChannelMetrics";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatPct(value: number) {
+  return `${value.toFixed(1)}%`;
 }
 
 interface Props {
@@ -32,10 +44,108 @@ interface Props {
   onOpenProductWizard?: (product: Product) => void;
 }
 
-function newId(prefix: string) {
-  return typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `${prefix}_${Date.now()}`;
+const CHANNEL_ORDER: ChannelKey[] = ["shopee", "mercadoLivre", "tiktok", "vendaDireta"];
+
+type SortKey =
+  | "price"
+  | "totalCost"
+  | "best"
+  | `${ChannelKey}.price`
+  | `${ChannelKey}.marginPercent`
+  | `${ChannelKey}.profitPerHour`;
+
+type SortState = { key: SortKey; dir: "asc" | "desc" };
+
+type Row = {
+  product: Product;
+  metrics: ChannelMetrics;
+  best: ReturnType<typeof bestChannel>;
+};
+
+function sortValue(row: Row, key: SortKey): number {
+  if (key === "price") return row.product.price ?? -Infinity;
+  if (key === "totalCost") return row.product.totalCost ?? -Infinity;
+  if (key === "best") return row.best?.metric.profitPerHour ?? -Infinity;
+  const [channel, field] = key.split(".") as [ChannelKey, "price" | "marginPercent" | "profitPerHour"];
+  const metric = row.metrics[channel];
+  if (!metric) return -Infinity;
+  const v = metric[field];
+  return v == null ? -Infinity : v;
+}
+
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className = "",
+  rowSpan,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: SortState | null;
+  onSort: (key: SortKey) => void;
+  className?: string;
+  rowSpan?: number;
+}) {
+  const active = sort?.key === sortKey;
+  return (
+    <th rowSpan={rowSpan} className={`px-2 py-2 text-right font-semibold text-slate-400 ${className}`}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 whitespace-nowrap hover:text-slate-100 ${
+          active ? "text-cyan-300" : ""
+        }`}
+      >
+        {label}
+        {active ? (
+          sort!.dir === "desc" ? (
+            <ArrowDown className="h-3 w-3" />
+          ) : (
+            <ArrowUp className="h-3 w-3" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-40" />
+        )}
+      </button>
+    </th>
+  );
+}
+
+function ChannelCell({ metric }: { metric: ChannelMetrics[ChannelKey] }) {
+  if (!metric) {
+    return (
+      <>
+        <td className="px-2 py-2 text-right text-slate-600">—</td>
+        <td className="px-2 py-2 text-right text-slate-600">—</td>
+        <td className="px-2 py-2 text-right text-slate-600">—</td>
+      </>
+    );
+  }
+  return (
+    <>
+      <td className="px-2 py-2 text-right tabular-nums text-slate-100">{formatBRL(metric.price)}</td>
+      <td
+        className={`px-2 py-2 text-right tabular-nums font-medium ${
+          metric.marginPercent >= 0 ? "text-emerald-300" : "text-rose-300"
+        }`}
+      >
+        {formatPct(metric.marginPercent)}
+      </td>
+      <td
+        className={`px-2 py-2 text-right tabular-nums font-semibold ${
+          metric.profitPerHour == null
+            ? "text-slate-600"
+            : metric.profitPerHour >= 0
+              ? "text-emerald-300"
+              : "text-rose-300"
+        }`}
+      >
+        {metric.profitPerHour == null ? "—" : `${formatBRL(metric.profitPerHour)}/h`}
+      </td>
+    </>
+  );
 }
 
 export function ProductTable({ products, onOpenProductWizard }: Props) {
@@ -43,6 +153,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
   const removeProduct = useProductsStore((s) => s.removeProduct);
   const updateProduct = useProductsStore((s) => s.updateProduct);
   const { user } = useAuthStore();
+  const { settings } = useSettingsStore();
   useInventoryStore();
   useSuppliesStore();
 
@@ -64,6 +175,15 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
   const [techDefaultPrinterId, setTechDefaultPrinterId] = useState<string>("");
 
   const [productThumbById, setProductThumbById] = useState<Record<string, string>>({});
+
+  const [sort, setSort] = useState<SortState | null>({ key: "best", dir: "desc" });
+
+  function handleSort(key: SortKey) {
+    setSort((prev) => {
+      if (prev?.key === key) return { key, dir: prev.dir === "desc" ? "asc" : "desc" };
+      return { key, dir: "desc" };
+    });
+  }
 
   useEffect(() => {
     const userId = user?.id as string | undefined;
@@ -105,6 +225,20 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
       alive = false;
     };
   }, [products, user?.id]);
+
+  const rows = useMemo<Row[]>(() => {
+    return products.map((product) => {
+      const metrics = computeChannelMetrics(product, settings.marketplacePresets);
+      return { product, metrics, best: bestChannel(metrics) };
+    });
+  }, [products, settings.marketplacePresets]);
+
+  const sortedRows = useMemo(() => {
+    if (!sort) return rows;
+    const dirMul = sort.dir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => dirMul * (sortValue(a, sort.key) - sortValue(b, sort.key)));
+  }, [rows, sort]);
+
   const materialCost = useMemo(() => {
     if (!bomProduct) return 0;
     const map = new Map(supplies.map((s) => [s.id, s] as const));
@@ -284,6 +418,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
       window.alert(e?.message ? `Falha ao remover: ${e.message}` : "Falha ao remover produto no Supabase.");
     }
   }
+
   if (products.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">
@@ -295,146 +430,192 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
 
   return (
     <>
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {products.map((product) => {
-            const unitCost = product.totalCost ?? 0;
-            return (
-              <div
-                key={product.id}
-                className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 transition hover:border-cyan-500/50"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 shadow-neon-cyan/30">
-                      {productThumbById[product.id] ? (
-                        <img
-                          src={productThumbById[product.id]}
-                          alt={`Imagem de ${product.name}`}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 grid place-items-center">
-                          <Image
-                            src="/icons/model-3d.svg"
-                            alt="Modelo 3D"
-                            width={28}
-                            height={28}
-                            className="opacity-90"
-                          />
-                          <span className="sr-only">3D</span>
+      <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-2">
+        <p className="px-2 pb-2 pt-1 text-[11px] text-slate-500">
+          Preço, margem e lucro/hora por marketplace são estimados a partir do custo de
+          produção do produto + o preset ativo de cada canal (configurado nas
+          calculadoras). Clique num cabeçalho pra ordenar.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse text-xs">
+            <thead className="text-[10px] uppercase tracking-[0.1em] text-slate-500">
+              <tr className="border-b border-slate-800">
+                <th rowSpan={2} className="px-2 py-2 text-left align-bottom">
+                  Produto
+                </th>
+                <SortHeader label="Preço" sortKey="price" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
+                <SortHeader label="Custo" sortKey="totalCost" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
+                <SortHeader label="Melhor canal" sortKey="best" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
+                {CHANNEL_ORDER.map((ch) => (
+                  <th
+                    key={ch}
+                    colSpan={3}
+                    className="border-l border-slate-800 px-2 py-1.5 text-center font-semibold text-slate-400"
+                  >
+                    {CHANNEL_LABELS[ch]}
+                  </th>
+                ))}
+                <th rowSpan={2} className="px-2 py-2 text-right align-bottom">
+                  Ações
+                </th>
+              </tr>
+              <tr className="border-b border-slate-800">
+                {CHANNEL_ORDER.map((ch) => (
+                  <>
+                    <SortHeader
+                      key={`${ch}-price`}
+                      label="Preço"
+                      sortKey={`${ch}.price`}
+                      sort={sort}
+                      onSort={handleSort}
+                      className="border-l border-slate-800"
+                    />
+                    <SortHeader
+                      key={`${ch}-margin`}
+                      label="Margem"
+                      sortKey={`${ch}.marginPercent`}
+                      sort={sort}
+                      onSort={handleSort}
+                    />
+                    <SortHeader
+                      key={`${ch}-hour`}
+                      label="Margem/h"
+                      sortKey={`${ch}.profitPerHour`}
+                      sort={sort}
+                      onSort={handleSort}
+                    />
+                  </>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/70">
+              {sortedRows.map(({ product, metrics, best }) => {
+                const unitCost = product.totalCost ?? 0;
+                return (
+                  <tr key={product.id} className="hover:bg-slate-900/40">
+                    <td className="px-2 py-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-slate-700 bg-gradient-to-br from-cyan-500/20 to-emerald-500/20">
+                          {productThumbById[product.id] ? (
+                            <img
+                              src={productThumbById[product.id]}
+                              alt={`Imagem de ${product.name}`}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 grid place-items-center">
+                              <Image
+                                src="/icons/model-3d.svg"
+                                alt="Modelo 3D"
+                                width={18}
+                                height={18}
+                                className="opacity-90"
+                              />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-50">{product.name}</p>
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        {product.sku ? `SKU: ${product.sku}` : "SKU: —"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <span className="rounded-full border border-slate-800 bg-slate-900/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-                    {productChannelBadgeLabel(product.marketplace)}
-                  </span>
-                </div>
-
-                <div className="mt-3 space-y-1.5 text-xs">
-                  <p className="text-slate-300">Peso: {product.weight.toLocaleString("pt-BR")} g</p>
-                  <p className="text-slate-300">
-                    Tempo:{" "}
-                    <span className="text-slate-100">
-                      {product.printTimeMinutes != null && Number.isFinite(product.printTimeMinutes)
-                        ? `${product.printTimeMinutes} min`
-                        : "—"}
-                    </span>
-                  </p>
-                  <p className="text-slate-300">
-                    Preço:{" "}
-                    <span className="text-slate-100">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-100">{product.name}</p>
+                          <p className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-500">
+                            <span className="rounded border border-slate-800 bg-slate-900/60 px-1.5 py-0.5 uppercase tracking-wide">
+                              {productChannelBadgeLabel(product.marketplace)}
+                            </span>
+                            {product.sku ? <span>SKU: {product.sku}</span> : null}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-slate-100">
                       {product.price.toLocaleString("pt-BR", {
                         style: "currency",
                         currency: product.currency,
                       })}
-                    </span>
-                  </p>
-                  <p
-                    className="text-slate-300"
-                    title="Custo de fabricação (material, energia, depreciação, embalagem e ajustes da calculadora). É o mesmo para Shopee, Mercado Livre e venda direta; só o preço de venda muda com taxas de marketplace e margem por canal."
-                  >
-                    Custo de produção:{" "}
-                    <span className="text-slate-100">
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">
                       {formatBRL(unitCost)}
-                    </span>
-                  </p>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!user) {
-                        if (typeof window !== "undefined") {
-                          window.alert("Faça login para abrir e editar o produto.");
-                        }
-                        return;
-                      }
-                      onOpenProductWizard?.(product);
-                    }}
-                    className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-3 py-2 text-[11px] font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
-                    title="Abrir informações do produto"
-                  >
-                    Abrir
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => openTechnical(product)}
-                    className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-[11px] font-semibold text-slate-200 hover:bg-slate-900/60"
-                    title="Editar ficha técnica (SKU, tempo, impressora padrão)"
-                  >
-                    Ficha técnica
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => openBom(product)}
-                    className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-[11px] font-semibold text-slate-200 hover:bg-slate-900/60"
-                    title="Materiais (BOM) do produto"
-                  >
-                    Materiais
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const params = new URLSearchParams();
-                      params.set("create", "1");
-                      params.set("productId", product.id);
-                      if (product.defaultPrinterId) params.set("printerId", product.defaultPrinterId);
-                      params.set("qty", "1");
-                      router.push(`/ordens?${params.toString()}`);
-                    }}
-                    className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/15"
-                    title="Criar uma ordem de produção a partir deste produto"
-                  >
-                    Ordem de produção
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(product)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] font-semibold text-rose-300 hover:bg-rose-500/15"
-                    title="Remover item"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Remover
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      {best ? (
+                        <span className="inline-flex flex-col items-end">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-cyan-300">
+                            {best.metric.channelLabel}
+                          </span>
+                          <span className="tabular-nums text-emerald-300">
+                            {formatBRL(best.metric.profitPerHour!)}/h
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
+                    </td>
+                    {CHANNEL_ORDER.map((ch) => (
+                      <ChannelCell key={ch} metric={metrics[ch]} />
+                    ))}
+                    <td className="px-2 py-2">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!user) {
+                              if (typeof window !== "undefined") {
+                                window.alert("Faça login para abrir e editar o produto.");
+                              }
+                              return;
+                            }
+                            onOpenProductWizard?.(product);
+                          }}
+                          title="Abrir informações do produto"
+                          className="rounded-lg border border-slate-800 bg-slate-900/60 p-1.5 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openTechnical(product)}
+                          title="Editar ficha técnica (SKU, tempo, impressora padrão)"
+                          className="rounded-lg border border-slate-800 bg-slate-900/60 p-1.5 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openBom(product)}
+                          title="Materiais (BOM) do produto"
+                          className="rounded-lg border border-slate-800 bg-slate-900/60 p-1.5 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200"
+                        >
+                          <Boxes className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const params = new URLSearchParams();
+                            params.set("create", "1");
+                            params.set("productId", product.id);
+                            if (product.defaultPrinterId) params.set("printerId", product.defaultPrinterId);
+                            params.set("qty", "1");
+                            router.push(`/ordens?${params.toString()}`);
+                          }}
+                          title="Criar uma ordem de produção a partir deste produto"
+                          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-1.5 text-emerald-300 hover:bg-emerald-500/15"
+                        >
+                          <ClipboardList className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemove(product)}
+                          title="Remover item"
+                          className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-1.5 text-rose-300 hover:bg-rose-500/15"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -651,4 +832,3 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
     </>
   );
 }
-

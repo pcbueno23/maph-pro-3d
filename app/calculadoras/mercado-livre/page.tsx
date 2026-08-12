@@ -185,6 +185,10 @@ export default function MercadoLivreCalculatorPage() {
         suggestedPriceShopee: undefined,
         suggestedPriceDirect: undefined,
         totalCost,
+        printTimeMinutes:
+          typeof lastResults?.printHoursPerUnit === "number" && lastResults.printHoursPerUnit > 0
+            ? Math.round(lastResults.printHoursPerUnit * 60)
+            : null,
       },
       settings,
       user,

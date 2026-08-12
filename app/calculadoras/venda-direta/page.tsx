@@ -151,6 +151,10 @@ export default function VendaDiretaCalculatorPage() {
         marketplace: "Venda Direta",
         suggestedPriceDirect: pricePix,
         totalCost: inputs.fullCustoUnidade,
+        printTimeMinutes:
+          typeof lastResults?.printHoursPerUnit === "number" && lastResults.printHoursPerUnit > 0
+            ? Math.round(lastResults.printHoursPerUnit * 60)
+            : null,
       },
       settings,
       user,

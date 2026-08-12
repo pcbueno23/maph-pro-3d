@@ -227,6 +227,10 @@ export default function Custo3DPage() {
       rawName ||
       "Simulação " +
         new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const printTimeMinutes =
+      typeof results?.printHoursPerUnit === "number" && results.printHoursPerUnit > 0
+        ? Math.round(results.printHoursPerUnit * 60)
+        : null;
 
     setSaving(true);
     try {
@@ -240,6 +244,7 @@ export default function Custo3DPage() {
             marketplace: "Shopee",
             suggestedPriceShopee: shopeeResult.precoFinalSugerido,
             totalCost: shopeeResult.custoBase,
+            printTimeMinutes,
           },
           settings,
           user,
@@ -256,6 +261,7 @@ export default function Custo3DPage() {
             marketplace: "Mercado Livre",
             suggestedPriceML: mlResult.precoFinal,
             totalCost: mlResult.custoBase,
+            printTimeMinutes,
           },
           settings,
           user,
@@ -271,6 +277,7 @@ export default function Custo3DPage() {
             channelMarginPercent: tiktokResult.margemReal,
             marketplace: "TikTok Shop",
             totalCost: tiktokResult.custoBase,
+            printTimeMinutes,
           },
           settings,
           user,
@@ -287,6 +294,7 @@ export default function Custo3DPage() {
             marketplace: "Venda Direta",
             suggestedPriceDirect: vdResult.pricePix,
             totalCost: unitCost ?? 0,
+            printTimeMinutes,
           },
           settings,
           user,
