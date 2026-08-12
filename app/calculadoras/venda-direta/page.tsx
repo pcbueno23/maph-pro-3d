@@ -11,6 +11,7 @@ import { useCalculatorStore } from "@/store/calculatorStore";
 import { useMarketplacePresets } from "@/hooks/useMarketplacePresets";
 import ProductNameAutocomplete from "@/components/marketplaces/shared/ProductNameAutocomplete";
 import { PresetPicker, type PresetItem } from "@/components/marketplaces/shared/PresetPicker";
+import { KitCostPicker } from "@/components/marketplaces/shared/KitCostPicker";
 import {
   calcularPrecoVendaDireta,
   MACHINE_PROFILES,
@@ -62,6 +63,7 @@ export default function VendaDiretaCalculatorPage() {
   } = useMarketplacePresets<VendaDiretaInputs>("vendaDireta");
 
   const [nomeProduto, setNomeProduto] = useState("");
+  const [showKitPicker, setShowKitPicker] = useState(false);
   const [inputs, setInputs] = useState<VendaDiretaInputs>(
     () => activePreset?.inputs ?? DEFAULT_INPUTS,
   );
@@ -231,21 +233,30 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                     Custo unitário
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (lastCost != null) setCusto2(lastCost);
-                      const suggestedName =
-                        typeof lastInput?.productName === "string"
-                          ? lastInput.productName.trim()
-                          : "";
-                      if (suggestedName && !nomeProduto.trim()) setNomeProduto(suggestedName);
-                    }}
-                    disabled={lastCost == null}
-                    className="text-[11px] font-semibold text-emerald-300 disabled:opacity-50"
-                  >
-                    usar último custo 3D
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (lastCost != null) setCusto2(lastCost);
+                        const suggestedName =
+                          typeof lastInput?.productName === "string"
+                            ? lastInput.productName.trim()
+                            : "";
+                        if (suggestedName && !nomeProduto.trim()) setNomeProduto(suggestedName);
+                      }}
+                      disabled={lastCost == null}
+                      className="text-[11px] font-semibold text-emerald-300 disabled:opacity-50"
+                    >
+                      usar último custo 3D
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowKitPicker(true)}
+                      className="text-[11px] font-semibold text-slate-300 hover:text-slate-100"
+                    >
+                      montar kit de produtos
+                    </button>
+                  </div>
                 </div>
                 <input
                   type="number"
@@ -550,6 +561,15 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
             </div>
           </div>
       </div>
+
+      <KitCostPicker
+        open={showKitPicker}
+        onClose={() => setShowKitPicker(false)}
+        onConfirm={({ cost, name }) => {
+          setCusto2(cost);
+          if (name && !nomeProduto.trim()) setNomeProduto(name);
+        }}
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import InputField from "@/components/marketplaces/ml/InputField";
 import ResultCard from "@/components/marketplaces/ml/ResultCard";
 import ProductNameAutocomplete from "@/components/marketplaces/shared/ProductNameAutocomplete";
 import { PresetPicker, type PresetItem } from "@/components/marketplaces/shared/PresetPicker";
+import { KitCostPicker } from "@/components/marketplaces/shared/KitCostPicker";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useAuthStore } from "@/store/authStore";
 import { useProductsStore } from "@/store/productsStore";
@@ -80,6 +81,7 @@ export default function MercadoLivreCalculatorPage() {
 
   const [inputs, setInputs] = useState<MlInputs>(() => activePreset?.inputs ?? DEFAULT_INPUTS);
   const [nomeProduto, setNomeProduto] = useState("");
+  const [showKitPicker, setShowKitPicker] = useState(false);
 
   const loadedPresetOnceRef = useRef(false);
   useEffect(() => {
@@ -374,14 +376,23 @@ export default function MercadoLivreCalculatorPage() {
                     Preencha custos, anúncio, dimensões e marketing (como no PDF).
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={useLastCost}
-                  disabled={lastCost == null}
-                  className="rounded-xl px-3 py-2 text-xs font-semibold border border-cyan-500/25 text-cyan-200 bg-cyan-500/10 disabled:opacity-50"
-                >
-                  Usar custo do último cálculo 3D
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={useLastCost}
+                    disabled={lastCost == null}
+                    className="rounded-xl px-3 py-2 text-xs font-semibold border border-cyan-500/25 text-cyan-200 bg-cyan-500/10 disabled:opacity-50"
+                  >
+                    Usar custo do último cálculo 3D
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowKitPicker(true)}
+                    className="rounded-xl px-3 py-2 text-xs font-semibold border border-slate-800 bg-slate-950/60 text-slate-200 hover:bg-slate-900"
+                  >
+                    Montar kit de produtos
+                  </button>
+                </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -734,6 +745,16 @@ export default function MercadoLivreCalculatorPage() {
           </div>
         </div>
       </div>
+
+      <KitCostPicker
+        open={showKitPicker}
+        onClose={() => setShowKitPicker(false)}
+        onConfirm={({ cost, weight, name }) => {
+          setNum("fullCustoUnidade", cost);
+          if (weight > 0) setNum("peso", weight / 1000);
+          if (name && !nomeProduto.trim()) setNomeProduto(name);
+        }}
+      />
     </div>
   );
 }

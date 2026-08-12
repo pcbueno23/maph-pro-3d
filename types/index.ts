@@ -436,6 +436,24 @@ function presetListSchema<T extends z.ZodTypeAny>(inputsSchema: T) {
     .default([]);
 }
 
+// =========================
+// Kits de produtos (compor custo somando produtos já salvos)
+// =========================
+
+const kitComponentSchema = z.object({
+  productId: z.string(),
+  qty: z.number().min(0.0001).default(1),
+});
+
+export const productKitSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  components: z.array(kitComponentSchema).default([]),
+});
+
+export type KitComponent = z.infer<typeof kitComponentSchema>;
+export type ProductKit = z.infer<typeof productKitSchema>;
+
 export const marketplacePresetsSchema = z
   .object({
     shopee: presetListSchema(shopeeInputsSchema),
@@ -582,6 +600,8 @@ export const settingsSchema = z.object({
   advanced: calculatorAdvancedObjectSchema.default(CALCULATOR_ADVANCED_DEFAULTS),
   /** Presets nomeados de precificação por marketplace (Shopee/ML/Venda Direta) + qual está ativo. */
   marketplacePresets: marketplacePresetsSchema,
+  /** Kits salvos: produtos já cadastrados somados (com quantidade) pra compor custo de um conjunto. */
+  productKits: z.array(productKitSchema).default([]),
 });
 
 export type SettingsValues = z.infer<typeof settingsSchema>;

@@ -58,6 +58,7 @@ export const defaultSettings: SettingsValues = {
     activeVendaDiretaId: null,
     activeTiktokId: null,
   },
+  productKits: [],
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({

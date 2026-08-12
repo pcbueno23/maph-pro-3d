@@ -7,6 +7,7 @@ import InputField from "@/components/marketplaces/shopee/InputField";
 import ResultCard from "@/components/marketplaces/shopee/ResultCard";
 import ProductNameAutocomplete from "@/components/marketplaces/shared/ProductNameAutocomplete";
 import { PresetPicker, type PresetItem } from "@/components/marketplaces/shared/PresetPicker";
+import { KitCostPicker } from "@/components/marketplaces/shared/KitCostPicker";
 import {
   calcularPrecoShopee,
   formatBRL,
@@ -74,6 +75,7 @@ export default function ShopeeCalculatorPage() {
 
   const [inputs, setInputs] = useState<ShopeeInputs>(() => activePreset?.inputs ?? DEFAULT_INPUTS);
   const [nomeProduto, setNomeProduto] = useState("");
+  const [showKitPicker, setShowKitPicker] = useState(false);
 
   // Carrega o preset ativo assim que ele estiver disponível (ex.: sincronizou do Supabase
   // após o mount). Só uma vez, pra não sobrescrever edições feitas na sessão.
@@ -313,14 +315,23 @@ export default function ShopeeCalculatorPage() {
                     Custos, descontos e marketing (conforme o PDF).
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={useLastCost}
-                  disabled={lastCost == null}
-                  className="rounded-xl px-3 py-2 text-xs font-semibold border border-cyan-500/25 text-cyan-200 bg-cyan-500/10 disabled:opacity-50"
-                >
-                  Usar custo do último cálculo 3D
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={useLastCost}
+                    disabled={lastCost == null}
+                    className="rounded-xl px-3 py-2 text-xs font-semibold border border-cyan-500/25 text-cyan-200 bg-cyan-500/10 disabled:opacity-50"
+                  >
+                    Usar custo do último cálculo 3D
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowKitPicker(true)}
+                    className="rounded-xl px-3 py-2 text-xs font-semibold border border-slate-800 bg-slate-950/60 text-slate-200 hover:bg-slate-900"
+                  >
+                    Montar kit de produtos
+                  </button>
+                </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -561,6 +572,15 @@ export default function ShopeeCalculatorPage() {
           </div>
         </div>
       </div>
+
+      <KitCostPicker
+        open={showKitPicker}
+        onClose={() => setShowKitPicker(false)}
+        onConfirm={({ cost, name }) => {
+          setNum("fullCustoUnidade", cost);
+          if (name && !nomeProduto.trim()) setNomeProduto(name);
+        }}
+      />
     </div>
   );
 }
