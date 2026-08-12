@@ -30,6 +30,24 @@ function Row({ label, value }: { label: string; value: number }) {
   );
 }
 
+function LucroHoraRow({ value }: { value: number | null }) {
+  if (value == null) return null;
+  return (
+    <div className="flex justify-between gap-4 border-t border-slate-800 pt-1.5 text-sm">
+      <span className="text-slate-400">
+        Lucro/h <span className="text-slate-500">(comparativo)</span>
+      </span>
+      <span
+        className={`shrink-0 tabular-nums font-semibold ${
+          value >= 0 ? "text-emerald-300" : "text-rose-300"
+        }`}
+      >
+        {fmtBRL(value)}/h
+      </span>
+    </div>
+  );
+}
+
 /** Caixa de precificação rápida por marketplace, alimentada pelo preset ativo daquele canal. */
 function MarketplacePresetBox({
   title,
@@ -160,6 +178,17 @@ export default function Custo3DPage() {
     });
   }, [activeVdPreset, unitCost, vdQuickMargin]);
 
+  // Horas de impressão por peça (mesma base usada pelo motor genérico), pra calcular
+  // lucro/h independente por marketplace e comparar qual canal vale mais produzir em escala.
+  const hoursPerUnit = results?.printHoursPerUnit ?? 0;
+  const shopeeLucroHora =
+    shopeeResult && hoursPerUnit > 0 ? shopeeResult.lucroLiquido / hoursPerUnit : null;
+  const mlLucroHora = mlResult && hoursPerUnit > 0 ? mlResult.lucro / hoursPerUnit : null;
+  const vdLucroHoraPix =
+    vdResult && hoursPerUnit > 0 ? vdResult.lucroPix / hoursPerUnit : null;
+  const vdLucroHoraCard =
+    vdResult && hoursPerUnit > 0 ? vdResult.lucroCard / hoursPerUnit : null;
+
   const custoBreakdown = useMemo(() => {
     if (!results) return null;
     const f = Number(results.filamentCost ?? 0);
@@ -226,19 +255,6 @@ export default function Custo3DPage() {
                     embalagem).
                   </p>
                 )}
-                <div className="mt-3 flex items-center justify-between gap-4 border-t border-slate-800 pt-3 text-sm">
-                  <span className="text-slate-400">
-                    Lucro por hora de impressão{" "}
-                    <span className="text-slate-500">(comparativo p/ produção em escala)</span>
-                  </span>
-                  <span
-                    className={`shrink-0 tabular-nums font-semibold ${
-                      (results.lucroPorHora ?? 0) >= 0 ? "text-emerald-300" : "text-rose-300"
-                    }`}
-                  >
-                    {fmtBRL(results.lucroPorHora ?? 0)}/h
-                  </span>
-                </div>
               </div>
             )}
 
@@ -311,6 +327,7 @@ export default function Custo3DPage() {
                     {fmtPct(shopeeResult.margemReal)}
                   </span>
                 </div>
+                <LucroHoraRow value={shopeeLucroHora} />
               </div>
             )}
           </MarketplacePresetBox>
@@ -337,6 +354,7 @@ export default function Custo3DPage() {
                     {fmtPct(mlResult.margem)}
                   </span>
                 </div>
+                <LucroHoraRow value={mlLucroHora} />
               </div>
             )}
           </MarketplacePresetBox>
@@ -363,6 +381,15 @@ export default function Custo3DPage() {
                   >
                     lucro {fmtBRL(vdResult.lucroPix)}
                   </p>
+                  {vdLucroHoraPix != null && (
+                    <p
+                      className={`text-[11px] tabular-nums ${
+                        vdLucroHoraPix >= 0 ? "text-emerald-300/80" : "text-rose-300/80"
+                      }`}
+                    >
+                      {fmtBRL(vdLucroHoraPix)}/h
+                    </p>
+                  )}
                 </div>
                 <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-slate-500">Cartão</p>
@@ -376,6 +403,15 @@ export default function Custo3DPage() {
                   >
                     lucro {fmtBRL(vdResult.lucroCard)}
                   </p>
+                  {vdLucroHoraCard != null && (
+                    <p
+                      className={`text-[11px] tabular-nums ${
+                        vdLucroHoraCard >= 0 ? "text-emerald-300/80" : "text-rose-300/80"
+                      }`}
+                    >
+                      {fmtBRL(vdLucroHoraCard)}/h
+                    </p>
+                  )}
                 </div>
               </div>
             )}

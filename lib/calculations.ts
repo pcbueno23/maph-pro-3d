@@ -656,6 +656,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     margemReal,
     alertaLucroAbaixoDaMeta,
     lucroPorHora,
+    printHoursPerUnit: effectiveHoursPerUnit,
   };
 }
 

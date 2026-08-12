@@ -264,6 +264,8 @@ export interface CalculatorResults {
   /** Lucro real (já ajustado) ÷ horas de impressão da peça. Serve para comparar
    * produtos por eficiência de produção em escala (não é custo, é lucro/h). */
   lucroPorHora: number;
+  /** Horas de impressão por peça (já dividido por peças/impressão quando houver placa). */
+  printHoursPerUnit: number;
 }
 
 export interface Product {
