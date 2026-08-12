@@ -295,7 +295,7 @@ export async function POST(req: NextRequest) {
       methods: ["PIX", "CARD"] as ("PIX" | "CARD")[],
       products: [
         {
-          externalId: `precifica3d-${plan}-${Date.now()}`,
+          externalId: `maphpro3d-${plan}-${Date.now()}`,
           name: product.name,
           description: product.description,
           quantity: 1,
@@ -341,7 +341,7 @@ export async function POST(req: NextRequest) {
           returnUrl: `${base}/pricing?canceled=1`,
           completionUrl: `${base}/pricing?success=1`,
           ...(checkoutCustomerId ? { customerId: checkoutCustomerId } : {}),
-          externalId: `precifica3d-${plan}-${Date.now()}`,
+          externalId: `maphpro3d-${plan}-${Date.now()}`,
           ...(email?.trim() || refCode
             ? {
                 metadata: {

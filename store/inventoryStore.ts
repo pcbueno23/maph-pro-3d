@@ -30,7 +30,7 @@ interface InventoryState {
   removeItem: (id: string) => void;
 }
 
-const STORAGE_KEY = "precifica3d-inventory";
+const STORAGE_KEY = "maphpro3d-inventory";
 
 export const useInventoryStore = create<InventoryState>((set, get) => ({
   items: [],

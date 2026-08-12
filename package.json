@@ -1,7 +1,7 @@
 {
   "name": "projeto-saas-precificadora",
   "version": "0.1.0",
-  "description": "Precifica3D - SaaS para precificação de impressões 3D",
+  "description": "Maph Pro 3D - SaaS para precificação de impressões 3D",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",

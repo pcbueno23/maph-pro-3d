@@ -3,7 +3,7 @@
  * Requer permissão do browser; não substitui Web Push com servidor.
  */
 
-const DISMISS_KEY = "precifica3d-printing-push-dismissed";
+const DISMISS_KEY = "maphpro3d-printing-push-dismissed";
 
 export function wasPrintingPushPromptDismissed(): boolean {
   if (typeof window === "undefined") return true;

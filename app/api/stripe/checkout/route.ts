@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
         },
       },
       metadata: {
-        app: "precifica3d",
+        app: "maphpro3d",
         plan,
       },
     });

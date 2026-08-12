@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Product } from "@/types";
 
-const STORAGE_KEY = "precifica3d-products";
+const STORAGE_KEY = "maphpro3d-products";
 
 interface ProductsState {
   products: Product[];

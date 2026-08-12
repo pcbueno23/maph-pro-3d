@@ -2,7 +2,7 @@ import { useProductsStore } from "@/store/productsStore";
 import type { Product } from "@/types";
 import { fetchUserProducts, upsertProductsForUser } from "./supabaseProducts";
 
-const LOCAL_PRODUCTS_KEY = "precifica3d-products";
+const LOCAL_PRODUCTS_KEY = "maphpro3d-products";
 
 function readLocalProducts(): Product[] {
   if (typeof window === "undefined") return [];
@@ -68,7 +68,7 @@ export async function refreshProductsFromCloud(userId: string): Promise<void> {
 export async function syncProductsOnLogin(userId: string): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const migrationKey = `precifica3d-migrated-${userId}`;
+  const migrationKey = `maphpro3d-migrated-${userId}`;
   const alreadyMigrated = window.localStorage.getItem(migrationKey) === "true";
 
   const localProducts = readLocalProducts();

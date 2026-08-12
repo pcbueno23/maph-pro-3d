@@ -142,12 +142,12 @@ export default function AlertasPage() {
     const sync = () => {
       setNotifPermission(Notification.permission);
       try {
-        const raw = window.localStorage.getItem("precifica3d-alerts-notif-enabled");
+        const raw = window.localStorage.getItem("maphpro3d-alerts-notif-enabled");
         const stored = raw === "true";
         // Se o navegador já concedeu antes (ex.: outra tela), não forçar “desativado” só por localStorage vazio.
         if (Notification.permission === "granted" && raw == null) {
           setNotifEnabled(true);
-          window.localStorage.setItem("precifica3d-alerts-notif-enabled", "true");
+          window.localStorage.setItem("maphpro3d-alerts-notif-enabled", "true");
         } else {
           setNotifEnabled(stored);
         }
@@ -192,7 +192,7 @@ export default function AlertasPage() {
     }
 
     const now = Date.now();
-    const storageKey = "precifica3d-alerts-notif-last-at";
+    const storageKey = "maphpro3d-alerts-notif-last-at";
 
     let lastAt = 0;
     try {
@@ -214,7 +214,7 @@ export default function AlertasPage() {
       // eslint-disable-next-line no-new
       new Notification("MAPH PRO 3D - Alertas", {
         body: buildNotificationBody(),
-        tag: `precifica3d-alerts-${now}`,
+        tag: `maphpro3d-alerts-${now}`,
       });
 
       window.localStorage.setItem(storageKey, String(now));
@@ -247,7 +247,7 @@ export default function AlertasPage() {
         );
         setNotifEnabled(false);
         try {
-          window.localStorage.setItem("precifica3d-alerts-notif-enabled", "false");
+          window.localStorage.setItem("maphpro3d-alerts-notif-enabled", "false");
         } catch {
           // ignore
         }
@@ -256,7 +256,7 @@ export default function AlertasPage() {
       const enabled = perm === "granted";
       setNotifEnabled(enabled);
       try {
-        window.localStorage.setItem("precifica3d-alerts-notif-enabled", String(enabled));
+        window.localStorage.setItem("maphpro3d-alerts-notif-enabled", String(enabled));
       } catch {
         // ignore
       }
@@ -483,7 +483,7 @@ export default function AlertasPage() {
                 onClick={() => {
                   setNotifEnabled(false);
                   try {
-                    window.localStorage.setItem("precifica3d-alerts-notif-enabled", "false");
+                    window.localStorage.setItem("maphpro3d-alerts-notif-enabled", "false");
                   } catch {
                     // ignore
                   }

@@ -23,7 +23,7 @@ interface SuppliesState {
   consumeFilamentGrams: (grams: number) => void;
 }
 
-const STORAGE_KEY = "precifica3d-supplies";
+const STORAGE_KEY = "maphpro3d-supplies";
 
 function persist(next: Supply[]) {
   if (typeof window !== "undefined") {

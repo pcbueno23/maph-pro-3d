@@ -3,7 +3,7 @@ import type { SettingsValues } from "@/types";
 import { CALCULATOR_ADVANCED_DEFAULTS } from "@/types";
 
 // Chave única para as configurações no localStorage
-const STORAGE_KEY = "precifica3d-settings-v3";
+const STORAGE_KEY = "maphpro3d-settings-v3";
 
 interface SettingsState {
   settings: SettingsValues;

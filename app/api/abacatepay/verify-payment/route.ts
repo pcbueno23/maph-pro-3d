@@ -34,7 +34,13 @@ export async function POST(req: NextRequest) {
     if (found) {
       periodEnd = found.nextBilling ?? null;
       const ext = String(found.products?.[0]?.externalId ?? "");
-      if (ext.startsWith("precifica3d-business") || ext.startsWith("precifica3d-lifetime")) {
+      // Aceita prefixo novo (maphpro3d-) e o antigo (precifica3d-) de cobranças criadas antes do rebranding.
+      if (
+        ext.startsWith("maphpro3d-business") ||
+        ext.startsWith("maphpro3d-lifetime") ||
+        ext.startsWith("precifica3d-business") ||
+        ext.startsWith("precifica3d-lifetime")
+      ) {
         planType = "business";
       }
       // Calcula período com base no plano se AbacatePay não retornar nextBilling

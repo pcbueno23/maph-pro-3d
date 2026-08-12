@@ -33,7 +33,7 @@ interface SalesState {
   clearSales: () => void;
 }
 
-const STORAGE_KEY = "precifica3d-sales";
+const STORAGE_KEY = "maphpro3d-sales";
 
 export const useSalesStore = create<SalesState>((set, get) => ({
   sales: [],

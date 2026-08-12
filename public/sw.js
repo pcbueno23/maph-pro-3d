@@ -1,5 +1,5 @@
 // Versão do cache — incremente ao mudar estratégia (clientes antigos limpam caches velhos).
-const CACHE_NAME = "precifica3d-cache-v5";
+const CACHE_NAME = "maphpro3d-cache-v6";
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();

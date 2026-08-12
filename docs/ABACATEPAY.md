@@ -1,4 +1,4 @@
-# AbacatePay – Guia de Integração (Precifica3D)
+# AbacatePay – Guia de Integração (Maph Pro 3D)
 
 > **Alternar Stripe ↔ AbacatePay no projeto:** veja **`docs/PAGAMENTO_STRIPE_OU_ABACATEPAY.md`** (`APP_PAYMENT_PROVIDER`).
 
@@ -16,7 +16,7 @@ Authorization: Bearer {SEU_TOKEN_AQUI}
 
 ---
 
-## Uso no Precifica3D
+## Uso no Maph Pro 3D
 
 - **Variáveis de ambiente:** `ABACATEPAY_TOKEN`. **`ABACATEPAY_DEFAULT_CUSTOMER_ID`** (`cust_...`) — obrigatório para o fluxo normal no app quando o usuário não envia CPF/celular. Opcional: **`ABACATEPAY_STORE_PRODUCT_ID_PRO`** / **`_LIFETIME`** (`prod_...`) — ativa checkout **v2** (preço do painel); exige chave **API v2** + **`CHECKOUT:CREATE`**. Se a chave for só **v1**, defina **`ABACATEPAY_USE_V1_BILLING_ONLY=true`** para ignorar `prod_` sem apagar a linha, e mantenha **`ABACATEPAY_DEFAULT_CUSTOMER_ID`**. O app também tenta **fallback** v1 após *"API key version mismatch"* se houver `cust_` ou dados completos no body.
 - **Fluxo (produção):** Na página **Planos** (modo AbacatePay), o usuário preenche **nome completo, CPF ou CNPJ e celular (DDD)** — dados reais do pagador. O app envia isso no JSON para **`POST /api/abacatepay/billing`** e o backend monta o objeto **`customer`** na AbacatePay (PIX/cartão). O e-mail usado é o da conta logada.
@@ -34,7 +34,7 @@ Para **não usar Stripe** na checagem de assinatura e espelhar a ideia “tem pl
    - `APP_PAYMENT_PROVIDER=abacatepay`
    - Opcional mas recomendado na **interface** Planos: `NEXT_PUBLIC_APP_PAYMENT_PROVIDER=abacatepay` (mesmo valor; o Next embute no bundle do cliente — **reinicie** `npm run dev` ou faça **novo deploy** após alterar).
    - `ABACATEPAY_TOKEN` (com **`BILLING:READ`** para listar cobranças)
-   - Opcional: `ABACATEPAY_ACCESS_PRO_PRODUCT_IDS` e `ABACATEPAY_ACCESS_BUSINESS_PRODUCT_IDS` (lista separada por vírgula de `prod_...`); se vazio, o plano é inferido por `externalId` `precifica3d-pro-*` / `precifica3d-lifetime-*` ou pelos mesmos env `ABACATEPAY_STORE_PRODUCT_ID_*`.
+   - Opcional: `ABACATEPAY_ACCESS_PRO_PRODUCT_IDS` e `ABACATEPAY_ACCESS_BUSINESS_PRODUCT_IDS` (lista separada por vírgula de `prod_...`); se vazio, o plano é inferido por `externalId` `maphpro3d-pro-*` / `maphpro3d-lifetime-*` (billings antigos ainda usam o prefixo `precifica3d-`) ou pelos mesmos env `ABACATEPAY_STORE_PRODUCT_ID_*`.
 
 2. **Planos (UI)** — a rota **`/pricing`** é um Server Component com `dynamic = force-dynamic`: o servidor lê **`APP_PAYMENT_PROVIDER`** em cada request e repassa ao cliente. Na **Vercel** basta definir essa variável no painel (Production e Preview, se usar) — **não depende** de `NEXT_PUBLIC_APP_PAYMENT_PROVIDER` para mostrar AbacatePay. `GET /api/app/payment-provider` continua disponível para outros usos.
 
@@ -127,7 +127,7 @@ Para **não usar Stripe** na checagem de assinatura e espelhar a ideia “tem pl
 Eventos: `billing.paid`, `pix.paid`, `pix.expired`, `withdraw.paid`.  
 Sempre validar assinatura e implementar retries.
 
-O fluxo atual do Precifica3D **não depende de webhook** para liberar o app: o backend consulta **`GET /v1/billing/list`** com o token (`getAbacatePayPaidEntitlement`). Webhooks são recomendáveis para automações, conciliação e reduzir latência.
+O fluxo atual do Maph Pro 3D **não depende de webhook** para liberar o app: o backend consulta **`GET /v1/billing/list`** com o token (`getAbacatePayPaidEntitlement`). Webhooks são recomendáveis para automações, conciliação e reduzir latência.
 
 ---
 

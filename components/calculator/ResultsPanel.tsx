@@ -55,6 +55,7 @@ export function ResultsPanel({ results, isDirty }: Props) {
     lucroLiquidoReal,
     margemReal,
     alertaLucroAbaixoDaMeta,
+    lucroPorHora,
   } = results;
   const advancedAdjustment = custoTotalAjustado - totalCost;
 
@@ -386,6 +387,15 @@ export function ResultsPanel({ results, isDirty }: Props) {
           ) : null}
           <li>
             Custo Total de Produção: <strong>{fmt(custoTotalAjustado)}</strong>
+          </li>
+          <li className="mt-1 flex items-center justify-between border-t border-slate-800 pt-1">
+            <span>
+              Lucro por hora de impressão{" "}
+              <span className="text-slate-500">(comparativo p/ produção em escala)</span>
+            </span>
+            <strong className={lucroPorHora >= 0 ? "text-emerald-300" : "text-rose-300"}>
+              {fmt(lucroPorHora)}/h
+            </strong>
           </li>
         </ul>
       </div>

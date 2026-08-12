@@ -261,6 +261,9 @@ export interface CalculatorResults {
   margemReal: number;
   /** Sugestão/alerta quando lucro real fica abaixo da meta. */
   alertaLucroAbaixoDaMeta: boolean;
+  /** Lucro real (já ajustado) ÷ horas de impressão da peça. Serve para comparar
+   * produtos por eficiência de produção em escala (não é custo, é lucro/h). */
+  lucroPorHora: number;
 }
 
 export interface Product {

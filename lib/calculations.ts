@@ -306,6 +306,9 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
   // embutido na fórmula do preço, a margem real pode ser 19.9999...% em vez de 20%
   // exatos, o que dispararia o alerta de forma errada.
   const alertaLucroAbaixoDaMeta = margemReal < (input.pricing.desiredMargin ?? 0) - 0.1;
+  // Lucro real ÷ horas por peça: indicador comparativo para decidir qual produto
+  // vale mais a pena produzir em escala (não é custo, é lucro por hora de impressão).
+  const lucroPorHora = effectiveHoursPerUnit > 0 ? lucroLiquidoReal / effectiveHoursPerUnit : 0;
 
   // Para evitar divergência entre "detalhamentos" e "lucro real",
   // os detalhamentos por canal devem usar o mesmo custo-base dos ajustes avançados.
@@ -652,6 +655,7 @@ export function calculateAll(input: CalculatorFormValues): CalculatorResults {
     lucroLiquidoReal,
     margemReal,
     alertaLucroAbaixoDaMeta,
+    lucroPorHora,
   };
 }
 

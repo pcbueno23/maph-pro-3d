@@ -40,8 +40,15 @@ function planFromProducts(
   const products = b.products ?? [];
   for (const p of products) {
     const ext = String(p.externalId ?? "");
-    if (ext.startsWith("precifica3d-pro")) return "pro";
-    if (ext.startsWith("precifica3d-business") || ext.startsWith("precifica3d-lifetime")) return "business";
+    // Aceita prefixo novo (maphpro3d-) e o antigo (precifica3d-) de cobranças criadas antes do rebranding.
+    if (ext.startsWith("maphpro3d-pro") || ext.startsWith("precifica3d-pro")) return "pro";
+    if (
+      ext.startsWith("maphpro3d-business") ||
+      ext.startsWith("maphpro3d-lifetime") ||
+      ext.startsWith("precifica3d-business") ||
+      ext.startsWith("precifica3d-lifetime")
+    )
+      return "business";
     const pid = String(p.id ?? "");
     if (proIds.has(pid)) return "pro";
     if (bizIds.has(pid)) return "business";
