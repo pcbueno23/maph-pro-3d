@@ -101,6 +101,19 @@ export default function Custo3DPage() {
                     embalagem).
                   </p>
                 )}
+                <div className="mt-3 flex items-center justify-between gap-4 border-t border-slate-800 pt-3 text-sm">
+                  <span className="text-slate-400">
+                    Lucro por hora de impressão{" "}
+                    <span className="text-slate-500">(comparativo p/ produção em escala)</span>
+                  </span>
+                  <span
+                    className={`shrink-0 tabular-nums font-semibold ${
+                      (results.lucroPorHora ?? 0) >= 0 ? "text-emerald-300" : "text-rose-300"
+                    }`}
+                  >
+                    {fmtBRL(results.lucroPorHora ?? 0)}/h
+                  </span>
+                </div>
               </div>
             )}
 
