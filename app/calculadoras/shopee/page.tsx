@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RotateCcw, Save } from "lucide-react";
 import InputField from "@/components/marketplaces/shopee/InputField";
 import ResultCard from "@/components/marketplaces/shopee/ResultCard";
 import ProductNameAutocomplete from "@/components/marketplaces/shared/ProductNameAutocomplete";
+import { PresetPicker, type PresetItem } from "@/components/marketplaces/shared/PresetPicker";
 import {
   calcularPrecoShopee,
   formatBRL,
@@ -18,6 +19,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useProductsStore } from "@/store/productsStore";
 import { saveMarketplaceProduct } from "@/lib/saveMarketplaceProduct";
 import { useCalculatorStore } from "@/store/calculatorStore";
+import { useMarketplacePresets } from "@/hooks/useMarketplacePresets";
 
 const DEFAULT_INPUTS: ShopeeInputs = {
   fullCustoUnidade: 0,
@@ -61,8 +63,38 @@ export default function ShopeeCalculatorPage() {
   const lastResults = useCalculatorStore((s) => s.lastResults);
   const lastInput = useCalculatorStore((s) => s.lastInput);
 
-  const [inputs, setInputs] = useState<ShopeeInputs>(DEFAULT_INPUTS);
+  const {
+    list: presets,
+    activeId: activePresetId,
+    active: activePreset,
+    save: savePreset,
+    select: selectPresetId,
+    remove: removePreset,
+  } = useMarketplacePresets<ShopeeInputs>("shopee");
+
+  const [inputs, setInputs] = useState<ShopeeInputs>(() => activePreset?.inputs ?? DEFAULT_INPUTS);
   const [nomeProduto, setNomeProduto] = useState("");
+
+  // Carrega o preset ativo assim que ele estiver disponível (ex.: sincronizou do Supabase
+  // após o mount). Só uma vez, pra não sobrescrever edições feitas na sessão.
+  const loadedPresetOnceRef = useRef(false);
+  useEffect(() => {
+    if (loadedPresetOnceRef.current) return;
+    if (activePreset) {
+      setInputs(activePreset.inputs);
+      loadedPresetOnceRef.current = true;
+    }
+  }, [activePreset]);
+
+  const handleSelectPreset = useCallback((preset: PresetItem<ShopeeInputs>) => {
+    setInputs(preset.inputs);
+    selectPresetId(preset.id);
+    loadedPresetOnceRef.current = true;
+  }, [selectPresetId]);
+
+  const handleSavePreset = useCallback((name: string) => {
+    savePreset(name, inputs);
+  }, [savePreset, inputs]);
 
   const lastCost = useMemo(() => {
     const c = lastResults?.custoTotalAjustado;
@@ -245,17 +277,27 @@ export default function ShopeeCalculatorPage() {
               Precificação avançada com foco em comissão por faixa, descontos e ROAS.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setInputs(DEFAULT_INPUTS);
-              setNomeProduto("");
-            }}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-900"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Limpar
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <PresetPicker
+              presets={presets}
+              activeId={activePresetId}
+              onSelect={handleSelectPreset}
+              onSave={handleSavePreset}
+              onDelete={removePreset}
+              label="preset Shopee"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setInputs(DEFAULT_INPUTS);
+                setNomeProduto("");
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-900"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Limpar
+            </button>
+          </div>
         </div>
       </div>
 

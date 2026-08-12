@@ -318,6 +318,123 @@ export interface PublicCatalogItem {
   imageUrl: string | null;
 }
 
+// =========================
+// Presets de precificação por marketplace (Shopee / Mercado Livre / Venda Direta)
+// =========================
+// Espelham os tipos ShopeeInputs/MlInputs/VendaDiretaInputs dos respectivos engines
+// (lib/engines/shopee, lib/engines/ml, lib/engines/vendaDireta). Precisam estar no
+// settingsSchema porque SettingsForm faz settingsSchema.parse(values) no submit —
+// campos fora do schema são descartados pelo zod.
+
+const shopeeInputsSchema = z.object({
+  fullCustoUnidade: z.number().default(0),
+  valorCompra: z.number().default(0),
+  custoEnvio: z.number().default(0),
+  isKit: z.boolean().default(false),
+  kitQtd: z.number().default(2),
+  modo: z.enum(["margem", "lucroRS", "precoTravado"]).default("margem"),
+  metaLucroPercent: z.number().default(20),
+  precoTravado: z.number().default(50),
+  metaLucroRS: z.number().default(10),
+  tributacaoPercent: z.number().default(0),
+  roasAlvo: z.number().default(13),
+  promocaoPercent: z.number().default(15),
+  cupomLojaPercent: z.number().default(0),
+  campanhasDestaque: z.boolean().default(false),
+  shopeeAcelera: z
+    .enum(["none", "loja-oficial", "vendedor-indicado", "demais"])
+    .default("none"),
+  tipoVendedor: z.enum(["cpf", "cnpj"]).default("cnpj"),
+  altaVolume: z.boolean().default(false),
+  estimativaVendas: z.number().default(100),
+  referenciaPrecoMercado: z.number().default(0),
+});
+
+const mlInputsSchema = z.object({
+  valorCompra: z.number().default(25),
+  custoEnvioMaterial: z.number().default(1.5),
+  custosFixos: z.number().default(0),
+  custosOperacionaisPercent: z.number().default(0),
+  notaFiscalPercent: z.number().default(0),
+  fullCustoUnidade: z.number().default(0),
+  tipoAnuncio: z.enum(["classico", "premium"]).default("classico"),
+  comissaoPercent: z.number().default(12),
+  formaEnvio: z
+    .enum(["mercado-envios", "full", "flex-proximo", "flex-medio", "flex-distante"])
+    .default("mercado-envios"),
+  categoriaFixa: z.enum(["geral", "livros", "supermercado"]).default("geral"),
+  categoriaEspecial: z.boolean().default(false),
+  alimentosAnimais: z.boolean().default(false),
+  reputacao: z.enum(["verde", "amarelo", "vermelho", "sem"]).default("verde"),
+  peso: z.number().default(0.4),
+  comprimento: z.number().default(20),
+  largura: z.number().default(15),
+  altura: z.number().default(10),
+  modo: z.enum(["margem", "lucroRS", "precoTravado"]).default("margem"),
+  metaLucroPercent: z.number().default(20),
+  precoTravado: z.number().default(79),
+  metaLucroRS: z.number().default(10),
+  modoAds: z.enum(["roas", "tacos"]).default("roas"),
+  roasAlvo: z.number().default(10),
+  acosPercent: z.number().default(0),
+  tacosPercent: z.number().default(4),
+  proporcaoOrganica: z.number().default(50),
+  promocaoPercent: z.number().default(0),
+  cupomLojaPercent: z.number().default(0),
+  ofertaRelampago: z.boolean().default(false),
+  estimativaVendas: z.number().default(100),
+});
+
+const vendaDiretaInputsSchema = z.object({
+  fullCustoUnidade: z.number().default(0),
+  margem: z.number().default(25),
+  imposto: z.number().default(0),
+  mode: z.enum(["margem", "receber_liquido"]).default("margem"),
+  targetNet: z.number().default(100),
+  pixDiscountPercent: z.number().default(0),
+  machineProfile: z
+    .enum(["custom", "mercado_pago", "pagseguro", "ton", "sumup", "stone", "infinitepay"])
+    .default("custom"),
+  installments: z.number().default(6),
+  anticipationEnabled: z.boolean().default(false),
+  anticipationRatePerMonth: z.number().default(0),
+  receiveDays: z
+    .union([z.literal(30), z.literal(14), z.literal(2)])
+    .default(30),
+});
+
+function presetListSchema<T extends z.ZodTypeAny>(inputsSchema: T) {
+  return z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        inputs: inputsSchema,
+      }),
+    )
+    .default([]);
+}
+
+export const marketplacePresetsSchema = z
+  .object({
+    shopee: presetListSchema(shopeeInputsSchema),
+    mercadoLivre: presetListSchema(mlInputsSchema),
+    vendaDireta: presetListSchema(vendaDiretaInputsSchema),
+    activeShopeeId: z.string().nullable().default(null),
+    activeMercadoLivreId: z.string().nullable().default(null),
+    activeVendaDiretaId: z.string().nullable().default(null),
+  })
+  .default({
+    shopee: [],
+    mercadoLivre: [],
+    vendaDireta: [],
+    activeShopeeId: null,
+    activeMercadoLivreId: null,
+    activeVendaDiretaId: null,
+  });
+
+export type MarketplacePresets = z.infer<typeof marketplacePresetsSchema>;
+
 export const settingsSchema = z.object({
   currency: z.enum(["BRL", "USD"]),
   defaults: z.object({
@@ -438,6 +555,8 @@ export const settingsSchema = z.object({
   }),
   /** Presets de “Ajustes avançados” da calculadora (taxa de falha, mão de obra, etc.). */
   advanced: calculatorAdvancedObjectSchema.default(CALCULATOR_ADVANCED_DEFAULTS),
+  /** Presets nomeados de precificação por marketplace (Shopee/ML/Venda Direta) + qual está ativo. */
+  marketplacePresets: marketplacePresetsSchema,
 });
 
 export type SettingsValues = z.infer<typeof settingsSchema>;

@@ -48,6 +48,14 @@ export const defaultSettings: SettingsValues = {
     customPresets: [],
   },
   advanced: { ...CALCULATOR_ADVANCED_DEFAULTS },
+  marketplacePresets: {
+    shopee: [],
+    mercadoLivre: [],
+    vendaDireta: [],
+    activeShopeeId: null,
+    activeMercadoLivreId: null,
+    activeVendaDiretaId: null,
+  },
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -74,6 +82,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
                 ...defaultSettings.advanced,
                 ...(parsed.advanced ?? defaultSettings.advanced),
               },
+              marketplacePresets: {
+                ...defaultSettings.marketplacePresets,
+                ...(parsed.marketplacePresets ?? defaultSettings.marketplacePresets),
+              },
             };
           } catch {
             return defaultSettings;
@@ -95,6 +107,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         advanced: {
           ...state.settings.advanced,
           ...(next.advanced ?? {}),
+        },
+        marketplacePresets: {
+          ...state.settings.marketplacePresets,
+          ...(next.marketplacePresets ?? {}),
         },
       };
       if (typeof window !== "undefined") {

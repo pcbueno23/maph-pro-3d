@@ -1,17 +1,19 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save, RotateCcw } from "lucide-react";
 import { calcularPrecoML, type MlInputs } from "@/lib/engines/ml/engine";
 import InputField from "@/components/marketplaces/ml/InputField";
 import ResultCard from "@/components/marketplaces/ml/ResultCard";
 import ProductNameAutocomplete from "@/components/marketplaces/shared/ProductNameAutocomplete";
+import { PresetPicker, type PresetItem } from "@/components/marketplaces/shared/PresetPicker";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useAuthStore } from "@/store/authStore";
 import { useProductsStore } from "@/store/productsStore";
 import { saveMarketplaceProduct } from "@/lib/saveMarketplaceProduct";
 import { useCalculatorStore } from "@/store/calculatorStore";
+import { useMarketplacePresets } from "@/hooks/useMarketplacePresets";
 import { openPrintRoute } from "@/lib/printReport";
 
 const DEFAULT_INPUTS: MlInputs = {
@@ -67,8 +69,36 @@ export default function MercadoLivreCalculatorPage() {
   const lastResults = useCalculatorStore((s) => s.lastResults);
   const lastInput = useCalculatorStore((s) => s.lastInput);
 
-  const [inputs, setInputs] = useState<MlInputs>(DEFAULT_INPUTS);
+  const {
+    list: presets,
+    activeId: activePresetId,
+    active: activePreset,
+    save: savePreset,
+    select: selectPresetId,
+    remove: removePreset,
+  } = useMarketplacePresets<MlInputs>("mercadoLivre");
+
+  const [inputs, setInputs] = useState<MlInputs>(() => activePreset?.inputs ?? DEFAULT_INPUTS);
   const [nomeProduto, setNomeProduto] = useState("");
+
+  const loadedPresetOnceRef = useRef(false);
+  useEffect(() => {
+    if (loadedPresetOnceRef.current) return;
+    if (activePreset) {
+      setInputs(activePreset.inputs);
+      loadedPresetOnceRef.current = true;
+    }
+  }, [activePreset]);
+
+  const handleSelectPreset = useCallback((preset: PresetItem<MlInputs>) => {
+    setInputs(preset.inputs);
+    selectPresetId(preset.id);
+    loadedPresetOnceRef.current = true;
+  }, [selectPresetId]);
+
+  const handleSavePreset = useCallback((name: string) => {
+    savePreset(name, inputs);
+  }, [savePreset, inputs]);
 
   // Puxa custo real ajustado da calculadora de custo 3D do SaaS
   const lastCost = useMemo(() => {
@@ -308,17 +338,27 @@ export default function MercadoLivreCalculatorPage() {
               Precificação avançada com foco em taxas, frete e marketing.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setInputs(DEFAULT_INPUTS);
-              setNomeProduto("");
-            }}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-900"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Limpar
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <PresetPicker
+              presets={presets}
+              activeId={activePresetId}
+              onSelect={handleSelectPreset}
+              onSave={handleSavePreset}
+              onDelete={removePreset}
+              label="preset Mercado Livre"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setInputs(DEFAULT_INPUTS);
+                setNomeProduto("");
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-900"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Limpar
+            </button>
+          </div>
         </div>
       </div>
 

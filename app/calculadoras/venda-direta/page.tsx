@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Save, RotateCcw } from "lucide-react";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -8,7 +8,15 @@ import { useAuthStore } from "@/store/authStore";
 import { useProductsStore } from "@/store/productsStore";
 import { saveMarketplaceProduct } from "@/lib/saveMarketplaceProduct";
 import { useCalculatorStore } from "@/store/calculatorStore";
+import { useMarketplacePresets } from "@/hooks/useMarketplacePresets";
 import ProductNameAutocomplete from "@/components/marketplaces/shared/ProductNameAutocomplete";
+import { PresetPicker, type PresetItem } from "@/components/marketplaces/shared/PresetPicker";
+import {
+  calcularPrecoVendaDireta,
+  MACHINE_PROFILES,
+  type MachineProfileId,
+  type VendaDiretaInputs,
+} from "@/lib/engines/vendaDireta/engine";
 
 function fmtBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -22,101 +30,19 @@ function round2(v: number) {
   return Math.round((Number.isFinite(v) ? v : 0) * 100) / 100;
 }
 
-type MachineProfileId =
-  | "custom"
-  | "mercado_pago"
-  | "pagseguro"
-  | "ton"
-  | "sumup"
-  | "stone"
-  | "infinitepay";
-
-type MachineRateTable = Record<number, number>; // installments -> fee percent
-
-const DEFAULT_INSTALLMENT_TABLE: MachineRateTable = {
-  1: 4.99,
-  2: 6.49,
-  3: 7.49,
-  4: 8.49,
-  5: 9.49,
-  6: 10.49,
-  7: 11.49,
-  8: 12.49,
-  9: 13.49,
-  10: 14.49,
-  11: 15.49,
-  12: 16.49,
+const DEFAULT_INPUTS: VendaDiretaInputs = {
+  fullCustoUnidade: 0,
+  margem: 25,
+  imposto: 0,
+  mode: "margem",
+  targetNet: 100,
+  pixDiscountPercent: 0,
+  machineProfile: "custom",
+  installments: 6,
+  anticipationEnabled: false,
+  anticipationRatePerMonth: 0,
+  receiveDays: 30,
 };
-
-const MACHINE_PROFILES: Array<{ id: MachineProfileId; label: string; table: MachineRateTable }> = [
-  { id: "custom", label: "Personalizado", table: DEFAULT_INSTALLMENT_TABLE },
-  { id: "mercado_pago", label: "Mercado Pago", table: DEFAULT_INSTALLMENT_TABLE },
-  { id: "pagseguro", label: "PagSeguro", table: DEFAULT_INSTALLMENT_TABLE },
-  { id: "ton", label: "Ton", table: DEFAULT_INSTALLMENT_TABLE },
-  { id: "sumup", label: "SumUp", table: DEFAULT_INSTALLMENT_TABLE },
-  { id: "stone", label: "Stone", table: DEFAULT_INSTALLMENT_TABLE },
-  { id: "infinitepay", label: "InfinitePay", table: DEFAULT_INSTALLMENT_TABLE },
-];
-
-type CalcMode = "margem" | "receber_liquido";
-
-function clampNum(v: number, min = 0, max = Number.POSITIVE_INFINITY) {
-  const n = Number.isFinite(v) ? v : 0;
-  return Math.min(max, Math.max(min, n));
-}
-
-function calcGrossFromTarget({
-  targetNetReceive,
-  taxPercent,
-  cardFeePercent,
-}: {
-  targetNetReceive: number;
-  taxPercent: number;
-  cardFeePercent: number;
-}) {
-  const tax = clampNum(taxPercent) / 100;
-  const fee = clampNum(cardFeePercent) / 100;
-  const denom = 1 - tax - fee;
-  return denom > 0 ? targetNetReceive / denom : 0;
-}
-
-function calcGrossForMargin({
-  cost,
-  marginPercent,
-  taxPercent,
-  cardFeePercent,
-}: {
-  cost: number;
-  marginPercent: number;
-  taxPercent: number;
-  cardFeePercent: number;
-}) {
-  const desired = clampNum(marginPercent) / 100;
-  const tax = clampNum(taxPercent) / 100;
-  const fee = clampNum(cardFeePercent) / 100;
-  const denom = 1 - desired - tax - fee;
-  return denom > 0 ? cost / denom : 0;
-}
-
-function calcNetReceive({
-  grossPrice,
-  taxPercent,
-  cardFeePercent,
-}: {
-  grossPrice: number;
-  taxPercent: number;
-  cardFeePercent: number;
-}) {
-  const tax = grossPrice * (clampNum(taxPercent) / 100);
-  const fee = grossPrice * (clampNum(cardFeePercent) / 100);
-  return grossPrice - tax - fee;
-}
-
-function applyCardFeeOnTop(baseGross: number, cardFeePercent: number) {
-  const fee = clampNum(cardFeePercent) / 100;
-  const denom = 1 - fee;
-  return denom > 0 ? baseGross / denom : 0;
-}
 
 export default function VendaDiretaCalculatorPage() {
   const router = useRouter();
@@ -126,110 +52,81 @@ export default function VendaDiretaCalculatorPage() {
   const lastResults = useCalculatorStore((s) => s.lastResults);
   const lastInput = useCalculatorStore((s) => s.lastInput);
 
+  const {
+    list: presets,
+    activeId: activePresetId,
+    active: activePreset,
+    save: savePreset,
+    select: selectPresetId,
+    remove: removePreset,
+  } = useMarketplacePresets<VendaDiretaInputs>("vendaDireta");
+
   const [nomeProduto, setNomeProduto] = useState("");
-  const [custo, setCusto] = useState(0);
-  const [margem, setMargem] = useState(25);
-  const [imposto, setImposto] = useState(0);
+  const [inputs, setInputs] = useState<VendaDiretaInputs>(
+    () => activePreset?.inputs ?? DEFAULT_INPUTS,
+  );
 
-  // Novos controles
-  const [mode, setMode] = useState<CalcMode>("margem");
-  const [targetNet, setTargetNet] = useState(100);
-  const [pixDiscountPercent, setPixDiscountPercent] = useState(0);
+  const loadedPresetOnceRef = useRef(false);
+  useEffect(() => {
+    if (loadedPresetOnceRef.current) return;
+    if (activePreset) {
+      setInputs(activePreset.inputs);
+      loadedPresetOnceRef.current = true;
+    }
+  }, [activePreset]);
 
-  const [machineProfile, setMachineProfile] = useState<MachineProfileId>("custom");
-  const [installments, setInstallments] = useState(6);
+  const handleSelectPreset = useCallback((preset: PresetItem<VendaDiretaInputs>) => {
+    setInputs(preset.inputs);
+    selectPresetId(preset.id);
+    loadedPresetOnceRef.current = true;
+  }, [selectPresetId]);
+
+  const handleSavePreset = useCallback((name: string) => {
+    savePreset(name, inputs);
+  }, [savePreset, inputs]);
+
   const selectedMachine = useMemo(
-    () => MACHINE_PROFILES.find((p) => p.id === machineProfile) ?? MACHINE_PROFILES[0]!,
-    [machineProfile],
+    () => MACHINE_PROFILES.find((p) => p.id === inputs.machineProfile) ?? MACHINE_PROFILES[0]!,
+    [inputs.machineProfile],
   );
   const machineTable = selectedMachine.table;
-  const feeForInstallments = machineTable[installments] ?? machineTable[1] ?? 0;
-
-  // Antecipação
-  const [anticipationEnabled, setAnticipationEnabled] = useState(false);
-  const [anticipationRatePerMonth, setAnticipationRatePerMonth] = useState(0);
-  const [receiveDays, setReceiveDays] = useState<30 | 14 | 2>(30);
-  const anticipationPercent = anticipationEnabled
-    ? clampNum(anticipationRatePerMonth) * (clampNum(receiveDays) / 30)
-    : 0;
 
   const lastCost = useMemo(() => {
     const c = lastResults?.custoTotalAjustado;
     return typeof c === "number" && Number.isFinite(c) ? c : null;
   }, [lastResults?.custoTotalAjustado]);
 
-  const setCusto2 = useCallback((v: number) => setCusto(round2(v)), []);
-  const setMargem2 = useCallback((v: number) => setMargem(round2(v)), []);
-  const setTargetNet2 = useCallback((v: number) => setTargetNet(round2(v)), []);
-  const setImposto2 = useCallback((v: number) => setImposto(round2(v)), []);
-  const setPixDiscount2 = useCallback((v: number) => setPixDiscountPercent(round2(v)), []);
-  const setAnticipationRate2 = useCallback(
-    (v: number) => setAnticipationRatePerMonth(round2(v)),
+  const setField = useCallback(
+    <K extends keyof VendaDiretaInputs>(key: K, value: VendaDiretaInputs[K]) => {
+      setInputs((p) => ({ ...p, [key]: value }));
+    },
     [],
   );
+  const setNumField = useCallback(
+    (key: keyof VendaDiretaInputs, v: number) => setField(key, round2(v) as never),
+    [setField],
+  );
+  const setCusto2 = useCallback((v: number) => setNumField("fullCustoUnidade", v), [setNumField]);
+  const setMargem2 = useCallback((v: number) => setNumField("margem", v), [setNumField]);
+  const setTargetNet2 = useCallback((v: number) => setNumField("targetNet", v), [setNumField]);
+  const setImposto2 = useCallback((v: number) => setNumField("imposto", v), [setNumField]);
+  const setPixDiscount2 = useCallback((v: number) => setNumField("pixDiscountPercent", v), [setNumField]);
+  const setAnticipationRate2 = useCallback(
+    (v: number) => setNumField("anticipationRatePerMonth", v),
+    [setNumField],
+  );
 
-  const basePrice = useMemo(() => {
-    const taxPercent = clampNum(imposto);
-    if (mode === "receber_liquido") {
-      // “Quero receber limpo”: base do PIX é independente de taxa do cartão.
-      return calcGrossFromTarget({
-        targetNetReceive: clampNum(targetNet),
-        taxPercent,
-        cardFeePercent: 0,
-      });
-    }
-    // Meta de margem: base não depende de taxa do cartão.
-    return calcGrossForMargin({
-      cost: clampNum(custo),
-      marginPercent: clampNum(margem),
-      taxPercent,
-      cardFeePercent: 0,
-    });
-  }, [mode, custo, margem, imposto, targetNet]);
-
-  const pricePix = useMemo(() => {
-    const discount = clampNum(pixDiscountPercent) / 100;
-    return Math.max(0, basePrice * (1 - discount));
-  }, [basePrice, pixDiscountPercent]);
-
-  const priceCard = useMemo(() => {
-    const taxPercent = clampNum(imposto);
-    const cardFeePercent = clampNum(feeForInstallments) + clampNum(anticipationPercent);
-    if (mode === "receber_liquido") {
-      // No modo “receber limpo”, cartão calcula independente (taxa entra aqui).
-      return calcGrossFromTarget({
-        targetNetReceive: clampNum(targetNet),
-        taxPercent,
-        cardFeePercent,
-      });
-    }
-    // Meta de margem: cartão deriva do base adicionando apenas a taxa do cartão (parcelamento/antecipação).
-    return applyCardFeeOnTop(basePrice, cardFeePercent);
-  }, [mode, basePrice, imposto, feeForInstallments, anticipationPercent, targetNet]);
-
-  const parcelaValue = useMemo(() => {
-    const n = Math.max(1, Math.round(clampNum(installments, 1, 12)));
-    return priceCard / n;
-  }, [priceCard, installments]);
-
-  const netCard = useMemo(() => {
-    const taxPercent = clampNum(imposto);
-    const cardFeePercent = clampNum(feeForInstallments) + clampNum(anticipationPercent);
-    return calcNetReceive({ grossPrice: priceCard, taxPercent, cardFeePercent });
-  }, [priceCard, imposto, feeForInstallments, anticipationPercent]);
-
-  const netPix = useMemo(() => {
-    // PIX: sem taxa de maquininha; só imposto (se informado)
-    return calcNetReceive({ grossPrice: pricePix, taxPercent: clampNum(imposto), cardFeePercent: 0 });
-  }, [pricePix, imposto]);
-
-  const lucroPix = useMemo(() => netPix - clampNum(custo), [netPix, custo]);
-  const lucroCard = useMemo(() => netCard - clampNum(custo), [netCard, custo]);
-
-  const diffPixVsCardPct = useMemo(() => {
-    if (pricePix <= 0) return 0;
-    return ((priceCard - pricePix) / pricePix) * 100;
-  }, [pricePix, priceCard]);
+  const result = useMemo(() => calcularPrecoVendaDireta(inputs), [inputs]);
+  const {
+    pricePix,
+    priceCard,
+    parcelaValue,
+    lucroPix,
+    lucroCard,
+    diffPixVsCardPct,
+    feeForInstallments,
+    anticipationPercent,
+  } = result;
 
   async function handleSave() {
     const customName = nomeProduto.trim();
@@ -248,10 +145,10 @@ export default function VendaDiretaCalculatorPage() {
         name,
         weightGrams: 0,
         channelPrice: pricePix,
-        channelMarginPercent: Number.isFinite(margem) ? margem : null,
+        channelMarginPercent: Number.isFinite(inputs.margem) ? inputs.margem : null,
         marketplace: "Venda Direta",
         suggestedPriceDirect: pricePix,
-        totalCost: custo,
+        totalCost: inputs.fullCustoUnidade,
       },
       settings,
       user,
@@ -261,7 +158,7 @@ export default function VendaDiretaCalculatorPage() {
   }
 
   function buildWhatsAppText() {
-    const n = Math.max(1, Math.round(clampNum(installments, 1, 12)));
+    const n = Math.max(1, Math.round(Math.min(12, Math.max(1, inputs.installments))));
     return `
 💰 *Formas de pagamento*
 
@@ -289,27 +186,27 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
               Precificação para PIX e cartão, com margem e taxas.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setNomeProduto("");
-              setCusto(0);
-              setMargem(25);
-              setImposto(0);
-              setMode("margem");
-              setTargetNet(100);
-              setPixDiscountPercent(0);
-              setMachineProfile("custom");
-              setInstallments(6);
-              setAnticipationEnabled(false);
-              setAnticipationRatePerMonth(0);
-              setReceiveDays(30);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-900"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Limpar
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <PresetPicker
+              presets={presets}
+              activeId={activePresetId}
+              onSelect={handleSelectPreset}
+              onSave={handleSavePreset}
+              onDelete={removePreset}
+              label="preset Venda Direta"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setNomeProduto("");
+                setInputs(DEFAULT_INPUTS);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-900"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Limpar
+            </button>
+          </div>
         </div>
       </div>
 
@@ -352,7 +249,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                 </div>
                 <input
                   type="number"
-                  value={custo}
+                  value={inputs.fullCustoUnidade}
                   onChange={(e) => setCusto2(parseFloat(e.currentTarget.value) || 0)}
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 />
@@ -362,8 +259,8 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   Modo de cálculo
                 </label>
                 <select
-                  value={mode}
-                  onChange={(e) => setMode(e.currentTarget.value as CalcMode)}
+                  value={inputs.mode}
+                  onChange={(e) => setField("mode", e.currentTarget.value as VendaDiretaInputs["mode"])}
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 >
                   <option value="margem">Meta de margem (%)</option>
@@ -372,19 +269,19 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
               </div>
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] mb-2 text-slate-400">
-                  {mode === "margem" ? "Margem desejada (%)" : "Quero receber (R$) líquido"}
+                  {inputs.mode === "margem" ? "Margem desejada (%)" : "Quero receber (R$) líquido"}
                 </label>
-                {mode === "margem" ? (
+                {inputs.mode === "margem" ? (
                   <input
                     type="number"
-                    value={margem}
+                    value={inputs.margem}
                     onChange={(e) => setMargem2(parseFloat(e.currentTarget.value) || 0)}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                   />
                 ) : (
                   <input
                     type="number"
-                    value={targetNet}
+                    value={inputs.targetNet}
                     onChange={(e) => setTargetNet2(parseFloat(e.currentTarget.value) || 0)}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                   />
@@ -396,7 +293,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                 </label>
                 <input
                   type="number"
-                  value={imposto}
+                  value={inputs.imposto}
                   onChange={(e) => setImposto2(parseFloat(e.currentTarget.value) || 0)}
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 />
@@ -407,7 +304,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                 </label>
                 <input
                   type="number"
-                  value={pixDiscountPercent}
+                  value={inputs.pixDiscountPercent}
                   onChange={(e) => setPixDiscount2(parseFloat(e.currentTarget.value) || 0)}
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 />
@@ -420,8 +317,8 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   Selecionar maquininha
                 </label>
                 <select
-                  value={machineProfile}
-                  onChange={(e) => setMachineProfile(e.currentTarget.value as MachineProfileId)}
+                  value={inputs.machineProfile}
+                  onChange={(e) => setField("machineProfile", e.currentTarget.value as MachineProfileId)}
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 >
                   {MACHINE_PROFILES.map((p) => (
@@ -436,8 +333,8 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   Parcelamento (1x até 12x)
                 </label>
                 <select
-                  value={installments}
-                  onChange={(e) => setInstallments(parseInt(e.currentTarget.value, 10) || 1)}
+                  value={inputs.installments}
+                  onChange={(e) => setField("installments", parseInt(e.currentTarget.value, 10) || 1)}
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                 >
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
@@ -455,8 +352,8 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                 <label className="flex items-center gap-2 text-sm text-slate-300">
                   <input
                     type="checkbox"
-                    checked={anticipationEnabled}
-                    onChange={(e) => setAnticipationEnabled(e.currentTarget.checked)}
+                    checked={inputs.anticipationEnabled}
+                    onChange={(e) => setField("anticipationEnabled", e.currentTarget.checked)}
                     className="h-4 w-4 accent-emerald-400"
                   />
                   Antecipação automática
@@ -469,9 +366,9 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   </label>
                   <input
                     type="number"
-                    value={anticipationRatePerMonth}
+                    value={inputs.anticipationRatePerMonth}
                     onChange={(e) => setAnticipationRate2(parseFloat(e.currentTarget.value) || 0)}
-                    disabled={!anticipationEnabled}
+                    disabled={!inputs.anticipationEnabled}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-2.5 px-3 text-sm text-slate-100 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                   />
                 </div>
@@ -480,9 +377,9 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                     Prazo recebimento
                   </label>
                   <select
-                    value={receiveDays}
-                    onChange={(e) => setReceiveDays(parseInt(e.currentTarget.value, 10) as 30 | 14 | 2)}
-                    disabled={!anticipationEnabled}
+                    value={inputs.receiveDays}
+                    onChange={(e) => setField("receiveDays", (parseInt(e.currentTarget.value, 10) as 30 | 14 | 2))}
+                    disabled={!inputs.anticipationEnabled}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-2.5 px-3 text-sm text-slate-100 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/30"
                   >
                     <option value={30}>30 dias</option>
@@ -495,7 +392,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                     Taxa efetiva
                   </label>
                   <div className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-2.5 px-3 text-sm text-slate-100">
-                    {anticipationEnabled ? fmtPct(anticipationPercent) : "—"}
+                    {inputs.anticipationEnabled ? fmtPct(anticipationPercent) : "—"}
                   </div>
                 </div>
               </div>
@@ -528,13 +425,13 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
               </div>
               <div className="rounded-xl bg-slate-950/40 border border-slate-800 p-3">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">
-                  Preço cartão ({installments}x)
+                  Preço cartão ({inputs.installments}x)
                 </p>
                 <p className="mt-1 text-lg font-extrabold text-slate-50 tabular-nums">
                   {fmtBRL(priceCard)}
                 </p>
                 <p className="mt-1 text-[11px] text-slate-500">
-                  {installments}x de {fmtBRL(parcelaValue)}
+                  {inputs.installments}x de {fmtBRL(parcelaValue)}
                 </p>
               </div>
             </div>
@@ -564,7 +461,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   <p className="mt-1 text-slate-50 tabular-nums font-semibold">{fmtBRL(pricePix)}</p>
                 </div>
                 <div className="rounded-xl bg-slate-950/40 border border-slate-800 p-3">
-                  <p className="text-slate-500">Cartão {installments}x</p>
+                  <p className="text-slate-500">Cartão {inputs.installments}x</p>
                   <p className="mt-1 text-slate-50 tabular-nums font-semibold">{fmtBRL(priceCard)}</p>
                 </div>
                 <div className="rounded-xl bg-slate-950/40 border border-slate-800 p-3">
@@ -585,7 +482,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                   <div
                     key={n}
                     className={`flex items-center justify-between rounded-lg border px-3 py-2 ${
-                      n === installments
+                      n === inputs.installments
                         ? "border-emerald-500/30 bg-emerald-500/10"
                         : "border-slate-800 bg-slate-950/40"
                     }`}
@@ -599,7 +496,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
                 Taxa cartão (selecionada): {fmtPct(feeForInstallments)}{" "}
-                {anticipationEnabled ? `+ antecipação ${fmtPct(anticipationPercent)}` : ""}
+                {inputs.anticipationEnabled ? `+ antecipação ${fmtPct(anticipationPercent)}` : ""}
               </p>
             </div>
 
@@ -623,14 +520,14 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                       <td className="px-3 py-2 text-right tabular-nums text-emerald-300">{fmtBRL(lucroPix)}</td>
                     </tr>
                     <tr className="bg-slate-950/20">
-                      <td className="px-3 py-2 text-slate-200">Crédito {installments}x</td>
+                      <td className="px-3 py-2 text-slate-200">Crédito {inputs.installments}x</td>
                       <td className="px-3 py-2 text-right tabular-nums text-slate-100">{fmtBRL(priceCard)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-emerald-300">{fmtBRL(lucroCard)}</td>
                     </tr>
                     <tr className="bg-slate-950/20">
                       <td className="px-3 py-2 text-slate-200">Parcela (cliente)</td>
                       <td className="px-3 py-2 text-right tabular-nums text-slate-100">
-                        {installments}x de {fmtBRL(parcelaValue)}
+                        {inputs.installments}x de {fmtBRL(parcelaValue)}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-slate-500">—</td>
                     </tr>
@@ -648,7 +545,7 @@ Cartão ${n}x: ${fmtBRL(parcelaValue)} (${fmtBRL(priceCard)})
                 </button>
               </div>
               <p className="mt-2 text-[11px] text-slate-500">
-                Copia um texto pronto com PIX e cartão {installments}x.
+                Copia um texto pronto com PIX e cartão {inputs.installments}x.
               </p>
             </div>
           </div>
