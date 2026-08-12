@@ -4,11 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ExternalLink, Save } from "lucide-react";
 import { InputPanel } from "@/components/calculator/InputPanel";
+import { SaveProductChannelDialog } from "@/components/calculator/SaveProductChannelDialog";
 import { useCalculator } from "@/hooks/useCalculator";
 import { LAB_PRINTING_SUPPLY_FALLBACK_ID } from "@/lib/calculatorLabDefaults";
 import { aplicarTaxaFalha } from "@/lib/precoCompleto";
-import { useCalculatorStore } from "@/store/calculatorStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useAuthStore } from "@/store/authStore";
+import { useProductsStore } from "@/store/productsStore";
+import { saveMarketplaceProduct } from "@/lib/saveMarketplaceProduct";
+import type { SaveProductChannel } from "@/lib/productMarketplace";
 import { calcularPrecoShopee } from "@/lib/engines/shopee/engine";
 import { calcularPrecoML } from "@/lib/engines/ml/engine";
 import { calcularPrecoVendaDireta } from "@/lib/engines/vendaDireta/engine";
@@ -113,9 +117,11 @@ function MarketplacePresetBox({
 export default function Custo3DPage() {
   const router = useRouter();
   const { form, results } = useCalculator();
-  const requestSave = useCalculatorStore((s) => s.requestSave);
   const { settings } = useSettingsStore();
+  const { user } = useAuthStore();
+  const addProduct = useProductsStore((s) => s.addProduct);
   const [saving, setSaving] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   const unitCost = useMemo(() => {
     if (!results) return null;
@@ -196,6 +202,102 @@ export default function Custo3DPage() {
       metaLucroPercent: tiktokQuickMargin,
     });
   }, [activeTiktokPreset, unitCost, tiktokQuickMargin]);
+
+  const unavailableSaveChannels = useMemo(() => {
+    const unavailable: SaveProductChannel[] = [];
+    if (!shopeeResult) unavailable.push("shopee");
+    if (!mlResult) unavailable.push("mercado_livre");
+    if (!tiktokResult) unavailable.push("tiktok");
+    if (!vdResult) unavailable.push("venda_direta");
+    return unavailable;
+  }, [shopeeResult, mlResult, tiktokResult, vdResult]);
+
+  async function handleSaveToChannel(channel: SaveProductChannel) {
+    setShowSaveDialog(false);
+    if (unavailableSaveChannels.includes(channel)) {
+      window.alert(
+        "Configure um preset pra esse marketplace primeiro (abre a aba dele, ajusta e clica em \"Salvar preset\").",
+      );
+      return;
+    }
+
+    const weightGrams = Number(form.getValues("material.weight")) || 0;
+    const rawName = String(form.getValues("productName") ?? "").trim();
+    const name =
+      rawName ||
+      "Simulação " +
+        new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+    setSaving(true);
+    try {
+      if (channel === "shopee" && shopeeResult) {
+        await saveMarketplaceProduct({
+          payload: {
+            name,
+            weightGrams,
+            channelPrice: shopeeResult.precoFinalSugerido,
+            channelMarginPercent: shopeeResult.margemReal,
+            marketplace: "Shopee",
+            suggestedPriceShopee: shopeeResult.precoFinalSugerido,
+            totalCost: shopeeResult.custoBase,
+          },
+          settings,
+          user,
+          addProduct,
+          router,
+        });
+      } else if (channel === "mercado_livre" && mlResult) {
+        await saveMarketplaceProduct({
+          payload: {
+            name,
+            weightGrams,
+            channelPrice: mlResult.precoFinal,
+            channelMarginPercent: mlResult.margem,
+            marketplace: "Mercado Livre",
+            suggestedPriceML: mlResult.precoFinal,
+            totalCost: mlResult.custoBase,
+          },
+          settings,
+          user,
+          addProduct,
+          router,
+        });
+      } else if (channel === "tiktok" && tiktokResult) {
+        await saveMarketplaceProduct({
+          payload: {
+            name,
+            weightGrams,
+            channelPrice: tiktokResult.precoFinalSugerido,
+            channelMarginPercent: tiktokResult.margemReal,
+            marketplace: "TikTok Shop",
+            totalCost: tiktokResult.custoBase,
+          },
+          settings,
+          user,
+          addProduct,
+          router,
+        });
+      } else if (channel === "venda_direta" && vdResult) {
+        await saveMarketplaceProduct({
+          payload: {
+            name,
+            weightGrams,
+            channelPrice: vdResult.pricePix,
+            channelMarginPercent: vdQuickMargin,
+            marketplace: "Venda Direta",
+            suggestedPriceDirect: vdResult.pricePix,
+            totalCost: unitCost ?? 0,
+          },
+          settings,
+          user,
+          addProduct,
+          router,
+        });
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // Horas de impressão por peça (mesma base usada pelo motor genérico), pra calcular
   // lucro/h independente por marketplace e comparar qual canal vale mais produzir em escala.
@@ -283,15 +385,11 @@ export default function Custo3DPage() {
               <button
                 type="button"
                 disabled={!results || saving}
-                onClick={() => {
-                  setSaving(true);
-                  requestSave("venda_direta");
-                  window.setTimeout(() => setSaving(false), 600);
-                }}
+                onClick={() => setShowSaveDialog(true)}
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-neon-cyan disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
-                Salvar produto (base)
+                Salvar produto
               </button>
               <button
                 type="button"
@@ -475,6 +573,14 @@ export default function Custo3DPage() {
           </MarketplacePresetBox>
         </div>
       </div>
+
+      <SaveProductChannelDialog
+        open={showSaveDialog}
+        channels={["shopee", "mercado_livre", "tiktok", "venda_direta"]}
+        unavailableChannels={unavailableSaveChannels}
+        onCancel={() => setShowSaveDialog(false)}
+        onConfirm={(channel) => void handleSaveToChannel(channel)}
+      />
     </div>
   );
 }

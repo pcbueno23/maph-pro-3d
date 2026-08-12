@@ -7,35 +7,40 @@ type Props = {
   title?: string;
   onCancel: () => void;
   onConfirm: (channel: SaveProductChannel) => void;
+  /** Quais canais mostrar (e em que ordem). Default: comportamento original (sem TikTok). */
+  channels?: SaveProductChannel[];
+  /** Canais mostrados mas desabilitados (ex.: sem preset configurado). */
+  unavailableChannels?: SaveProductChannel[];
 };
 
-const OPTIONS: Array<{
-  id: SaveProductChannel;
-  label: string;
-  hint: string;
-}> = [
-  {
-    id: "shopee",
+const ALL_OPTIONS: Record<SaveProductChannel, { label: string; hint: string }> = {
+  shopee: {
     label: "Shopee",
     hint: "Salva o preço sugerido para Shopee e o selo SHOPEE no card.",
   },
-  {
-    id: "mercado_livre",
+  mercado_livre: {
     label: "Mercado Livre",
     hint: "Salva o preço sugerido para ML e o selo ML no card.",
   },
-  {
-    id: "venda_direta",
+  tiktok: {
+    label: "TikTok Shop",
+    hint: "Salva o preço sugerido para TikTok Shop e o selo TIKTOK SHOP no card.",
+  },
+  venda_direta: {
     label: "Venda direta",
     hint: "Salva o preço PIX (sem marketplace) e o selo VENDA DIRETA.",
   },
-];
+};
+
+const DEFAULT_CHANNELS: SaveProductChannel[] = ["shopee", "mercado_livre", "venda_direta"];
 
 export function SaveProductChannelDialog({
   open,
   title = "Salvar produto — qual canal?",
   onCancel,
   onConfirm,
+  channels = DEFAULT_CHANNELS,
+  unavailableChannels = [],
 }: Props) {
   if (!open) return null;
 
@@ -54,17 +59,28 @@ export function SaveProductChannelDialog({
           O preço e o selo no canto do card seguirão o canal escolhido.
         </p>
         <div className="mt-4 space-y-2">
-          {OPTIONS.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => onConfirm(o.id)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-left transition hover:border-cyan-500/50 hover:bg-slate-950"
-            >
-              <span className="block text-sm font-semibold text-slate-100">{o.label}</span>
-              <span className="mt-0.5 block text-[11px] text-slate-500">{o.hint}</span>
-            </button>
-          ))}
+          {channels.map((id) => {
+            const o = ALL_OPTIONS[id];
+            const disabled = unavailableChannels.includes(id);
+            return (
+              <button
+                key={id}
+                type="button"
+                disabled={disabled}
+                onClick={() => onConfirm(id)}
+                className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                  disabled
+                    ? "cursor-not-allowed border-slate-800 bg-slate-950/30 opacity-50"
+                    : "border-slate-700 bg-slate-950/60 hover:border-cyan-500/50 hover:bg-slate-950"
+                }`}
+              >
+                <span className="block text-sm font-semibold text-slate-100">{o.label}</span>
+                <span className="mt-0.5 block text-[11px] text-slate-500">
+                  {disabled ? "Configure um preset nessa aba primeiro." : o.hint}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <div className="mt-5 flex justify-end">
           <button
