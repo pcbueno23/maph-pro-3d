@@ -73,7 +73,12 @@ interface Props {
   onOpenProductWizard?: (product: Product) => void;
 }
 
-const CHANNEL_ORDER: ChannelKey[] = ["shopee", "mercadoLivre", "tiktok", "vendaDireta"];
+const CHANNEL_ORDER: ChannelKey[] = ["shopee", "mercadoLivre", "tiktok"];
+
+/** Igual a bestChannel(), mas ignora Venda Direta — canal ocultado da tabela de produtos. */
+function bestVisibleChannel(metrics: ChannelMetrics): ReturnType<typeof bestChannel> {
+  return bestChannel({ ...metrics, vendaDireta: null });
+}
 
 /** Total de colunas da tabela (usado pra colSpan de linhas informativas). */
 const TOTAL_COLUMNS = 1 + 1 + 1 + 1 + 1 + 1 + CHANNEL_ORDER.length * 3 + 1;
@@ -450,7 +455,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
           0,
         );
         const metrics = computeChannelMetrics({ totalCost, printTimeMinutes }, settings.marketplacePresets);
-        const best = bestChannel(metrics);
+        const best = bestVisibleChannel(metrics);
         return { kit, members, totalCost, printTimeMinutes, metrics, best };
       })
       .filter((g): g is NonNullable<typeof g> => g !== null);
@@ -462,7 +467,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
   const standaloneRows = useMemo<Row[]>(() => {
     return standaloneProducts.map((product) => {
       const metrics = computeChannelMetrics(product, settings.marketplacePresets);
-      return { product, metrics, best: bestChannel(metrics) };
+      return { product, metrics, best: bestVisibleChannel(metrics) };
     });
   }, [standaloneProducts, settings.marketplacePresets]);
 
@@ -860,7 +865,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                     {!collapsed &&
                       members.map(({ product, qty }) => {
                         const metricsRow = computeChannelMetrics(product, settings.marketplacePresets);
-                        const bestRow = bestChannel(metricsRow);
+                        const bestRow = bestVisibleChannel(metricsRow);
                         return (
                           <tr key={`${kit.id}-${product.id}`} className="bg-slate-950/20">
                             <td className="px-2 py-2" />
