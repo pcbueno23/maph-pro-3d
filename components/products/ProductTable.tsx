@@ -13,6 +13,7 @@ import {
   EyeOff,
   FileText,
   Layers,
+  Pencil,
   Trash2,
   Undo2,
   X,
@@ -320,8 +321,9 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
   const [showKitNamePrompt, setShowKitNamePrompt] = useState(false);
   const [kitNameInput, setKitNameInput] = useState("");
 
-  // Grupos de kit minimizados (estado local, não persiste)
-  const [collapsedKitIds, setCollapsedKitIds] = useState<Set<string>>(new Set());
+  // Grupos de kit com itens visíveis pra edição (estado local, não persiste). Por padrão
+  // todo kit começa fechado, só mostrando a linha resumida — igual um produto normal.
+  const [expandedKitIds, setExpandedKitIds] = useState<Set<string>>(new Set());
 
   // Rodapé de produtos ocultos
   const [showHiddenList, setShowHiddenList] = useState(false);
@@ -362,8 +364,8 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
     );
   }
 
-  function toggleKitCollapsed(kitId: string) {
-    setCollapsedKitIds((prev) => {
+  function toggleKitExpanded(kitId: string) {
+    setExpandedKitIds((prev) => {
       const next = new Set(prev);
       if (next.has(kitId)) next.delete(kitId);
       else next.add(kitId);
@@ -808,7 +810,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
             </thead>
             <tbody className="divide-y divide-slate-800/70">
               {kitGroups.map(({ kit, members, totalCost, printTimeMinutes, metrics, best }) => {
-                const collapsed = collapsedKitIds.has(kit.id);
+                const collapsed = !expandedKitIds.has(kit.id);
                 return (
                   <Fragment key={kit.id}>
                     <tr className="bg-slate-900/50">
@@ -817,8 +819,8 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
-                            onClick={() => toggleKitCollapsed(kit.id)}
-                            title={collapsed ? "Expandir kit" : "Minimizar kit"}
+                            onClick={() => toggleKitExpanded(kit.id)}
+                            title={collapsed ? "Editar itens do kit" : "Fechar edição do kit"}
                             className="rounded p-0.5 text-slate-400 hover:text-cyan-300"
                           >
                             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -831,18 +833,28 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                       <td className="px-2 py-2 text-right text-slate-600">—</td>
                       <MetricsCells totalCost={totalCost} printTimeMinutes={printTimeMinutes} metrics={metrics} best={best} />
                       <td className="px-2 py-2 text-right">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (typeof window !== "undefined" && !window.confirm(`Excluir o kit "${kit.name}"? Os produtos não são afetados.`))
-                              return;
-                            removeKit(kit.id);
-                          }}
-                          title="Excluir kit"
-                          className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-1.5 text-rose-300 hover:bg-rose-500/15"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => toggleKitExpanded(kit.id)}
+                            title={collapsed ? "Editar itens do kit" : "Fechar edição do kit"}
+                            className="rounded-lg border border-slate-800 bg-slate-900/70 p-1.5 text-slate-300 hover:bg-slate-900"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (typeof window !== "undefined" && !window.confirm(`Excluir o kit "${kit.name}"? Os produtos não são afetados.`))
+                                return;
+                              removeKit(kit.id);
+                            }}
+                            title="Excluir kit"
+                            className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-1.5 text-rose-300 hover:bg-rose-500/15"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                     {!collapsed &&
