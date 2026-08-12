@@ -325,6 +325,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
   const [techProduct, setTechProduct] = useState<Product | null>(null);
   const [techSku, setTechSku] = useState("");
   const [techTimeMinutes, setTechTimeMinutes] = useState<number | null>(null);
+  const [techWeight, setTechWeight] = useState<number | null>(null);
   const [techDefaultPrinterId, setTechDefaultPrinterId] = useState<string>("");
 
   const [productThumbById, setProductThumbById] = useState<Record<string, string>>({});
@@ -553,6 +554,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
     setTechProduct(product);
     setTechSku(product.sku ?? "");
     setTechTimeMinutes(product.printTimeMinutes ?? null);
+    setTechWeight(product.weight ?? null);
     setTechDefaultPrinterId(product.defaultPrinterId ?? "");
     setTechOpen(true);
 
@@ -571,6 +573,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
     setTechPrinters([]);
     setTechSku("");
     setTechTimeMinutes(null);
+    setTechWeight(null);
     setTechDefaultPrinterId("");
   };
 
@@ -584,6 +587,10 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
         techTimeMinutes != null && Number.isFinite(techTimeMinutes) && techTimeMinutes > 0
           ? techTimeMinutes
           : null,
+      weight:
+        techWeight != null && Number.isFinite(techWeight) && techWeight >= 0
+          ? techWeight
+          : techProduct.weight,
       defaultPrinterId: techDefaultPrinterId || null,
       updatedAt: nowIso,
     };
@@ -1209,7 +1216,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                   Ficha técnica — {techProduct.name}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-400">
-                  Defina SKU, tempo estimado e impressora padrão para ordens e relatórios.
+                  Defina SKU, peso, tempo estimado e impressora padrão para ordens e relatórios.
                 </p>
               </div>
               <button
@@ -1242,6 +1249,20 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                   onChange={(e) => {
                     const v = Number(e.target.value);
                     setTechTimeMinutes(Number.isFinite(v) ? v : null);
+                  }}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-slate-300">Peso (g)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                  value={techWeight ?? ""}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setTechWeight(Number.isFinite(v) ? v : null);
                   }}
                 />
               </div>
