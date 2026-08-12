@@ -67,6 +67,12 @@ function formatDuration(minutes: number | null | undefined): string {
   return `${h}h ${m}min`;
 }
 
+/** Sempre em gramas (mesma unidade salva no produto). Ex.: 81.6 -> "81,6g" */
+function formatWeight(grams: number | null | undefined): string {
+  if (typeof grams !== "number" || !Number.isFinite(grams) || grams <= 0) return "—";
+  return `${grams.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}g`;
+}
+
 interface Props {
   products: Product[];
   /** Abre o fluxo completo (wizard) com dados do produto — foto, STL, materiais, preço. */
@@ -81,11 +87,12 @@ function bestVisibleChannel(metrics: ChannelMetrics): ReturnType<typeof bestChan
 }
 
 /** Total de colunas da tabela (usado pra colSpan de linhas informativas). */
-const TOTAL_COLUMNS = 1 + 1 + 1 + 1 + 1 + 1 + CHANNEL_ORDER.length * 3 + 1;
+const TOTAL_COLUMNS = 1 + 1 + 1 + 1 + 1 + 1 + 1 + CHANNEL_ORDER.length * 3 + 1;
 
 type SortKey =
   | "price"
   | "totalCost"
+  | "weight"
   | "printTimeMinutes"
   | "best"
   | `${ChannelKey}.price`
@@ -103,6 +110,7 @@ type Row = {
 function sortValue(row: Row, key: SortKey): number {
   if (key === "price") return row.product.price ?? -Infinity;
   if (key === "totalCost") return row.product.totalCost ?? -Infinity;
+  if (key === "weight") return row.product.weight ?? -Infinity;
   if (key === "printTimeMinutes") return row.product.printTimeMinutes ?? -Infinity;
   if (key === "best") return row.best?.metric.profitPerHour ?? -Infinity;
   const [channel, field] = key.split(".") as [ChannelKey, "price" | "marginPercent" | "profitPerHour"];
@@ -190,11 +198,13 @@ function ChannelCell({ metric }: { metric: ChannelMetrics[ChannelKey] }) {
 /** Custo · tempo · melhor canal · 4×3 colunas de canal — reaproveitado por linha solta, membro de kit e resumo do kit. */
 function MetricsCells({
   totalCost,
+  weight,
   printTimeMinutes,
   metrics,
   best,
 }: {
   totalCost: number;
+  weight: number | null | undefined;
   printTimeMinutes: number | null | undefined;
   metrics: ChannelMetrics;
   best: ReturnType<typeof bestChannel>;
@@ -202,6 +212,7 @@ function MetricsCells({
   return (
     <>
       <td className="px-2 py-2 text-right tabular-nums text-slate-300">{formatBRL(totalCost)}</td>
+      <td className="px-2 py-2 text-right tabular-nums text-slate-300">{formatWeight(weight)}</td>
       <td className="px-2 py-2 text-right tabular-nums text-slate-300">{formatDuration(printTimeMinutes)}</td>
       <td className="px-2 py-2 text-right">
         {best ? (
@@ -450,13 +461,14 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
           .filter((m): m is { product: Product; qty: number } => !!m.product);
         if (members.length === 0) return null;
         const totalCost = members.reduce((sum, m) => sum + (m.product.totalCost ?? 0) * m.qty, 0);
+        const totalWeight = members.reduce((sum, m) => sum + (m.product.weight ?? 0) * m.qty, 0);
         const printTimeMinutes = members.reduce(
           (sum, m) => sum + (m.product.printTimeMinutes ?? 0) * m.qty,
           0,
         );
         const metrics = computeChannelMetrics({ totalCost, printTimeMinutes }, settings.marketplacePresets);
         const best = bestVisibleChannel(metrics);
-        return { kit, members, totalCost, printTimeMinutes, metrics, best };
+        return { kit, members, totalCost, totalWeight, printTimeMinutes, metrics, best };
       })
       .filter((g): g is NonNullable<typeof g> => g !== null);
   }, [kits, productById, settings.marketplacePresets]);
@@ -772,6 +784,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                 </th>
                 <SortHeader label="Preço" sortKey="price" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
                 <SortHeader label="Custo" sortKey="totalCost" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
+                <SortHeader label="Peso" sortKey="weight" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
                 <SortHeader label="Tempo" sortKey="printTimeMinutes" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
                 <SortHeader label="Melhor canal" sortKey="best" sort={sort} onSort={handleSort} rowSpan={2} className="align-bottom" />
                 {CHANNEL_ORDER.map((ch) => (
@@ -814,7 +827,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/70">
-              {kitGroups.map(({ kit, members, totalCost, printTimeMinutes, metrics, best }) => {
+              {kitGroups.map(({ kit, members, totalCost, totalWeight, printTimeMinutes, metrics, best }) => {
                 const collapsed = !expandedKitIds.has(kit.id);
                 return (
                   <Fragment key={kit.id}>
@@ -836,7 +849,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                         </div>
                       </td>
                       <td className="px-2 py-2 text-right text-slate-600">—</td>
-                      <MetricsCells totalCost={totalCost} printTimeMinutes={printTimeMinutes} metrics={metrics} best={best} />
+                      <MetricsCells totalCost={totalCost} weight={totalWeight} printTimeMinutes={printTimeMinutes} metrics={metrics} best={best} />
                       <td className="px-2 py-2 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
@@ -893,6 +906,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                             </td>
                             <MetricsCells
                               totalCost={(product.totalCost ?? 0) * qty}
+                              weight={(product.weight ?? 0) * qty}
                               printTimeMinutes={product.printTimeMinutes != null ? product.printTimeMinutes * qty : null}
                               metrics={metricsRow}
                               best={bestRow}
@@ -995,6 +1009,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                     </td>
                     <MetricsCells
                       totalCost={unitCost}
+                      weight={product.weight}
                       printTimeMinutes={product.printTimeMinutes}
                       metrics={metrics}
                       best={best}
