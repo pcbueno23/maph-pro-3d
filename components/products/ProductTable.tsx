@@ -20,7 +20,7 @@ import {
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import type { Printer, Product, ProductAsset } from "@/types";
+import type { Printer, Product, ProductAsset, ProductKit } from "@/types";
 import { useProductsStore } from "@/store/productsStore";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -316,6 +316,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
 
   // Seleção pra criar kit direto na tabela
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedQty, setSelectedQty] = useState<Record<string, number>>({});
   const [showKitNamePrompt, setShowKitNamePrompt] = useState(false);
   const [kitNameInput, setKitNameInput] = useState("");
 
@@ -339,6 +340,26 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
       else next.add(id);
       return next;
     });
+    setSelectedQty((prev) => {
+      if (prev[id] != null) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: 1 };
+    });
+  }
+
+  function setSelectedQtyFor(id: string, qty: number) {
+    setSelectedQty((prev) => ({ ...prev, [id]: Math.max(0.0001, qty) }));
+  }
+
+  function updateKitMemberQty(kit: ProductKit, productId: string, qty: number) {
+    const nextQty = Math.max(0.0001, qty);
+    saveKit(
+      kit.name,
+      kit.components.map((c) => (c.productId === productId ? { ...c, qty: nextQty } : c)),
+    );
   }
 
   function toggleKitCollapsed(kitId: string) {
@@ -355,9 +376,10 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
     if (!name || selectedIds.size < 2) return;
     saveKit(
       name,
-      Array.from(selectedIds).map((id) => ({ productId: id, qty: 1 })),
+      Array.from(selectedIds).map((id) => ({ productId: id, qty: selectedQty[id] ?? 1 })),
     );
     setSelectedIds(new Set());
+    setSelectedQty({});
     setKitNameInput("");
     setShowKitNamePrompt(false);
   }
@@ -693,7 +715,10 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedIds(new Set())}
+                    onClick={() => {
+                      setSelectedIds(new Set());
+                      setSelectedQty({});
+                    }}
                     className="rounded-lg p-1.5 text-slate-400 hover:text-slate-200"
                     title="Cancelar seleção"
                   >
@@ -704,6 +729,32 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
             </div>
           ) : null}
         </div>
+        {showKitNamePrompt && selectedIds.size > 0 ? (
+          <div className="mx-2 mb-2 flex flex-col gap-1.5 rounded-lg border border-slate-800 bg-slate-950/40 p-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-slate-500">
+              Quantidade de cada produto no kit
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              {Array.from(selectedIds).map((id) => {
+                const p = productById.get(id);
+                if (!p) return null;
+                return (
+                  <div key={id} className="flex items-center gap-1.5">
+                    <span className="max-w-[220px] truncate text-xs text-slate-300">{p.name}</span>
+                    <input
+                      type="number"
+                      min={0.0001}
+                      step={1}
+                      value={selectedQty[id] ?? 1}
+                      onChange={(e) => setSelectedQtyFor(id, parseFloat(e.currentTarget.value) || 1)}
+                      className="w-14 rounded border border-slate-800 bg-slate-950/60 px-1.5 py-0.5 text-right text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-xs">
             <thead className="text-[10px] uppercase tracking-[0.1em] text-slate-500">
@@ -804,11 +855,20 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                             <td className="py-2 pl-8 pr-2">
                               <div className="flex items-center gap-2 border-l-2 border-slate-800 pl-2.5">
                                 <p className="truncate text-sm text-slate-200">{product.name}</p>
-                                {qty !== 1 ? (
-                                  <span className="shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-300">
-                                    {qty}×
-                                  </span>
-                                ) : null}
+                                <div className="flex shrink-0 items-center gap-1">
+                                  <input
+                                    type="number"
+                                    min={0.0001}
+                                    step={1}
+                                    value={qty}
+                                    onChange={(e) =>
+                                      updateKitMemberQty(kit, product.id, parseFloat(e.currentTarget.value) || 1)
+                                    }
+                                    title="Quantidade desse produto no kit"
+                                    className="w-12 rounded border border-slate-800 bg-slate-950/60 px-1 py-0.5 text-right text-[11px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
+                                  />
+                                  <span className="text-[10px] text-slate-500">×</span>
+                                </div>
                               </div>
                             </td>
                             <td className="px-2 py-2 text-right tabular-nums text-slate-100">
