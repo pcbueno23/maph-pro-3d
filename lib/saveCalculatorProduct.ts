@@ -124,9 +124,12 @@ export async function saveCalculatorProductFromSnapshot(
         hour: "2-digit",
         minute: "2-digit",
       });
+  // Usa o tempo já dividido por peça (mesmo campo usado pelo motor de cálculo e pelas
+  // outras telas de salvar produto) — evita salvar o tempo total da mesa/placa quando
+  // há mais de uma peça por impressão (unitsPerBatch > 1).
   const minutesFromHours =
-    typeof lastInput.time.hours === "number" && Number.isFinite(lastInput.time.hours)
-      ? Math.max(0, Math.round(lastInput.time.hours * 60))
+    typeof lastResults.printHoursPerUnit === "number" && lastResults.printHoursPerUnit > 0
+      ? Math.max(0, Math.round(lastResults.printHoursPerUnit * 60))
       : null;
 
   const marketplaceLabel = productMarketplaceFromSaveChannel(channel);

@@ -777,7 +777,12 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
       suggestedPriceML: calcResults.suggestedPriceML,
       suggestedPriceDirect:
         calcResults.suggestedPriceDirectCash ?? calcResults.suggestedPrice,
-      printTimeMinutes: Math.round(parsedCalc.time.hours * 60) || null,
+      // Usa o tempo já dividido por peça (mesmo campo do motor de cálculo) — evita salvar
+      // o tempo total da mesa/placa quando há mais de uma peça por impressão (unitsPerBatch > 1).
+      printTimeMinutes:
+        typeof calcResults.printHoursPerUnit === "number" && calcResults.printHoursPerUnit > 0
+          ? Math.round(calcResults.printHoursPerUnit * 60)
+          : null,
       defaultPrinterId: parsedCalc.time.printerId ?? null,
     };
 
