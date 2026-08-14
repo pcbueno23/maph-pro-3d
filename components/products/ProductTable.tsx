@@ -977,7 +977,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                     </td>
                     <td className="px-2 py-2">
                       <div className="flex items-center gap-2.5">
-                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-slate-700 bg-gradient-to-br from-cyan-500/20 to-emerald-500/20">
+                        <div className="relative z-0 h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-slate-700 bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 transition-transform duration-200 ease-out hover:z-50 hover:scale-[3] hover:shadow-xl hover:shadow-black/40">
                           {productThumbById[product.id] ? (
                             <img
                               src={productThumbById[product.id]}
