@@ -548,11 +548,20 @@ export default function ShopeeCalculatorPage() {
                   step={0.1}
                 />
 
+                {inputs.modo === "margem" && (
+                  <div className="sm:col-span-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-200/90">
+                    No modo Margem, o preço final e o lucro ficam sempre travados na meta —
+                    os descontos abaixo só mudam quanto cadastrar, não o que o cliente paga.
+                    Pra ver o lucro cair de verdade com o desconto, use o modo Markup.
+                  </div>
+                )}
+
                 <DiscountField
                   label="Promoção (desconto normal)"
                   percent={inputs.promocaoPercent}
                   onPercentChange={(v) => setNum("promocaoPercent", v)}
                   referencePrice={discountChain.p0}
+                  allowValorMode={inputs.modo !== "margem"}
                 />
                 <DiscountField
                   label="Oferta relâmpago"
@@ -561,12 +570,14 @@ export default function ShopeeCalculatorPage() {
                   referencePrice={discountChain.p0}
                   ceilingPrice={discountChain.comDesconto}
                   ceilingHint="do desconto normal (não acumula com ele, substitui)"
+                  allowValorMode={inputs.modo !== "margem"}
                 />
                 <DiscountField
                   label="Cupom loja"
                   percent={inputs.cupomLojaPercent}
                   onPercentChange={(v) => setNum("cupomLojaPercent", v)}
                   referencePrice={discountChain.precoAtivo}
+                  allowValorMode={inputs.modo !== "margem"}
                 />
 
                 <div className="flex flex-col gap-1">
