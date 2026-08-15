@@ -51,19 +51,61 @@ type RankingStrategyKey = "agressivo" | "medio" | "pos";
 
 type RankingStrategyPreset = Pick<
   ShopeeInputs,
-  "metaLucroPercent" | "promocaoPercent" | "cupomLojaPercent" | "ofertaRelampagoPercent"
+  | "modo"
+  | "metaLucroPercent"
+  | "markupPercent"
+  | "metaLucroRS"
+  | "precoTravado"
+  | "promocaoPercent"
+  | "cupomLojaPercent"
+  | "ofertaRelampagoPercent"
 >;
 
 const RANKING_STRATEGY_STORAGE_KEY = "maphpro3d-shopee-ranking-strategies";
 
 const RANKING_STRATEGY_DEFAULTS: Record<RankingStrategyKey, RankingStrategyPreset> = {
-  agressivo: { metaLucroPercent: 0, promocaoPercent: 10, cupomLojaPercent: 8, ofertaRelampagoPercent: 15 },
-  medio: { metaLucroPercent: 8, promocaoPercent: 5, cupomLojaPercent: 4, ofertaRelampagoPercent: 5 },
-  pos: { metaLucroPercent: 20, promocaoPercent: 0, cupomLojaPercent: 0, ofertaRelampagoPercent: 0 },
+  agressivo: {
+    modo: "margem",
+    metaLucroPercent: 0,
+    markupPercent: 70,
+    metaLucroRS: 10,
+    precoTravado: 50,
+    promocaoPercent: 10,
+    cupomLojaPercent: 8,
+    ofertaRelampagoPercent: 15,
+  },
+  medio: {
+    modo: "margem",
+    metaLucroPercent: 8,
+    markupPercent: 70,
+    metaLucroRS: 10,
+    precoTravado: 50,
+    promocaoPercent: 5,
+    cupomLojaPercent: 4,
+    ofertaRelampagoPercent: 5,
+  },
+  pos: {
+    modo: "margem",
+    metaLucroPercent: 20,
+    markupPercent: 70,
+    metaLucroRS: 10,
+    precoTravado: 50,
+    promocaoPercent: 0,
+    cupomLojaPercent: 0,
+    ofertaRelampagoPercent: 0,
+  },
 };
 
 function describeRankingStrategy(p: RankingStrategyPreset) {
-  const parts = [`Margem ${p.metaLucroPercent}%`];
+  const metaLabel =
+    p.modo === "markup"
+      ? `Markup ${p.markupPercent}%`
+      : p.modo === "lucroRS"
+        ? `Lucro ${p.metaLucroRS} R$`
+        : p.modo === "precoTravado"
+          ? `Preço travado R$${p.precoTravado}`
+          : `Margem ${p.metaLucroPercent}%`;
+  const parts = [metaLabel];
   if (p.promocaoPercent > 0) parts.push(`Promoção ${p.promocaoPercent}%`);
   if (p.cupomLojaPercent > 0) parts.push(`Cupom ${p.cupomLojaPercent}%`);
   if ((p.ofertaRelampagoPercent ?? 0) > 0) parts.push(`Oferta ${p.ofertaRelampagoPercent}%`);
@@ -190,7 +232,18 @@ export default function ShopeeCalculatorPage() {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(RANKING_STRATEGY_STORAGE_KEY);
-      if (raw) setRankingStrategies((prev) => ({ ...prev, ...JSON.parse(raw) }));
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<Record<RankingStrategyKey, Partial<RankingStrategyPreset>>>;
+      setRankingStrategies((prev) => {
+        const next = { ...prev };
+        (Object.keys(parsed) as RankingStrategyKey[]).forEach((key) => {
+          const saved = parsed[key];
+          // Mescla com o padrão daquela estratégia — saves antigos (antes do campo
+          // "modo" existir) não quebram, só caem no padrão pros campos que faltam.
+          if (saved) next[key] = { ...RANKING_STRATEGY_DEFAULTS[key], ...saved };
+        });
+        return next;
+      });
     } catch {
       // localStorage indisponível ou JSON inválido — mantém os padrões.
     }
@@ -198,7 +251,7 @@ export default function ShopeeCalculatorPage() {
 
   const applyRankingStrategy = useCallback(
     (strategy: RankingStrategyKey) => {
-      setInputs((prev) => ({ ...prev, modo: "margem", ...rankingStrategies[strategy] }));
+      setInputs((prev) => ({ ...prev, ...rankingStrategies[strategy] }));
     },
     [rankingStrategies],
   );
@@ -206,7 +259,11 @@ export default function ShopeeCalculatorPage() {
   const saveRankingStrategy = useCallback(
     (strategy: RankingStrategyKey) => {
       const captured: RankingStrategyPreset = {
+        modo: inputs.modo,
         metaLucroPercent: inputs.metaLucroPercent,
+        markupPercent: inputs.markupPercent,
+        metaLucroRS: inputs.metaLucroRS,
+        precoTravado: inputs.precoTravado,
         promocaoPercent: inputs.promocaoPercent,
         cupomLojaPercent: inputs.cupomLojaPercent,
         ofertaRelampagoPercent: inputs.ofertaRelampagoPercent ?? 0,
@@ -223,7 +280,16 @@ export default function ShopeeCalculatorPage() {
       setSavedStrategyFlash(strategy);
       setTimeout(() => setSavedStrategyFlash((s) => (s === strategy ? null : s)), 1500);
     },
-    [inputs.metaLucroPercent, inputs.promocaoPercent, inputs.cupomLojaPercent, inputs.ofertaRelampagoPercent],
+    [
+      inputs.modo,
+      inputs.metaLucroPercent,
+      inputs.markupPercent,
+      inputs.metaLucroRS,
+      inputs.precoTravado,
+      inputs.promocaoPercent,
+      inputs.cupomLojaPercent,
+      inputs.ofertaRelampagoPercent,
+    ],
   );
 
   async function handleSave() {
@@ -664,7 +730,7 @@ export default function ShopeeCalculatorPage() {
                 )}
 
                 <DiscountField
-                  label="Promoção (desconto normal)"
+                  label="Desconto"
                   percent={inputs.promocaoPercent}
                   onPercentChange={(v) => setNum("promocaoPercent", v)}
                   referencePrice={discountChain.p0}
