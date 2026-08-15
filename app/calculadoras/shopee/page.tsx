@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Flame, Gauge, RotateCcw, Save, TrendingUp } from "lucide-react";
+import { Check, Flame, Gauge, RotateCcw, Save, TrendingUp } from "lucide-react";
 import InputField from "@/components/marketplaces/shopee/InputField";
 import DiscountField from "@/components/marketplaces/shopee/DiscountField";
 import ResultCard from "@/components/marketplaces/shopee/ResultCard";
@@ -46,6 +46,30 @@ const DEFAULT_INPUTS: ShopeeInputs = {
   estimativaVendas: 100,
   referenciaPrecoMercado: 0,
 };
+
+type RankingStrategyKey = "agressivo" | "medio" | "pos";
+
+type RankingStrategyPreset = Pick<
+  ShopeeInputs,
+  "metaLucroPercent" | "promocaoPercent" | "cupomLojaPercent" | "ofertaRelampagoPercent"
+>;
+
+const RANKING_STRATEGY_STORAGE_KEY = "maphpro3d-shopee-ranking-strategies";
+
+const RANKING_STRATEGY_DEFAULTS: Record<RankingStrategyKey, RankingStrategyPreset> = {
+  agressivo: { metaLucroPercent: 0, promocaoPercent: 10, cupomLojaPercent: 8, ofertaRelampagoPercent: 15 },
+  medio: { metaLucroPercent: 8, promocaoPercent: 5, cupomLojaPercent: 4, ofertaRelampagoPercent: 5 },
+  pos: { metaLucroPercent: 20, promocaoPercent: 0, cupomLojaPercent: 0, ofertaRelampagoPercent: 0 },
+};
+
+function describeRankingStrategy(p: RankingStrategyPreset) {
+  const parts = [`Margem ${p.metaLucroPercent}%`];
+  if (p.promocaoPercent > 0) parts.push(`Promoção ${p.promocaoPercent}%`);
+  if (p.cupomLojaPercent > 0) parts.push(`Cupom ${p.cupomLojaPercent}%`);
+  if ((p.ofertaRelampagoPercent ?? 0) > 0) parts.push(`Oferta ${p.ofertaRelampagoPercent}%`);
+  if (parts.length === 1) parts.push("sem descontos");
+  return parts.join(" · ");
+}
 
 function brl(v: number) {
   return (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -158,17 +182,49 @@ export default function ShopeeCalculatorPage() {
     if (suggestedName && !nomeProduto.trim()) setNomeProduto(suggestedName);
   }, [lastCost, lastInput?.productName, nomeProduto]);
 
-  const applyRankingStrategy = useCallback((strategy: "agressivo" | "medio" | "pos") => {
-    const presets: Record<
-      typeof strategy,
-      Pick<ShopeeInputs, "metaLucroPercent" | "promocaoPercent" | "cupomLojaPercent" | "ofertaRelampagoPercent">
-    > = {
-      agressivo: { metaLucroPercent: 0, promocaoPercent: 10, cupomLojaPercent: 8, ofertaRelampagoPercent: 15 },
-      medio: { metaLucroPercent: 8, promocaoPercent: 5, cupomLojaPercent: 4, ofertaRelampagoPercent: 5 },
-      pos: { metaLucroPercent: 20, promocaoPercent: 0, cupomLojaPercent: 0, ofertaRelampagoPercent: 0 },
-    };
-    setInputs((prev) => ({ ...prev, modo: "margem", ...presets[strategy] }));
+  const [rankingStrategies, setRankingStrategies] = useState<Record<RankingStrategyKey, RankingStrategyPreset>>(
+    RANKING_STRATEGY_DEFAULTS,
+  );
+  const [savedStrategyFlash, setSavedStrategyFlash] = useState<RankingStrategyKey | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(RANKING_STRATEGY_STORAGE_KEY);
+      if (raw) setRankingStrategies((prev) => ({ ...prev, ...JSON.parse(raw) }));
+    } catch {
+      // localStorage indisponível ou JSON inválido — mantém os padrões.
+    }
   }, []);
+
+  const applyRankingStrategy = useCallback(
+    (strategy: RankingStrategyKey) => {
+      setInputs((prev) => ({ ...prev, modo: "margem", ...rankingStrategies[strategy] }));
+    },
+    [rankingStrategies],
+  );
+
+  const saveRankingStrategy = useCallback(
+    (strategy: RankingStrategyKey) => {
+      const captured: RankingStrategyPreset = {
+        metaLucroPercent: inputs.metaLucroPercent,
+        promocaoPercent: inputs.promocaoPercent,
+        cupomLojaPercent: inputs.cupomLojaPercent,
+        ofertaRelampagoPercent: inputs.ofertaRelampagoPercent ?? 0,
+      };
+      setRankingStrategies((prev) => {
+        const next = { ...prev, [strategy]: captured };
+        try {
+          window.localStorage.setItem(RANKING_STRATEGY_STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // localStorage indisponível — mantém só em memória nesta sessão.
+        }
+        return next;
+      });
+      setSavedStrategyFlash(strategy);
+      setTimeout(() => setSavedStrategyFlash((s) => (s === strategy ? null : s)), 1500);
+    },
+    [inputs.metaLucroPercent, inputs.promocaoPercent, inputs.cupomLojaPercent, inputs.ofertaRelampagoPercent],
+  );
 
   async function handleSave() {
     if (!result) return;
@@ -340,46 +396,97 @@ export default function ShopeeCalculatorPage() {
               Estratégia de Ranqueamento
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Aplica de uma vez a meta de lucro e os descontos (promoção, cupom, oferta relâmpago) para empurrar o ranqueamento do produto na Shopee. Ajuste os valores depois, se quiser.
+              Aplica de uma vez a meta de lucro e os descontos (promoção, cupom, oferta relâmpago) para empurrar o ranqueamento do produto na Shopee. Ajuste os campos abaixo como quiser e clique no ícone de salvar do card pra guardar seus próprios valores nesse botão.
             </p>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <button
-              type="button"
-              onClick={() => applyRankingStrategy("agressivo")}
-              className="flex flex-col items-start gap-1.5 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-left transition hover:bg-rose-500/15"
-            >
-              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-rose-300">
+            <div className="group relative flex flex-col items-start gap-1.5 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-left transition hover:bg-rose-500/15">
+              <button
+                type="button"
+                onClick={() => applyRankingStrategy("agressivo")}
+                className="absolute inset-0 rounded-xl"
+                aria-label="Aplicar estratégia Agressivo"
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  saveRankingStrategy("agressivo");
+                }}
+                title="Salvar os valores atuais dos campos nesse botão"
+                className="absolute right-2 top-2 z-10 rounded-md p-1 text-slate-500 opacity-60 transition hover:bg-slate-900/60 hover:text-rose-300 focus:opacity-100 group-hover:opacity-100"
+              >
+                {savedStrategyFlash === "agressivo" ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+              </button>
+              <span className="pointer-events-none inline-flex items-center gap-1.5 text-sm font-semibold text-rose-300">
                 <Flame className="h-4 w-4" /> Agressivo
               </span>
-              <span className="text-xs text-slate-400">
-                Margem 0% · descontos altos, sem lucro por enquanto
+              <span className="pointer-events-none text-xs text-slate-400">
+                {describeRankingStrategy(rankingStrategies.agressivo)}
               </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => applyRankingStrategy("medio")}
-              className="flex flex-col items-start gap-1.5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-left transition hover:bg-amber-500/15"
-            >
-              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-300">
+            </div>
+            <div className="group relative flex flex-col items-start gap-1.5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-left transition hover:bg-amber-500/15">
+              <button
+                type="button"
+                onClick={() => applyRankingStrategy("medio")}
+                className="absolute inset-0 rounded-xl"
+                aria-label="Aplicar estratégia Médio"
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  saveRankingStrategy("medio");
+                }}
+                title="Salvar os valores atuais dos campos nesse botão"
+                className="absolute right-2 top-2 z-10 rounded-md p-1 text-slate-500 opacity-60 transition hover:bg-slate-900/60 hover:text-amber-300 focus:opacity-100 group-hover:opacity-100"
+              >
+                {savedStrategyFlash === "medio" ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+              </button>
+              <span className="pointer-events-none inline-flex items-center gap-1.5 text-sm font-semibold text-amber-300">
                 <Gauge className="h-4 w-4" /> Médio
               </span>
-              <span className="text-xs text-slate-400">
-                Margem baixa · descontos moderados
+              <span className="pointer-events-none text-xs text-slate-400">
+                {describeRankingStrategy(rankingStrategies.medio)}
               </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => applyRankingStrategy("pos")}
-              className="flex flex-col items-start gap-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-left transition hover:bg-emerald-500/15"
-            >
-              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-300">
+            </div>
+            <div className="group relative flex flex-col items-start gap-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-left transition hover:bg-emerald-500/15">
+              <button
+                type="button"
+                onClick={() => applyRankingStrategy("pos")}
+                className="absolute inset-0 rounded-xl"
+                aria-label="Aplicar estratégia Pós-Ranqueamento"
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  saveRankingStrategy("pos");
+                }}
+                title="Salvar os valores atuais dos campos nesse botão"
+                className="absolute right-2 top-2 z-10 rounded-md p-1 text-slate-500 opacity-60 transition hover:bg-slate-900/60 hover:text-emerald-300 focus:opacity-100 group-hover:opacity-100"
+              >
+                {savedStrategyFlash === "pos" ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+              </button>
+              <span className="pointer-events-none inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-300">
                 <TrendingUp className="h-4 w-4" /> Pós-Ranqueamento
               </span>
-              <span className="text-xs text-slate-400">
-                Margem saudável · descontos zerados
+              <span className="pointer-events-none text-xs text-slate-400">
+                {describeRankingStrategy(rankingStrategies.pos)}
               </span>
-            </button>
+            </div>
           </div>
         </div>
 
