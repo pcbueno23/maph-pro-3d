@@ -336,14 +336,16 @@ const shopeeInputsSchema = z.object({
   custoEnvio: z.number().default(0),
   isKit: z.boolean().default(false),
   kitQtd: z.number().default(2),
-  modo: z.enum(["margem", "lucroRS", "precoTravado"]).default("margem"),
+  modo: z.enum(["margem", "lucroRS", "precoTravado", "markup"]).default("margem"),
   metaLucroPercent: z.number().default(20),
   precoTravado: z.number().default(50),
   metaLucroRS: z.number().default(10),
+  markupPercent: z.number().default(70),
   tributacaoPercent: z.number().default(0),
   roasAlvo: z.number().default(13),
   promocaoPercent: z.number().default(15),
   cupomLojaPercent: z.number().default(0),
+  ofertaRelampagoPercent: z.number().default(0),
   campanhasDestaque: z.boolean().default(false),
   shopeeAcelera: z
     .enum(["none", "loja-oficial", "vendedor-indicado", "demais"])

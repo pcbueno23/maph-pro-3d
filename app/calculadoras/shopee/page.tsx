@@ -33,6 +33,7 @@ const DEFAULT_INPUTS: ShopeeInputs = {
   metaLucroPercent: 20,
   precoTravado: 50,
   metaLucroRS: 10,
+  markupPercent: 70,
   tributacaoPercent: 0,
   roasAlvo: 13,
   promocaoPercent: 15,
@@ -113,13 +114,15 @@ export default function ShopeeCalculatorPage() {
     }
   }, [inputs]);
 
-  // Cadeia de preços de referência para os campos %/R$: cadastro -> promoção -> cupom -> oferta relâmpago.
+  // Cadeia de preços de referência para os campos %/R$: cadastro -> desconto normal (Promoção)
+  // -> oferta relâmpago (substitui o desconto, não acumula) -> cupom (em cima do que estiver ativo).
   const discountChain = useMemo(() => {
     const p0 = result?.precoCadastroSugerido ?? 0;
-    const p1 = p0 * (1 - (inputs.promocaoPercent || 0) / 100);
-    const p2 = p1 * (1 - (inputs.cupomLojaPercent || 0) / 100);
-    return { p0, p1, p2 };
-  }, [result?.precoCadastroSugerido, inputs.promocaoPercent, inputs.cupomLojaPercent]);
+    const comDesconto = p0 * (1 - (inputs.promocaoPercent || 0) / 100);
+    const oferta = inputs.ofertaRelampagoPercent || 0;
+    const precoAtivo = oferta > 0 ? p0 * (1 - oferta / 100) : comDesconto;
+    return { p0, comDesconto, precoAtivo };
+  }, [result?.precoCadastroSugerido, inputs.promocaoPercent, inputs.ofertaRelampagoPercent]);
 
   const set = useCallback(<K extends keyof ShopeeInputs>(k: K, v: ShopeeInputs[K]) => {
     setInputs((p) => ({ ...p, [k]: v }));
@@ -481,6 +484,7 @@ export default function ShopeeCalculatorPage() {
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/40 py-3 px-4 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/25"
                   >
                     <option value="margem">Margem (%)</option>
+                    <option value="markup">Markup sobre custo (%)</option>
                     <option value="lucroRS">Lucro (R$)</option>
                     <option value="precoTravado">Preço travado</option>
                   </select>
@@ -493,6 +497,15 @@ export default function ShopeeCalculatorPage() {
                     onChange={(v) => setNum("metaLucroPercent", v)}
                     suffix="%"
                     step={0.1}
+                  />
+                ) : inputs.modo === "markup" ? (
+                  <InputField
+                    label="Cadastrar X% acima do custo"
+                    value={inputs.markupPercent}
+                    onChange={(v) => setNum("markupPercent", v)}
+                    suffix="%"
+                    step={1}
+                    hint="Cadastro = custo total (produto + envio + comissão/taxas Shopee) + esse %. Não garante margem — use a margem mínima como só um alerta."
                   />
                 ) : inputs.modo === "lucroRS" ? (
                   <InputField
@@ -507,6 +520,17 @@ export default function ShopeeCalculatorPage() {
                     value={inputs.precoTravado}
                     onChange={(v) => setNum("precoTravado", v)}
                     prefix="R$"
+                  />
+                )}
+
+                {inputs.modo !== "margem" && (
+                  <InputField
+                    label="Margem mínima desejada (%)"
+                    value={inputs.metaLucroPercent}
+                    onChange={(v) => setNum("metaLucroPercent", v)}
+                    suffix="%"
+                    step={0.1}
+                    hint="Só gera alerta se a margem real ficar abaixo — não afeta o preço nesse modo."
                   />
                 )}
 
@@ -525,22 +549,24 @@ export default function ShopeeCalculatorPage() {
                 />
 
                 <DiscountField
-                  label="Promoção"
+                  label="Promoção (desconto normal)"
                   percent={inputs.promocaoPercent}
                   onPercentChange={(v) => setNum("promocaoPercent", v)}
                   referencePrice={discountChain.p0}
                 />
                 <DiscountField
-                  label="Cupom loja"
-                  percent={inputs.cupomLojaPercent}
-                  onPercentChange={(v) => setNum("cupomLojaPercent", v)}
-                  referencePrice={discountChain.p1}
-                />
-                <DiscountField
                   label="Oferta relâmpago"
                   percent={inputs.ofertaRelampagoPercent ?? 0}
                   onPercentChange={(v) => setNum("ofertaRelampagoPercent", v)}
-                  referencePrice={discountChain.p2}
+                  referencePrice={discountChain.p0}
+                  ceilingPrice={discountChain.comDesconto}
+                  ceilingHint="do desconto normal (não acumula com ele, substitui)"
+                />
+                <DiscountField
+                  label="Cupom loja"
+                  percent={inputs.cupomLojaPercent}
+                  onPercentChange={(v) => setNum("cupomLojaPercent", v)}
+                  referencePrice={discountChain.precoAtivo}
                 />
 
                 <div className="flex flex-col gap-1">

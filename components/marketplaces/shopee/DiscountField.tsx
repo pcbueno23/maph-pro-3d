@@ -11,28 +11,52 @@ export default function DiscountField({
   percent,
   onPercentChange,
   referencePrice,
+  ceilingPrice,
+  ceilingHint,
 }: {
   label: string;
   percent: number;
   onPercentChange: (pct: number) => void;
+  /** Base usada pra converter % <-> R$ deste campo. */
   referencePrice: number;
+  /** Opcional: o preço resultante precisa ficar ABAIXO desse valor (ex.: oferta relâmpago vs. desconto normal). */
+  ceilingPrice?: number;
+  /** Texto curto do que representa o teto, ex.: "do desconto normal". */
+  ceilingHint?: string;
 }) {
   const [mode, setMode] = useState<Mode>("pct");
   const [error, setError] = useState<string | null>(null);
 
   const resultingPrice = referencePrice * (1 - (percent || 0) / 100);
 
-  function handlePercentChange(v: number) {
-    setError(null);
-    onPercentChange(Math.max(0, Math.min(100, v)));
+  function commitPercent(rawPct: number) {
+    let pct = Math.max(0, Math.min(100, rawPct));
+    if (ceilingPrice != null && referencePrice > 0) {
+      const resultado = referencePrice * (1 - pct / 100);
+      if (resultado >= ceilingPrice) {
+        const minPct = (1 - (ceilingPrice - 0.01) / referencePrice) * 100;
+        pct = Math.max(pct, Math.min(100, minPct));
+        setError(`Precisa ficar abaixo de ${formatBRL(ceilingPrice)}${ceilingHint ? ` ${ceilingHint}` : ""}`);
+      } else {
+        setError(null);
+      }
+    } else {
+      setError(null);
+    }
+    onPercentChange(pct);
   }
 
   function handleValorChange(v: number) {
     if (referencePrice <= 0) return;
+    const teto = ceilingPrice != null ? Math.min(ceilingPrice, referencePrice) : referencePrice;
     let target = v;
-    if (target >= referencePrice) {
-      setError(`Precisa ser menor que ${formatBRL(referencePrice)}`);
-      target = Math.max(0, referencePrice - 0.01);
+    if (target >= teto) {
+      setError(
+        ceilingPrice != null && ceilingPrice < referencePrice
+          ? `Precisa ser menor que ${formatBRL(teto)}${ceilingHint ? ` ${ceilingHint}` : ""}`
+          : `Precisa ser menor que ${formatBRL(teto)}`,
+      );
+      target = Math.max(0, teto - 0.01);
     } else {
       setError(null);
     }
@@ -75,7 +99,7 @@ export default function DiscountField({
       </div>
 
       {mode === "pct" ? (
-        <InputField value={percent} onChange={handlePercentChange} suffix="%" step={0.1} />
+        <InputField value={percent} onChange={commitPercent} suffix="%" step={0.1} />
       ) : (
         <InputField
           value={Math.round(resultingPrice * 100) / 100}

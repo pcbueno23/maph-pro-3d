@@ -262,10 +262,12 @@ export default function ResultCard({
     promocaoPercent,
     cupomLojaPercent,
     ofertaRelampagoPercent,
+    margemMinimaPercent,
   } = result;
 
   const roasOk = roasAlvo === 0 || roasAlvo >= roasMinimo;
   const temDesconto = precoCadastroSugerido > precoFinalSugerido + 0.01;
+  const abaixoDaMinima = margemMinimaPercent > 0 && margemReal < margemMinimaPercent;
 
   const [copied, setCopied] = useState(false);
 
@@ -334,6 +336,12 @@ Geração feita via MAPH PRO SHOPEE.
             </span>
           </div>
 
+          {abaixoDaMinima && (
+            <p className="mt-1.5 text-[11px] text-amber-300 print:hidden">
+              Abaixo da margem mínima definida ({formatPct(margemMinimaPercent)}) — o desconto está consumindo a margem.
+            </p>
+          )}
+
           {temDesconto && (
             <div className="mx-auto mt-3 max-w-xs rounded-xl border border-slate-800 bg-slate-950/30 px-4 py-2.5">
               <p className="text-xs text-slate-500">
@@ -346,11 +354,13 @@ Geração feita via MAPH PRO SHOPEE.
                     -{formatPct(descTotal)}{" "}
                     (
                     {[
-                      promocaoPercent > 0 ? `Promoção ${formatPct(promocaoPercent)}` : null,
-                      cupomLojaPercent > 0 ? `Cupom ${formatPct(cupomLojaPercent)}` : null,
+                      // Oferta relâmpago substitui a Promoção (não acumula com ela).
                       ofertaRelampagoPercent > 0
                         ? `Oferta relâmpago ${formatPct(ofertaRelampagoPercent)}`
-                        : null,
+                        : promocaoPercent > 0
+                          ? `Promoção ${formatPct(promocaoPercent)}`
+                          : null,
+                      cupomLojaPercent > 0 ? `Cupom ${formatPct(cupomLojaPercent)}` : null,
                     ]
                       .filter(Boolean)
                       .join(" + ")}

@@ -5,10 +5,12 @@ export type ShopeeInputs = {
   custoEnvio: number;
   isKit: boolean;
   kitQtd: number;
-  modo: "margem" | "lucroRS" | "precoTravado";
+  modo: "margem" | "lucroRS" | "precoTravado" | "markup";
   metaLucroPercent: number;
   precoTravado: number;
   metaLucroRS: number;
+  /** % de acréscimo sobre custo (produto + envio) para o modo "markup". */
+  markupPercent: number;
   tributacaoPercent: number;
   roasAlvo: number;
   promocaoPercent: number;
@@ -56,6 +58,8 @@ export type ShopeeResult = {
   promocaoPercent: number;
   cupomLojaPercent: number;
   ofertaRelampagoPercent: number;
+  /** Margem mínima de referência (reaproveita "Meta de lucro %"); só gera alerta, não afeta o preço fora do modo "margem". */
+  margemMinimaPercent: number;
 };
 
 /** Regras de comissão Shopee 2026 (portado da calculadora externa). */
@@ -198,6 +202,49 @@ function resolverPorMargem(inputs: ShopeeInputs) {
   return Math.ceil(pF) - 0.1;
 }
 
+/**
+ * Resolve o preço de cadastro somando um markup (%) acima do custo TOTAL da
+ * operação (produto + envio + comissão Shopee + ads/tributação/campanhas/acelera,
+ * se ativos) — diferente de "margem", que é % sobre o preço final.
+ */
+function resolverPorMarkup(inputs: ShopeeInputs) {
+  const {
+    fullCustoUnidade,
+    valorCompra,
+    custoEnvio,
+    isKit,
+    kitQtd,
+    tributacaoPercent,
+    markupPercent,
+    roasAlvo,
+    tipoVendedor,
+    altaVolume,
+    campanhasDestaque,
+    shopeeAcelera,
+  } = inputs;
+  const qtd = isKit ? kitQtd || 1 : 1;
+  const unitCost =
+    typeof fullCustoUnidade === "number" && Number.isFinite(fullCustoUnidade) && fullCustoUnidade > 0
+      ? fullCustoUnidade
+      : valorCompra;
+  const custoBase = unitCost * qtd + custoEnvio;
+
+  let pF = custoBase * (1 + (markupPercent || 0) / 100) * 1.4;
+  for (let i = 0; i < 150; i++) {
+    const { valorComissao } = calcularComissaoShopee(pF, tipoVendedor, altaVolume);
+    const ads = roasAlvo > 0 ? pF / roasAlvo : 0;
+    const trib = pF * (tributacaoPercent / 100);
+    const camp = campanhasDestaque ? pF * 0.035 : 0;
+    const rec = pF - valorComissao;
+    const acel = rec * (SHOPEE_ACELERA_RATES[shopeeAcelera] || 0);
+    const custoOperacao = custoBase + valorComissao + ads + trib + camp + acel;
+    const necessario = custoOperacao * (1 + (markupPercent || 0) / 100);
+    if (Math.abs(necessario - pF) < 0.005) break;
+    pF = necessario;
+  }
+  return Math.ceil(pF) - 0.1;
+}
+
 function resolverPorLucroRS(inputs: ShopeeInputs) {
   const {
     fullCustoUnidade,
@@ -253,6 +300,8 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     precoCadastroSugerido = inputs.precoTravado;
   } else if (modo === "lucroRS") {
     precoCadastroSugerido = resolverPorLucroRS(inputs);
+  } else if (modo === "markup") {
+    precoCadastroSugerido = resolverPorMarkup(inputs);
   } else {
     precoCadastroSugerido = resolverPorMargem(inputs);
   }
@@ -260,18 +309,26 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
 
   const ofertaRelampagoPercent = inputs.ofertaRelampagoPercent || 0;
 
-  // Desconto total efetivo (promo + cupom + oferta relâmpago) é multiplicativo,
-  // aplicado em sequência sobre o preço de cadastro:
-  // ex.: 20% + 10% => 1 - (0.8 * 0.9) = 0.28 = 28%
+  // Preço com o desconto normal (Promoção), a partir do cadastro.
+  const precoComDesconto = precoCadastroSugerido * (1 - (promocaoPercent || 0) / 100);
+
+  // Oferta relâmpago NÃO acumula com a Promoção — ela substitui esse desconto
+  // (é calculada a partir do cadastro, não em cima do preço já promocionado) e
+  // só faz sentido se resultar num preço menor do que o desconto normal.
+  const precoAposPromoOuOferta =
+    ofertaRelampagoPercent > 0
+      ? precoCadastroSugerido * (1 - ofertaRelampagoPercent / 100)
+      : precoComDesconto;
+
+  // Cupom se aplica por cima do preço ativo (oferta relâmpago, se houver; senão o desconto normal).
+  const precoFinalSugerido = Math.max(
+    0.01,
+    precoAposPromoOuOferta * (1 - (cupomLojaPercent || 0) / 100),
+  );
+
   const descontoFracao =
-    1 -
-    (1 - (promocaoPercent || 0) / 100) *
-      (1 - (cupomLojaPercent || 0) / 100) *
-      (1 - ofertaRelampagoPercent / 100);
+    precoCadastroSugerido > 0 ? 1 - precoFinalSugerido / precoCadastroSugerido : 0;
   const descTotal = Math.max(0, descontoFracao * 100);
-  // Preço real que o cliente paga, depois dos descontos — o lucro é calculado
-  // sobre ele, então cai de verdade conforme os descontos aumentam.
-  const precoFinalSugerido = Math.max(0.01, precoCadastroSugerido * (1 - descontoFracao));
 
   const custos = derivar(precoFinalSugerido, inputs);
   const {
@@ -381,6 +438,7 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     promocaoPercent: promocaoPercent || 0,
     cupomLojaPercent: cupomLojaPercent || 0,
     ofertaRelampagoPercent,
+    margemMinimaPercent: inputs.metaLucroPercent || 0,
   };
 }
 
