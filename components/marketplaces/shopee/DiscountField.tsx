@@ -19,47 +19,32 @@ export default function DiscountField({
   onPercentChange: (pct: number) => void;
   /** Base usada pra converter % <-> R$ deste campo. */
   referencePrice: number;
-  /** Opcional: o preço resultante precisa ficar ABAIXO desse valor (ex.: oferta relâmpago vs. desconto normal). */
+  /** Opcional: preço de referência pra avisar (sem bloquear) se o resultado não ficou mais agressivo que ele. */
   ceilingPrice?: number;
   /** Texto curto do que representa o teto, ex.: "do desconto normal". */
   ceilingHint?: string;
 }) {
   const [mode, setMode] = useState<Mode>("pct");
-  const [error, setError] = useState<string | null>(null);
 
   const resultingPrice = referencePrice * (1 - (percent || 0) / 100);
+  // Aviso informativo, não bloqueia nem corrige o valor digitado — a estratégia de
+  // ranqueamento pode aceitar qualquer combinação, inclusive lucro negativo.
+  const warning =
+    ceilingPrice != null && resultingPrice >= ceilingPrice
+      ? `Esse valor não fica abaixo de ${formatBRL(ceilingPrice)}${ceilingHint ? ` ${ceilingHint}` : ""}`
+      : null;
 
   function commitPercent(rawPct: number) {
-    let pct = Math.max(0, Math.min(100, rawPct));
-    if (ceilingPrice != null && referencePrice > 0) {
-      const resultado = referencePrice * (1 - pct / 100);
-      if (resultado >= ceilingPrice) {
-        const minPct = (1 - (ceilingPrice - 0.01) / referencePrice) * 100;
-        pct = Math.max(pct, Math.min(100, minPct));
-        setError(`Precisa ficar abaixo de ${formatBRL(ceilingPrice)}${ceilingHint ? ` ${ceilingHint}` : ""}`);
-      } else {
-        setError(null);
-      }
-    } else {
-      setError(null);
-    }
-    onPercentChange(pct);
+    // Limite só pra evitar 100% exato (o que quebraria a divisão no modo margem) — sem forçar mínimo.
+    onPercentChange(Math.max(0, Math.min(99.9, rawPct)));
   }
 
   function handleValorChange(v: number) {
     if (referencePrice <= 0) return;
-    const teto = ceilingPrice != null ? Math.min(ceilingPrice, referencePrice) : referencePrice;
-    let target = v;
-    if (target >= teto) {
-      setError(
-        ceilingPrice != null && ceilingPrice < referencePrice
-          ? `Precisa ser menor que ${formatBRL(teto)}${ceilingHint ? ` ${ceilingHint}` : ""}`
-          : `Precisa ser menor que ${formatBRL(teto)}`,
-      );
-      target = Math.max(0, teto - 0.01);
-    } else {
-      setError(null);
-    }
+    // Mantém o valor entre 0,1% e 99,9% do preço de referência — sem forçar um
+    // "mínimo de agressividade", só evita 0 (que geraria 100% de desconto e quebraria
+    // o cálculo do preço de cadastro no modo margem).
+    const target = Math.max(referencePrice * 0.001, Math.min(referencePrice * 0.999, v));
     const pct = Math.max(0, (1 - target / referencePrice) * 100);
     onPercentChange(pct);
   }
@@ -73,10 +58,7 @@ export default function DiscountField({
         <div className="flex overflow-hidden rounded-lg border border-slate-800 text-[10px] font-semibold">
           <button
             type="button"
-            onClick={() => {
-              setMode("pct");
-              setError(null);
-            }}
+            onClick={() => setMode("pct")}
             className={`px-2 py-1 transition ${
               mode === "pct" ? "bg-cyan-500/20 text-cyan-300" : "text-slate-500 hover:text-slate-300"
             }`}
@@ -85,10 +67,7 @@ export default function DiscountField({
           </button>
           <button
             type="button"
-            onClick={() => {
-              setMode("valor");
-              setError(null);
-            }}
+            onClick={() => setMode("valor")}
             className={`px-2 py-1 transition ${
               mode === "valor" ? "bg-cyan-500/20 text-cyan-300" : "text-slate-500 hover:text-slate-300"
             }`}
@@ -109,8 +88,8 @@ export default function DiscountField({
         />
       )}
 
-      <p className={`text-xs ${error ? "text-rose-400" : "text-slate-500"}`}>
-        {error ??
+      <p className={`text-xs ${warning ? "text-amber-400" : "text-slate-500"}`}>
+        {warning ??
           (mode === "pct"
             ? `= ${formatBRL(resultingPrice)} após esse desconto`
             : `= ${formatPct(percent)} de desconto`)}

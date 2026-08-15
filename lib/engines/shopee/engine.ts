@@ -299,8 +299,11 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
   // esse desconto (só faz sentido usá-la se for mais agressiva que o desconto normal).
   // Cupom sempre acumula por cima do que estiver ativo.
   const descontoAtivoPercent = ofertaRelampagoPercent > 0 ? ofertaRelampagoPercent : (promocaoPercent || 0);
-  const descontoFracao =
+  const descontoFracaoBruta =
     1 - (1 - descontoAtivoPercent / 100) * (1 - (cupomLojaPercent || 0) / 100);
+  // Nunca deixa a fração chegar a 100%: um desconto "total" quebraria a divisão no
+  // modo margem (preço de cadastro tenderia a infinito) sem representar nada real.
+  const descontoFracao = Math.min(0.999, descontoFracaoBruta);
   const descTotal = Math.max(0, descontoFracao * 100);
 
   let precoCadastroSugerido: number;
