@@ -13,6 +13,8 @@ export type ShopeeInputs = {
   roasAlvo: number;
   promocaoPercent: number;
   cupomLojaPercent: number;
+  /** Desconto extra de Oferta Relâmpago (%), composto com promoção e cupom. */
+  ofertaRelampagoPercent?: number;
   campanhasDestaque: boolean;
   shopeeAcelera: "none" | "loja-oficial" | "vendedor-indicado" | "demais";
   tipoVendedor: "cpf" | "cnpj";
@@ -53,6 +55,7 @@ export type ShopeeResult = {
   descTotal: number;
   promocaoPercent: number;
   cupomLojaPercent: number;
+  ofertaRelampagoPercent: number;
 };
 
 /** Regras de comissão Shopee 2026 (portado da calculadora externa). */
@@ -267,11 +270,15 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     margemReal,
   } = custos;
 
-  // Desconto total efetivo (promo + cupom) é multiplicativo:
+  const ofertaRelampagoPercent = inputs.ofertaRelampagoPercent || 0;
+
+  // Desconto total efetivo (promo + cupom + oferta relâmpago) é multiplicativo:
   // ex.: 20% + 10% => 1 - (0.8 * 0.9) = 0.28 = 28%
   const descontoFracao =
     1 -
-    (1 - (promocaoPercent || 0) / 100) * (1 - (cupomLojaPercent || 0) / 100);
+    (1 - (promocaoPercent || 0) / 100) *
+      (1 - (cupomLojaPercent || 0) / 100) *
+      (1 - ofertaRelampagoPercent / 100);
   const descTotal = Math.max(0, descontoFracao * 100);
   const precoCadastroSugerido =
     descontoFracao > 0
@@ -371,6 +378,7 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     descTotal,
     promocaoPercent: promocaoPercent || 0,
     cupomLojaPercent: cupomLojaPercent || 0,
+    ofertaRelampagoPercent,
   };
 }
 

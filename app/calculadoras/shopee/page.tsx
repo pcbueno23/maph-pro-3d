@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCcw, Save } from "lucide-react";
+import { Flame, Gauge, RotateCcw, Save, TrendingUp } from "lucide-react";
 import InputField from "@/components/marketplaces/shopee/InputField";
 import ResultCard from "@/components/marketplaces/shopee/ResultCard";
 import ProductNameAutocomplete from "@/components/marketplaces/shared/ProductNameAutocomplete";
@@ -36,6 +36,7 @@ const DEFAULT_INPUTS: ShopeeInputs = {
   roasAlvo: 13,
   promocaoPercent: 15,
   cupomLojaPercent: 0,
+  ofertaRelampagoPercent: 0,
   campanhasDestaque: false,
   shopeeAcelera: "none",
   tipoVendedor: "cnpj",
@@ -145,6 +146,18 @@ export default function ShopeeCalculatorPage() {
     if (suggestedName && !nomeProduto.trim()) setNomeProduto(suggestedName);
   }, [lastCost, lastInput?.productName, nomeProduto]);
 
+  const applyRankingStrategy = useCallback((strategy: "agressivo" | "medio" | "pos") => {
+    const presets: Record<
+      typeof strategy,
+      Pick<ShopeeInputs, "metaLucroPercent" | "promocaoPercent" | "cupomLojaPercent" | "ofertaRelampagoPercent">
+    > = {
+      agressivo: { metaLucroPercent: 0, promocaoPercent: 10, cupomLojaPercent: 8, ofertaRelampagoPercent: 15 },
+      medio: { metaLucroPercent: 8, promocaoPercent: 5, cupomLojaPercent: 4, ofertaRelampagoPercent: 5 },
+      pos: { metaLucroPercent: 20, promocaoPercent: 0, cupomLojaPercent: 0, ofertaRelampagoPercent: 0 },
+    };
+    setInputs((prev) => ({ ...prev, modo: "margem", ...presets[strategy] }));
+  }, []);
+
   async function handleSave() {
     if (!result) return;
     const customName = nomeProduto.trim();
@@ -221,6 +234,8 @@ export default function ShopeeCalculatorPage() {
                 <div className="text-right font-semibold">{pct(inputs.promocaoPercent)}</div>
                 <div className="text-slate-600">Cupom loja</div>
                 <div className="text-right font-semibold">{pct(inputs.cupomLojaPercent)}</div>
+                <div className="text-slate-600">Oferta relâmpago</div>
+                <div className="text-right font-semibold">{pct(inputs.ofertaRelampagoPercent ?? 0)}</div>
               </div>
             </div>
 
@@ -306,6 +321,55 @@ export default function ShopeeCalculatorPage() {
           </div>
         </div>
       </div>
+
+        <div className="glass-panel rounded-2xl p-5">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Estratégia de Ranqueamento
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Aplica de uma vez a meta de lucro e os descontos (promoção, cupom, oferta relâmpago) para empurrar o ranqueamento do produto na Shopee. Ajuste os valores depois, se quiser.
+            </p>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => applyRankingStrategy("agressivo")}
+              className="flex flex-col items-start gap-1.5 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-left transition hover:bg-rose-500/15"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-rose-300">
+                <Flame className="h-4 w-4" /> Agressivo
+              </span>
+              <span className="text-xs text-slate-400">
+                Margem 0% · descontos altos, sem lucro por enquanto
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => applyRankingStrategy("medio")}
+              className="flex flex-col items-start gap-1.5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-left transition hover:bg-amber-500/15"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-300">
+                <Gauge className="h-4 w-4" /> Médio
+              </span>
+              <span className="text-xs text-slate-400">
+                Margem baixa · descontos moderados
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => applyRankingStrategy("pos")}
+              className="flex flex-col items-start gap-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-left transition hover:bg-emerald-500/15"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-300">
+                <TrendingUp className="h-4 w-4" /> Pós-Ranqueamento
+              </span>
+              <span className="text-xs text-slate-400">
+                Margem saudável · descontos zerados
+              </span>
+            </button>
+          </div>
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
           <div className="space-y-4">
@@ -464,6 +528,14 @@ export default function ShopeeCalculatorPage() {
                   onChange={(v) => setNum("cupomLojaPercent", v)}
                   suffix="%"
                   step={0.1}
+                />
+                <InputField
+                  label="Oferta relâmpago (%)"
+                  value={inputs.ofertaRelampagoPercent ?? 0}
+                  onChange={(v) => setNum("ofertaRelampagoPercent", v)}
+                  suffix="%"
+                  step={0.1}
+                  hint="Desconto extra de campanha relâmpago, composto com promoção e cupom."
                 />
 
                 <div className="flex flex-col gap-1">

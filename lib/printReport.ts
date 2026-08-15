@@ -203,6 +203,7 @@ export function buildShopeePrintHtml(args: {
         <tr><td class="muted">ROAS alvo</td><td>x${inputs.roasAlvo.toFixed(1)}</td></tr>
         <tr><td class="muted">Promoção</td><td>${pct(inputs.promocaoPercent)}</td></tr>
         <tr><td class="muted">Cupom loja</td><td>${pct(inputs.cupomLojaPercent)}</td></tr>
+        <tr><td class="muted">Oferta relâmpago</td><td>${pct(inputs.ofertaRelampagoPercent ?? 0)}</td></tr>
       </table>
     </div>
     <div class="card">

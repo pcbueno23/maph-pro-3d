@@ -261,6 +261,7 @@ export default function ResultCard({
     descTotal,
     promocaoPercent,
     cupomLojaPercent,
+    ofertaRelampagoPercent,
   } = result;
 
   const roasOk = roasAlvo === 0 || roasAlvo >= roasMinimo;
@@ -343,11 +344,17 @@ Geração feita via MAPH PRO SHOPEE.
                 {descTotal > 0 && (
                   <span className="ml-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                     -{formatPct(descTotal)}{" "}
-                    {promocaoPercent > 0 && cupomLojaPercent > 0
-                      ? `(Promoção ${formatPct(promocaoPercent)} + Cupom ${formatPct(cupomLojaPercent)})`
-                      : promocaoPercent > 0
-                        ? `(Promoção ${formatPct(promocaoPercent)})`
-                        : `(Cupom ${formatPct(cupomLojaPercent)})`}
+                    (
+                    {[
+                      promocaoPercent > 0 ? `Promoção ${formatPct(promocaoPercent)}` : null,
+                      cupomLojaPercent > 0 ? `Cupom ${formatPct(cupomLojaPercent)}` : null,
+                      ofertaRelampagoPercent > 0
+                        ? `Oferta relâmpago ${formatPct(ofertaRelampagoPercent)}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" + ")}
+                    )
                   </span>
                 )}
               </p>
