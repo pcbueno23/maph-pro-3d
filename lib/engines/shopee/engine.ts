@@ -293,42 +293,43 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     roasAlvo,
   } = inputs;
 
-  // Preço "cheio" sugerido para cadastro (sem desconto), resolvido pela meta de
-  // lucro/margem/preço travado — independe de promoção, cupom e oferta relâmpago.
-  let precoCadastroSugerido: number;
-  if (modo === "precoTravado") {
-    precoCadastroSugerido = inputs.precoTravado;
-  } else if (modo === "lucroRS") {
-    precoCadastroSugerido = resolverPorLucroRS(inputs);
-  } else if (modo === "markup") {
-    precoCadastroSugerido = resolverPorMarkup(inputs);
-  } else {
-    precoCadastroSugerido = resolverPorMargem(inputs);
-  }
-  if (!precoCadastroSugerido || precoCadastroSugerido <= 0) precoCadastroSugerido = 0.01;
-
   const ofertaRelampagoPercent = inputs.ofertaRelampagoPercent || 0;
 
-  // Preço com o desconto normal (Promoção), a partir do cadastro.
-  const precoComDesconto = precoCadastroSugerido * (1 - (promocaoPercent || 0) / 100);
-
-  // Oferta relâmpago NÃO acumula com a Promoção — ela substitui esse desconto
-  // (é calculada a partir do cadastro, não em cima do preço já promocionado) e
-  // só faz sentido se resultar num preço menor do que o desconto normal.
-  const precoAposPromoOuOferta =
-    ofertaRelampagoPercent > 0
-      ? precoCadastroSugerido * (1 - ofertaRelampagoPercent / 100)
-      : precoComDesconto;
-
-  // Cupom se aplica por cima do preço ativo (oferta relâmpago, se houver; senão o desconto normal).
-  const precoFinalSugerido = Math.max(
-    0.01,
-    precoAposPromoOuOferta * (1 - (cupomLojaPercent || 0) / 100),
-  );
-
+  // Desconto "ativo": oferta relâmpago NÃO acumula com a Promoção — ela substitui
+  // esse desconto (só faz sentido usá-la se for mais agressiva que o desconto normal).
+  // Cupom sempre acumula por cima do que estiver ativo.
+  const descontoAtivoPercent = ofertaRelampagoPercent > 0 ? ofertaRelampagoPercent : (promocaoPercent || 0);
   const descontoFracao =
-    precoCadastroSugerido > 0 ? 1 - precoFinalSugerido / precoCadastroSugerido : 0;
+    1 - (1 - descontoAtivoPercent / 100) * (1 - (cupomLojaPercent || 0) / 100);
   const descTotal = Math.max(0, descontoFracao * 100);
+
+  let precoCadastroSugerido: number;
+  let precoFinalSugerido: number;
+
+  if (modo === "margem") {
+    // Comportamento original: o preço final (e a margem) ficam garantidos na meta,
+    // o preço de cadastro sobe pra compensar qualquer desconto dado.
+    precoFinalSugerido = resolverPorMargem(inputs);
+    if (!precoFinalSugerido || precoFinalSugerido <= 0) precoFinalSugerido = 0.01;
+    precoCadastroSugerido =
+      descontoFracao > 0
+        ? Math.ceil(precoFinalSugerido / (1 - descontoFracao)) - 0.1
+        : precoFinalSugerido;
+  } else {
+    // markup / lucroRS / precoTravado: cadastro fixo (independe do desconto), e o
+    // desconto reduz de verdade o preço final — lucro/margem exibidos são o resultado
+    // real (podem cair ou até ficar negativos). É o comportamento certo pra simular
+    // estratégias de ranqueamento (ver o quanto o desconto consome da margem).
+    if (modo === "precoTravado") {
+      precoCadastroSugerido = inputs.precoTravado;
+    } else if (modo === "lucroRS") {
+      precoCadastroSugerido = resolverPorLucroRS(inputs);
+    } else {
+      precoCadastroSugerido = resolverPorMarkup(inputs);
+    }
+    if (!precoCadastroSugerido || precoCadastroSugerido <= 0) precoCadastroSugerido = 0.01;
+    precoFinalSugerido = Math.max(0.01, precoCadastroSugerido * (1 - descontoFracao));
+  }
 
   const custos = derivar(precoFinalSugerido, inputs);
   const {
