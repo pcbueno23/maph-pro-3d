@@ -471,7 +471,7 @@ Geração feita via MAPH PRO SHOPEE.
         iconBg="bg-slate-900/70"
       >
         <div className="flex items-start gap-4">
-          <DonutChart data={distribuicao} total={precoCadastroSugerido} />
+          <DonutChart data={distribuicao} total={precoFinalSugerido} />
           <div className="min-w-0 flex-1">
             {distribuicao.map((d, idx) => (
               <LegendRow
@@ -479,7 +479,7 @@ Geração feita via MAPH PRO SHOPEE.
                 cor={d.cor}
                 label={d.label}
                 valor={d.valor}
-                pct={precoCadastroSugerido > 0 ? (d.valor / precoCadastroSugerido) * 100 : 0}
+                pct={precoFinalSugerido > 0 ? (d.valor / precoFinalSugerido) * 100 : 0}
               />
             ))}
           </div>
