@@ -246,15 +246,32 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     roasAlvo,
   } = inputs;
 
-  let precoFinalSugerido: number;
+  // Preço "cheio" sugerido para cadastro (sem desconto), resolvido pela meta de
+  // lucro/margem/preço travado — independe de promoção, cupom e oferta relâmpago.
+  let precoCadastroSugerido: number;
   if (modo === "precoTravado") {
-    precoFinalSugerido = inputs.precoTravado;
+    precoCadastroSugerido = inputs.precoTravado;
   } else if (modo === "lucroRS") {
-    precoFinalSugerido = resolverPorLucroRS(inputs);
+    precoCadastroSugerido = resolverPorLucroRS(inputs);
   } else {
-    precoFinalSugerido = resolverPorMargem(inputs);
+    precoCadastroSugerido = resolverPorMargem(inputs);
   }
-  if (!precoFinalSugerido || precoFinalSugerido <= 0) precoFinalSugerido = 0.01;
+  if (!precoCadastroSugerido || precoCadastroSugerido <= 0) precoCadastroSugerido = 0.01;
+
+  const ofertaRelampagoPercent = inputs.ofertaRelampagoPercent || 0;
+
+  // Desconto total efetivo (promo + cupom + oferta relâmpago) é multiplicativo,
+  // aplicado em sequência sobre o preço de cadastro:
+  // ex.: 20% + 10% => 1 - (0.8 * 0.9) = 0.28 = 28%
+  const descontoFracao =
+    1 -
+    (1 - (promocaoPercent || 0) / 100) *
+      (1 - (cupomLojaPercent || 0) / 100) *
+      (1 - ofertaRelampagoPercent / 100);
+  const descTotal = Math.max(0, descontoFracao * 100);
+  // Preço real que o cliente paga, depois dos descontos — o lucro é calculado
+  // sobre ele, então cai de verdade conforme os descontos aumentam.
+  const precoFinalSugerido = Math.max(0.01, precoCadastroSugerido * (1 - descontoFracao));
 
   const custos = derivar(precoFinalSugerido, inputs);
   const {
@@ -269,21 +286,6 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     lucroLiquido,
     margemReal,
   } = custos;
-
-  const ofertaRelampagoPercent = inputs.ofertaRelampagoPercent || 0;
-
-  // Desconto total efetivo (promo + cupom + oferta relâmpago) é multiplicativo:
-  // ex.: 20% + 10% => 1 - (0.8 * 0.9) = 0.28 = 28%
-  const descontoFracao =
-    1 -
-    (1 - (promocaoPercent || 0) / 100) *
-      (1 - (cupomLojaPercent || 0) / 100) *
-      (1 - ofertaRelampagoPercent / 100);
-  const descTotal = Math.max(0, descontoFracao * 100);
-  const precoCadastroSugerido =
-    descontoFracao > 0
-      ? Math.ceil(precoFinalSugerido / (1 - descontoFracao)) - 0.1
-      : precoFinalSugerido;
 
   const denominador =
     precoFinalSugerido -

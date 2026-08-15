@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Flame, Gauge, RotateCcw, Save, TrendingUp } from "lucide-react";
 import InputField from "@/components/marketplaces/shopee/InputField";
+import DiscountField from "@/components/marketplaces/shopee/DiscountField";
 import ResultCard from "@/components/marketplaces/shopee/ResultCard";
 import ProductNameAutocomplete from "@/components/marketplaces/shared/ProductNameAutocomplete";
 import { PresetPicker, type PresetItem } from "@/components/marketplaces/shared/PresetPicker";
@@ -111,6 +112,14 @@ export default function ShopeeCalculatorPage() {
       return null;
     }
   }, [inputs]);
+
+  // Cadeia de preços de referência para os campos %/R$: cadastro -> promoção -> cupom -> oferta relâmpago.
+  const discountChain = useMemo(() => {
+    const p0 = result?.precoCadastroSugerido ?? 0;
+    const p1 = p0 * (1 - (inputs.promocaoPercent || 0) / 100);
+    const p2 = p1 * (1 - (inputs.cupomLojaPercent || 0) / 100);
+    return { p0, p1, p2 };
+  }, [result?.precoCadastroSugerido, inputs.promocaoPercent, inputs.cupomLojaPercent]);
 
   const set = useCallback(<K extends keyof ShopeeInputs>(k: K, v: ShopeeInputs[K]) => {
     setInputs((p) => ({ ...p, [k]: v }));
@@ -515,27 +524,23 @@ export default function ShopeeCalculatorPage() {
                   step={0.1}
                 />
 
-                <InputField
-                  label="Promoção (%)"
-                  value={inputs.promocaoPercent}
-                  onChange={(v) => setNum("promocaoPercent", v)}
-                  suffix="%"
-                  step={0.1}
+                <DiscountField
+                  label="Promoção"
+                  percent={inputs.promocaoPercent}
+                  onPercentChange={(v) => setNum("promocaoPercent", v)}
+                  referencePrice={discountChain.p0}
                 />
-                <InputField
-                  label="Cupom loja (%)"
-                  value={inputs.cupomLojaPercent}
-                  onChange={(v) => setNum("cupomLojaPercent", v)}
-                  suffix="%"
-                  step={0.1}
+                <DiscountField
+                  label="Cupom loja"
+                  percent={inputs.cupomLojaPercent}
+                  onPercentChange={(v) => setNum("cupomLojaPercent", v)}
+                  referencePrice={discountChain.p1}
                 />
-                <InputField
-                  label="Oferta relâmpago (%)"
-                  value={inputs.ofertaRelampagoPercent ?? 0}
-                  onChange={(v) => setNum("ofertaRelampagoPercent", v)}
-                  suffix="%"
-                  step={0.1}
-                  hint="Desconto extra de campanha relâmpago, composto com promoção e cupom."
+                <DiscountField
+                  label="Oferta relâmpago"
+                  percent={inputs.ofertaRelampagoPercent ?? 0}
+                  onPercentChange={(v) => setNum("ofertaRelampagoPercent", v)}
+                  referencePrice={discountChain.p2}
                 />
 
                 <div className="flex flex-col gap-1">
