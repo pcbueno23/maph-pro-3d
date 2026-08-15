@@ -15,6 +15,8 @@ export type ShopeeInputs = {
   roasAlvo: number;
   promocaoPercent: number;
   cupomLojaPercent: number;
+  /** Teto do cupom em R$ (opcional). Ex.: "5% de desconto, até R$10". 0/vazio = sem teto. */
+  cupomMaxRS?: number;
   /** Desconto extra de Oferta Relâmpago (%), composto com promoção e cupom. */
   ofertaRelampagoPercent?: number;
   campanhasDestaque: boolean;
@@ -28,6 +30,10 @@ export type ShopeeInputs = {
 export type ShopeeResult = {
   precoFinalSugerido: number;
   precoCadastroSugerido: number;
+  /** Preço ao cliente com o desconto normal + cupom (fora da janela de oferta relâmpago). */
+  precoComDescontoECupom: number;
+  /** Preço ao cliente com a oferta relâmpago + cupom; null se oferta relâmpago não estiver definida. */
+  precoComOfertaECupom: number | null;
   lucroLiquido: number;
   margemReal: number;
   custoBase: number;
@@ -58,6 +64,9 @@ export type ShopeeResult = {
   promocaoPercent: number;
   cupomLojaPercent: number;
   ofertaRelampagoPercent: number;
+  cupomMaxRS: number;
+  /** true se o teto do cupom (cupomMaxRS) realmente limitou o valor no cenário ativo. */
+  cupomLimitadoPeloTeto: boolean;
   /** Margem mínima de referência (reaproveita "Meta de lucro %"); só gera alerta, não afeta o preço fora do modo "margem". */
   margemMinimaPercent: number;
 };
@@ -283,6 +292,24 @@ function resolverPorLucroRS(inputs: ShopeeInputs) {
   return Math.ceil(pF) - 0.1;
 }
 
+/** Aplica o cupom (%, com teto opcional em R$) a um preço, "pra frente". */
+function aplicarCupom(preco: number, cupomPercent: number, cupomMaxRS: number) {
+  if (cupomPercent <= 0) return { precoFinal: preco, valorCupom: 0, limitadoPeloTeto: false };
+  const semTeto = preco * (cupomPercent / 100);
+  const limitadoPeloTeto = cupomMaxRS > 0 && semTeto > cupomMaxRS;
+  const valorCupom = limitadoPeloTeto ? cupomMaxRS : semTeto;
+  return { precoFinal: Math.max(0.01, preco - valorCupom), valorCupom, limitadoPeloTeto };
+}
+
+/** Inverte o cupom (%, com teto opcional em R$): dado o preço final desejado, qual preço era necessário antes do cupom. */
+function resolverPrecoAntesCupom(precoFinalDesejado: number, cupomPercent: number, cupomMaxRS: number) {
+  if (cupomPercent <= 0) return { precoAntesCupom: precoFinalDesejado, limitadoPeloTeto: false };
+  const semTeto = precoFinalDesejado / (1 - cupomPercent / 100);
+  const naoLimitadoBate = cupomMaxRS <= 0 || semTeto * (cupomPercent / 100) <= cupomMaxRS;
+  if (naoLimitadoBate) return { precoAntesCupom: semTeto, limitadoPeloTeto: false };
+  return { precoAntesCupom: precoFinalDesejado + cupomMaxRS, limitadoPeloTeto: true };
+}
+
 export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
   const {
     modo,
@@ -294,30 +321,37 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
   } = inputs;
 
   const ofertaRelampagoPercent = inputs.ofertaRelampagoPercent || 0;
+  const cupomPercent = cupomLojaPercent || 0;
+  const cupomMaxRS = inputs.cupomMaxRS || 0;
 
   // Desconto "ativo": oferta relâmpago NÃO acumula com a Promoção — ela substitui
   // esse desconto (só faz sentido usá-la se for mais agressiva que o desconto normal).
-  // Cupom sempre acumula por cima do que estiver ativo.
+  // Cupom (%, com teto opcional em R$) sempre acumula por cima do que estiver ativo.
   const descontoAtivoPercent = ofertaRelampagoPercent > 0 ? ofertaRelampagoPercent : (promocaoPercent || 0);
-  const descontoFracaoBruta =
-    1 - (1 - descontoAtivoPercent / 100) * (1 - (cupomLojaPercent || 0) / 100);
-  // Nunca deixa a fração chegar a 100%: um desconto "total" quebraria a divisão no
-  // modo margem (preço de cadastro tenderia a infinito) sem representar nada real.
-  const descontoFracao = Math.min(0.999, descontoFracaoBruta);
-  const descTotal = Math.max(0, descontoFracao * 100);
+  // Nunca deixa a % de desconto (antes do cupom) chegar a 100% — quebraria a divisão no modo margem.
+  const descontoAtivoFracao = Math.min(0.999, descontoAtivoPercent / 100);
 
   let precoCadastroSugerido: number;
   let precoFinalSugerido: number;
+  let cupomLimitadoPeloTeto = false;
 
   if (modo === "margem") {
     // Comportamento original: o preço final (e a margem) ficam garantidos na meta,
     // o preço de cadastro sobe pra compensar qualquer desconto dado.
-    precoFinalSugerido = resolverPorMargem(inputs);
-    if (!precoFinalSugerido || precoFinalSugerido <= 0) precoFinalSugerido = 0.01;
+    let precoFinalTarget = resolverPorMargem(inputs);
+    if (!precoFinalTarget || precoFinalTarget <= 0) precoFinalTarget = 0.01;
+    precoFinalSugerido = precoFinalTarget;
+
+    const { precoAntesCupom, limitadoPeloTeto } = resolverPrecoAntesCupom(
+      precoFinalTarget,
+      cupomPercent,
+      cupomMaxRS,
+    );
+    cupomLimitadoPeloTeto = limitadoPeloTeto;
     precoCadastroSugerido =
-      descontoFracao > 0
-        ? Math.ceil(precoFinalSugerido / (1 - descontoFracao)) - 0.1
-        : precoFinalSugerido;
+      descontoAtivoFracao > 0
+        ? Math.ceil(precoAntesCupom / (1 - descontoAtivoFracao)) - 0.1
+        : precoAntesCupom;
   } else {
     // markup / lucroRS / precoTravado: cadastro fixo (independe do desconto), e o
     // desconto reduz de verdade o preço final — lucro/margem exibidos são o resultado
@@ -331,8 +365,29 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
       precoCadastroSugerido = resolverPorMarkup(inputs);
     }
     if (!precoCadastroSugerido || precoCadastroSugerido <= 0) precoCadastroSugerido = 0.01;
-    precoFinalSugerido = Math.max(0.01, precoCadastroSugerido * (1 - descontoFracao));
+
+    const precoAntesCupom = precoCadastroSugerido * (1 - descontoAtivoFracao);
+    const cupomAplicado = aplicarCupom(precoAntesCupom, cupomPercent, cupomMaxRS);
+    precoFinalSugerido = cupomAplicado.precoFinal;
+    cupomLimitadoPeloTeto = cupomAplicado.limitadoPeloTeto;
   }
+
+  const descTotal =
+    precoCadastroSugerido > 0 ? Math.max(0, (1 - precoFinalSugerido / precoCadastroSugerido) * 100) : 0;
+
+  // Os dois cenários de preço que o cliente pode ver: com o desconto normal (fora
+  // do período de oferta relâmpago) ou com a oferta relâmpago (durante a campanha) —
+  // cupom (com teto) acumula nos dois. Um deles é sempre igual ao precoFinalSugerido (o ativo).
+  const precoComDescontoECupom = aplicarCupom(
+    precoCadastroSugerido * (1 - (promocaoPercent || 0) / 100),
+    cupomPercent,
+    cupomMaxRS,
+  ).precoFinal;
+  const precoComOfertaECupom =
+    ofertaRelampagoPercent > 0
+      ? aplicarCupom(precoCadastroSugerido * (1 - ofertaRelampagoPercent / 100), cupomPercent, cupomMaxRS)
+          .precoFinal
+      : null;
 
   const custos = derivar(precoFinalSugerido, inputs);
   const {
@@ -419,6 +474,8 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
   return {
     precoFinalSugerido,
     precoCadastroSugerido,
+    precoComDescontoECupom,
+    precoComOfertaECupom,
     lucroLiquido,
     margemReal,
     custoBase,
@@ -440,8 +497,10 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     percentualAds: roasAlvo > 0 ? 100 / roasAlvo : 0,
     descTotal,
     promocaoPercent: promocaoPercent || 0,
-    cupomLojaPercent: cupomLojaPercent || 0,
+    cupomLojaPercent: cupomPercent,
     ofertaRelampagoPercent,
+    cupomMaxRS,
+    cupomLimitadoPeloTeto,
     margemMinimaPercent: inputs.metaLucroPercent || 0,
   };
 }

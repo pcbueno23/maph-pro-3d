@@ -38,6 +38,7 @@ const DEFAULT_INPUTS: ShopeeInputs = {
   roasAlvo: 13,
   promocaoPercent: 15,
   cupomLojaPercent: 0,
+  cupomMaxRS: 0,
   ofertaRelampagoPercent: 0,
   campanhasDestaque: false,
   shopeeAcelera: "none",
@@ -367,7 +368,10 @@ export default function ShopeeCalculatorPage() {
                 <div className="text-slate-600">Promoção</div>
                 <div className="text-right font-semibold">{pct(inputs.promocaoPercent)}</div>
                 <div className="text-slate-600">Cupom loja</div>
-                <div className="text-right font-semibold">{pct(inputs.cupomLojaPercent)}</div>
+                <div className="text-right font-semibold">
+                  {pct(inputs.cupomLojaPercent)}
+                  {inputs.cupomMaxRS ? ` (máx. ${brl(inputs.cupomMaxRS)})` : ""}
+                </div>
                 <div className="text-slate-600">Oferta relâmpago</div>
                 <div className="text-right font-semibold">{pct(inputs.ofertaRelampagoPercent ?? 0)}</div>
               </div>
@@ -751,6 +755,14 @@ export default function ShopeeCalculatorPage() {
                   onPercentChange={(v) => setNum("cupomLojaPercent", v)}
                   referencePrice={discountChain.precoAtivo}
                   allowValorMode={inputs.modo !== "margem"}
+                />
+                <InputField
+                  label="Teto do cupom"
+                  value={inputs.cupomMaxRS ?? 0}
+                  onChange={(v) => setNum("cupomMaxRS", v)}
+                  prefix="R$"
+                  placeholder="Sem limite"
+                  hint="Ex.: cupom de 5%, até R$10 — deixe 0 pra não limitar."
                 />
 
                 <div className="flex flex-col gap-1">

@@ -258,12 +258,19 @@ export default function ResultCard({
     projecaoMensal,
     competitividade,
     percentualAds,
-    descTotal,
     promocaoPercent,
     cupomLojaPercent,
     ofertaRelampagoPercent,
+    cupomMaxRS,
+    cupomLimitadoPeloTeto,
     margemMinimaPercent,
+    precoComDescontoECupom,
+    precoComOfertaECupom,
   } = result;
+
+  const cupomLabel = `Cupom ${formatPct(cupomLojaPercent)}${
+    cupomMaxRS > 0 ? ` (máx. ${formatBRL(cupomMaxRS)})` : ""
+  }`;
 
   const roasOk = roasAlvo === 0 || roasAlvo >= roasMinimo;
   const temDesconto = precoCadastroSugerido > precoFinalSugerido + 0.01;
@@ -343,31 +350,66 @@ Geração feita via MAPH PRO SHOPEE.
           )}
 
           {temDesconto && (
-            <div className="mx-auto mt-3 max-w-xs rounded-xl border border-slate-800 bg-slate-950/30 px-4 py-2.5">
-              <p className="text-xs text-slate-500">
-                Preço exibido ao cliente (após descontos)
-              </p>
-              <p className="mt-0.5 tabular-nums text-xl font-bold text-slate-100">
-                {formatBRL(precoFinalSugerido)}
-                {descTotal > 0 && (
-                  <span className="ml-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    -{formatPct(descTotal)}{" "}
-                    (
-                    {[
-                      // Oferta relâmpago substitui a Promoção (não acumula com ela).
-                      ofertaRelampagoPercent > 0
-                        ? `Oferta relâmpago ${formatPct(ofertaRelampagoPercent)}`
-                        : promocaoPercent > 0
-                          ? `Promoção ${formatPct(promocaoPercent)}`
-                          : null,
-                      cupomLojaPercent > 0 ? `Cupom ${formatPct(cupomLojaPercent)}` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" + ")}
-                    )
-                  </span>
-                )}
-              </p>
+            <div className="mx-auto mt-3 max-w-xs space-y-2.5 rounded-xl border border-slate-800 bg-slate-950/30 px-4 py-2.5">
+              <div>
+                <p className="text-xs text-slate-500">
+                  Preço com desconto + cupom
+                  {Math.abs(precoFinalSugerido - precoComDescontoECupom) < 0.01 && (
+                    <span className="ml-1.5 rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                      ativo agora
+                    </span>
+                  )}
+                </p>
+                <p className="mt-0.5 tabular-nums text-xl font-bold text-slate-100">
+                  {formatBRL(precoComDescontoECupom)}
+                  {(promocaoPercent > 0 || cupomLojaPercent > 0) && (
+                    <span className="ml-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      -{formatPct(100 - (precoComDescontoECupom / precoCadastroSugerido) * 100)}{" "}
+                      (
+                      {[
+                        promocaoPercent > 0 ? `Desconto ${formatPct(promocaoPercent)}` : null,
+                        cupomLojaPercent > 0 ? cupomLabel : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" + ")}
+                      )
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              {precoComOfertaECupom != null && (
+                <div className="border-t border-slate-800/70 pt-2.5">
+                  <p className="text-xs text-slate-500">
+                    Preço com oferta relâmpago + cupom
+                    {Math.abs(precoFinalSugerido - precoComOfertaECupom) < 0.01 && (
+                      <span className="ml-1.5 rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                        ativo agora
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-0.5 tabular-nums text-xl font-bold text-slate-100">
+                    {formatBRL(precoComOfertaECupom)}
+                    <span className="ml-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      -{formatPct(100 - (precoComOfertaECupom / precoCadastroSugerido) * 100)}{" "}
+                      (
+                      {[
+                        `Oferta relâmpago ${formatPct(ofertaRelampagoPercent)}`,
+                        cupomLojaPercent > 0 ? cupomLabel : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" + ")}
+                      )
+                    </span>
+                  </p>
+                </div>
+              )}
+
+              {cupomLimitadoPeloTeto && (
+                <p className="text-[11px] text-amber-300">
+                  Cupom limitado ao teto de {formatBRL(cupomMaxRS)} — {formatPct(cupomLojaPercent)} daria mais desconto.
+                </p>
+              )}
 
               {badZone && (
                 <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-left print:hidden">
