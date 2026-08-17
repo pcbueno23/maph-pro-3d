@@ -11,6 +11,11 @@ type Props = {
   channels?: SaveProductChannel[];
   /** Canais mostrados mas desabilitados (ex.: sem preset configurado). */
   unavailableChannels?: SaveProductChannel[];
+  /** Imagem principal opcional, definida junto com o salvamento (só funciona logado). */
+  imageFile?: File | null;
+  onImageChange?: (file: File | null) => void;
+  /** Se false, esconde o seletor de imagem (ex.: usuário não logado). */
+  showImagePicker?: boolean;
 };
 
 const ALL_OPTIONS: Record<SaveProductChannel, { label: string; hint: string }> = {
@@ -41,6 +46,9 @@ export function SaveProductChannelDialog({
   onConfirm,
   channels = DEFAULT_CHANNELS,
   unavailableChannels = [],
+  imageFile,
+  onImageChange,
+  showImagePicker = false,
 }: Props) {
   if (!open) return null;
 
@@ -58,6 +66,36 @@ export function SaveProductChannelDialog({
         <p className="mt-2 text-sm text-slate-400">
           O preço e o selo no canto do card seguirão o canal escolhido.
         </p>
+
+        {showImagePicker && onImageChange && (
+          <div className="mt-4">
+            <label className="mb-1 block text-xs text-slate-400">Imagem principal (opcional)</label>
+            <div className="flex min-h-[80px] items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-950/40 px-3 text-center text-xs text-slate-500">
+              {imageFile ? imageFile.name : "Nenhuma imagem selecionada"}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">
+                Selecionar imagem
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => onImageChange(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              {imageFile ? (
+                <button
+                  type="button"
+                  onClick={() => onImageChange(null)}
+                  className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+                >
+                  Remover
+                </button>
+              ) : null}
+            </div>
+          </div>
+        )}
+
         <div className="mt-4 space-y-2">
           {channels.map((id) => {
             const o = ALL_OPTIONS[id];

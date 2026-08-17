@@ -122,6 +122,7 @@ export default function Custo3DPage() {
   const addProduct = useProductsStore((s) => s.addProduct);
   const [saving, setSaving] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveImageFile, setSaveImageFile] = useState<File | null>(null);
 
   const unitCost = useMemo(() => {
     if (!results) return null;
@@ -250,6 +251,7 @@ export default function Custo3DPage() {
           user,
           addProduct,
           router,
+          imageFile: saveImageFile,
         });
       } else if (channel === "mercado_livre" && mlResult) {
         await saveMarketplaceProduct({
@@ -267,6 +269,7 @@ export default function Custo3DPage() {
           user,
           addProduct,
           router,
+          imageFile: saveImageFile,
         });
       } else if (channel === "tiktok" && tiktokResult) {
         await saveMarketplaceProduct({
@@ -283,6 +286,7 @@ export default function Custo3DPage() {
           user,
           addProduct,
           router,
+          imageFile: saveImageFile,
         });
       } else if (channel === "venda_direta" && vdResult) {
         await saveMarketplaceProduct({
@@ -300,8 +304,10 @@ export default function Custo3DPage() {
           user,
           addProduct,
           router,
+          imageFile: saveImageFile,
         });
       }
+      setSaveImageFile(null);
     } finally {
       setSaving(false);
     }
@@ -586,8 +592,14 @@ export default function Custo3DPage() {
         open={showSaveDialog}
         channels={["shopee", "mercado_livre", "tiktok", "venda_direta"]}
         unavailableChannels={unavailableSaveChannels}
-        onCancel={() => setShowSaveDialog(false)}
+        onCancel={() => {
+          setShowSaveDialog(false);
+          setSaveImageFile(null);
+        }}
         onConfirm={(channel) => void handleSaveToChannel(channel)}
+        showImagePicker={!!user}
+        imageFile={saveImageFile}
+        onImageChange={setSaveImageFile}
       />
     </div>
   );

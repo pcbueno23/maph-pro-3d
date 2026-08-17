@@ -1,6 +1,7 @@
 import type { Product, SettingsValues } from "@/types";
 import { upsertProductsForUser } from "@/lib/supabaseProducts";
 import { refreshProductsFromCloud } from "@/lib/productSync";
+import { uploadProductFile } from "@/lib/supabaseProduction";
 
 function generateUuid() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -37,8 +38,10 @@ export async function saveMarketplaceProduct(params: {
   user: { id: string } | null;
   addProduct: (p: Product) => void;
   router: { push: (path: string) => void };
+  /** Imagem principal opcional (só é enviada se o usuário estiver logado). */
+  imageFile?: File | null;
 }) {
-  const { payload, settings, user, addProduct, router } = params;
+  const { payload, settings, user, addProduct, router, imageFile } = params;
 
   const now = new Date().toISOString();
   const product: Product = {
@@ -63,6 +66,13 @@ export async function saveMarketplaceProduct(params: {
   if (user && typeof window !== "undefined") {
     const sync = await upsertProductsForUser(user.id, [product]);
     if (sync.ok) {
+      if (imageFile) {
+        try {
+          await uploadProductFile({ userId: user.id, productId: product.id, kind: "image", file: imageFile });
+        } catch {
+          // Produto já foi salvo — a imagem é opcional, não bloqueia o fluxo.
+        }
+      }
       try {
         await refreshProductsFromCloud(user.id);
       } catch {

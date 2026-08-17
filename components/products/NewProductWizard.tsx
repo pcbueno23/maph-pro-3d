@@ -436,6 +436,16 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
   }, [selectedPrinter, printTimeHours, materialCost, settings?.defaults]);
 
   const lastEditedByRef = useRef<"margin" | "price" | null>(null);
+  // Em modo edição, o painel de simulação (step "Preço") sempre recalcula assim que
+  // monta — inclusive com custo reconstruído (fallback) quando o produto não tem BOM
+  // salvo. Ignora essa primeira computação "automática" por visita à etapa; só aceita
+  // a partir da segunda (que indica uma mudança de verdade feita pelo usuário no
+  // próprio painel ou nos custos). Evita sobrescrever o preço/margem reais só por abrir
+  // as informações do produto sem mexer em nada.
+  const simInitializedForStepRef = useRef(false);
+  useEffect(() => {
+    if (step === 4) simInitializedForStepRef.current = false;
+  }, [step]);
 
   const pricingFromMargin = useMemo(() => {
     const margin = typeof marginPercent === "number" && Number.isFinite(marginPercent) ? marginPercent : 0;
@@ -726,6 +736,11 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
       return;
     }
     const calcResults = computePricingFromFormValues(parsedCalc);
+    // Em modo edição, se o usuário não mexeu em nenhum campo de custo (a calculadora
+    // foi só reconstruída pra exibição — às vezes com material/impressora "fallback",
+    // quando o produto foi salvo sem BOM), preserva o custo/preços sugeridos originais
+    // do produto em vez de sobrescrever com um recálculo que pode estar errado.
+    const calcInputsChanged = !isEditMode || printingForm.formState.isDirty;
     const unitsPerBatch =
       typeof parsedCalc.time.unitsPerBatch === "number" &&
       parsedCalc.time.unitsPerBatch > 0
@@ -738,15 +753,12 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
         ? parsedCalc.material.plateWeight / unitsPerBatch
         : parsedCalc.material.weight;
 
-    const finalPrice =
-      simulatedSnapshot && simulatedSnapshot.price > 0 ? simulatedSnapshot.price : price;
+    // `price`/`marginPercent` já refletem o simulatedSnapshot mais recente (via
+    // onSimulationChange, gated pra não aplicar o primeiro cálculo automático de cada
+    // visita à etapa "Preço" em modo edição) — usar direto evita ler duas fontes.
+    const finalPrice = price;
     const finalMargin =
-      simulatedSnapshot &&
-      Number.isFinite(simulatedSnapshot.marginPercent)
-        ? simulatedSnapshot.marginPercent
-        : typeof marginPercent === "number" && Number.isFinite(marginPercent)
-          ? marginPercent
-          : null;
+      typeof marginPercent === "number" && Number.isFinite(marginPercent) ? marginPercent : null;
     const finalMarketplace: ProductMarketplaceChannel =
       simulatedSnapshot?.marketplace === "direct"
         ? "Venda Direta"
@@ -772,11 +784,20 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
       currency: "BRL",
       createdAt: initialProduct?.createdAt ?? nowIso,
       updatedAt: nowIso,
-      totalCost: calcResults.custoTotalAjustado,
-      suggestedPriceShopee: calcResults.suggestedPriceShopee,
-      suggestedPriceML: calcResults.suggestedPriceML,
-      suggestedPriceDirect:
-        calcResults.suggestedPriceDirectCash ?? calcResults.suggestedPrice,
+      totalCost: calcInputsChanged
+        ? calcResults.custoTotalAjustado
+        : (initialProduct?.totalCost ?? calcResults.custoTotalAjustado),
+      suggestedPriceShopee: calcInputsChanged
+        ? calcResults.suggestedPriceShopee
+        : (initialProduct?.suggestedPriceShopee ?? calcResults.suggestedPriceShopee),
+      suggestedPriceML: calcInputsChanged
+        ? calcResults.suggestedPriceML
+        : (initialProduct?.suggestedPriceML ?? calcResults.suggestedPriceML),
+      suggestedPriceDirect: calcInputsChanged
+        ? (calcResults.suggestedPriceDirectCash ?? calcResults.suggestedPrice)
+        : (initialProduct?.suggestedPriceDirect ??
+          calcResults.suggestedPriceDirectCash ??
+          calcResults.suggestedPrice),
       // Usa o tempo já dividido por peça (mesmo campo do motor de cálculo) — evita salvar
       // o tempo total da mesa/placa quando há mais de uma peça por impressão (unitsPerBatch > 1).
       printTimeMinutes:
@@ -1204,11 +1225,16 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
                 directMarginExtraPoints={settings.defaults.directMarginExtraPoints ?? 10}
                 topHint={
                   <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
-                    Esta etapa usa os mesmos campos da calculadora margem certa. O produto
-                    será salvo com o preço exibido na simulação atual.
+                    Esta etapa usa os mesmos campos da calculadora margem certa.{" "}
+                    {isEditMode
+                      ? "O preço atual do produto é mantido a não ser que você altere algo aqui (ou nos custos)."
+                      : "O produto será salvo com o preço exibido na simulação atual."}
                   </p>
                 }
                 onSimulationChange={(snap) => {
+                  const isFirstComputeThisVisit = !simInitializedForStepRef.current;
+                  simInitializedForStepRef.current = true;
+                  if (isEditMode && isFirstComputeThisVisit) return;
                   setSimulatedSnapshot(snap);
                   if (snap.price > 0) {
                     setPrice(snap.price);
