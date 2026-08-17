@@ -26,6 +26,11 @@ export async function fetchUserProducts(userId: string): Promise<Product[]> {
         catalog_visible,
         catalog_sort,
         hidden_standalone,
+        shopee_promo_preco_cadastro,
+        shopee_promo_desconto_percent,
+        shopee_promo_cupom_percent,
+        shopee_promo_cupom_max_rs,
+        shopee_promo_oferta_relampago_percent,
         created_at,
         updated_at
       `,
@@ -61,6 +66,18 @@ export async function fetchUserProducts(userId: string): Promise<Product[]> {
     catalogVisible: row.catalog_visible === true,
     catalogSort: row.catalog_sort != null ? Number(row.catalog_sort) : null,
     hiddenStandalone: row.hidden_standalone === true,
+    shopeePromoPrecoCadastro:
+      row.shopee_promo_preco_cadastro != null ? Number(row.shopee_promo_preco_cadastro) : null,
+    shopeePromoDescontoPercent:
+      row.shopee_promo_desconto_percent != null ? Number(row.shopee_promo_desconto_percent) : null,
+    shopeePromoCupomPercent:
+      row.shopee_promo_cupom_percent != null ? Number(row.shopee_promo_cupom_percent) : null,
+    shopeePromoCupomMaxRS:
+      row.shopee_promo_cupom_max_rs != null ? Number(row.shopee_promo_cupom_max_rs) : null,
+    shopeePromoOfertaRelampagoPercent:
+      row.shopee_promo_oferta_relampago_percent != null
+        ? Number(row.shopee_promo_oferta_relampago_percent)
+        : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   })) as Product[];
@@ -94,6 +111,11 @@ export async function upsertProductsForUser(
     catalog_visible: p.catalogVisible ?? false,
     catalog_sort: p.catalogSort ?? null,
     hidden_standalone: p.hiddenStandalone ?? false,
+    shopee_promo_preco_cadastro: p.shopeePromoPrecoCadastro ?? null,
+    shopee_promo_desconto_percent: p.shopeePromoDescontoPercent ?? null,
+    shopee_promo_cupom_percent: p.shopeePromoCupomPercent ?? null,
+    shopee_promo_cupom_max_rs: p.shopeePromoCupomMaxRS ?? null,
+    shopee_promo_oferta_relampago_percent: p.shopeePromoOfertaRelampagoPercent ?? null,
     created_at: p.createdAt,
     updated_at: p.updatedAt,
   }));

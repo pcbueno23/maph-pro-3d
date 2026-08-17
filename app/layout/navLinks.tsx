@@ -45,6 +45,7 @@ export const navGroups: NavGroup[] = [
     links: [
       { href: "/calculadoras/custo", label: "Custo 3D", icon: Calculator },
       { href: "/calculadoras/shopee", label: "Shopee", icon: Calculator },
+      { href: "/promocoes-shopee", label: "Promoções Shopee", icon: Store },
       { href: "/calculadoras/mercado-livre", label: "Mercado Livre", icon: Calculator },
       { href: "/calculadoras/tiktok", label: "TikTok Shop", icon: Calculator },
       { href: "/calculadoras/venda-direta", label: "Venda direta", icon: Calculator },

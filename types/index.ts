@@ -298,6 +298,12 @@ export interface Product {
   catalogSort?: number | null;
   /** Oculta o produto da listagem "solta" na aba Produtos (continua aparecendo em kits). */
   hiddenStandalone?: boolean;
+  /** Alvos de promoção Shopee (aba "Promoções Shopee") — cola manual, sem ligação com a API real da Shopee. */
+  shopeePromoPrecoCadastro?: number | null;
+  shopeePromoDescontoPercent?: number | null;
+  shopeePromoCupomPercent?: number | null;
+  shopeePromoCupomMaxRS?: number | null;
+  shopeePromoOfertaRelampagoPercent?: number | null;
 }
 
 /** Configuração do catálogo público (link + exibir preços). */
