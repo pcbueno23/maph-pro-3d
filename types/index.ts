@@ -418,6 +418,10 @@ const tiktokInputsSchema = z.object({
   alvo1Percent: z.number().default(10),
   alvo2Percent: z.number().default(15),
   alvo3Percent: z.number().default(20),
+  promocaoPercent: z.number().default(0),
+  cupomLojaPercent: z.number().default(0),
+  cupomMaxRS: z.number().default(0),
+  ofertaRelampagoPercent: z.number().default(0),
 });
 
 const vendaDiretaInputsSchema = z.object({

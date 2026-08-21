@@ -26,6 +26,10 @@ const BASE_INPUTS: TikTokInputs = {
   alvo1Percent: 10,
   alvo2Percent: 15,
   alvo3Percent: 20,
+  promocaoPercent: 0,
+  cupomLojaPercent: 0,
+  cupomMaxRS: 0,
+  ofertaRelampagoPercent: 0,
 };
 
 describe("calcularComissaoTikTok", () => {
@@ -96,6 +100,56 @@ describe("calcularPrecoTikTok (modo margem, com solver)", () => {
       participaSFP: true,
     });
     expect(result.margemReal).toBeCloseTo(25, 0);
+  });
+});
+
+describe("calcularPrecoTikTok (cadastro + desconto/oferta/cupom)", () => {
+  it("no modo precoTravado, o cadastro é fixo e o desconto reduz o preço final de verdade", () => {
+    const result = calcularPrecoTikTok({
+      ...BASE_INPUTS,
+      precoTravado: 100,
+      promocaoPercent: 20,
+    });
+    expect(result.precoCadastroSugerido).toBeCloseTo(100, 6);
+    expect(result.precoFinalSugerido).toBeCloseTo(80, 6);
+    // Comissão/SFP/etc. são cobrados sobre o preço final (pós-desconto), não sobre o cadastro.
+    expect(result.valorComissao).toBeCloseTo(80 * 0.06 + 6, 6);
+  });
+
+  it("oferta relâmpago substitui a promoção (não acumula) e cupom acumula por cima", () => {
+    const result = calcularPrecoTikTok({
+      ...BASE_INPUTS,
+      precoTravado: 100,
+      promocaoPercent: 10,
+      ofertaRelampagoPercent: 30,
+      cupomLojaPercent: 5,
+    });
+    // Ativo = oferta (30%) -> 70, depois cupom 5% -> 66.5 (não 100*0.9*0.95).
+    expect(result.precoFinalSugerido).toBeCloseTo(70 * 0.95, 6);
+  });
+
+  it("teto do cupom em R$ limita o desconto e sinaliza cupomLimitadoPeloTeto", () => {
+    const result = calcularPrecoTikTok({
+      ...BASE_INPUTS,
+      precoTravado: 100,
+      cupomLojaPercent: 20,
+      cupomMaxRS: 5,
+    });
+    expect(result.precoFinalSugerido).toBeCloseTo(95, 6);
+    expect(result.cupomLimitadoPeloTeto).toBe(true);
+  });
+
+  it("no modo margem, o preço final fica travado na meta e o cadastro sobe pra compensar o desconto", () => {
+    const semDesconto = calcularPrecoTikTok({ ...BASE_INPUTS, modo: "margem", metaLucroPercent: 25 });
+    const comDesconto = calcularPrecoTikTok({
+      ...BASE_INPUTS,
+      modo: "margem",
+      metaLucroPercent: 25,
+      promocaoPercent: 30,
+    });
+    expect(comDesconto.precoFinalSugerido).toBeCloseTo(semDesconto.precoFinalSugerido, 0);
+    expect(comDesconto.margemReal).toBeCloseTo(semDesconto.margemReal, 0);
+    expect(comDesconto.precoCadastroSugerido).toBeGreaterThan(semDesconto.precoCadastroSugerido);
   });
 });
 

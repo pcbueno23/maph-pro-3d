@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RotateCcw, Save } from "lucide-react";
 import InputField from "@/components/marketplaces/shopee/InputField";
+import DiscountField from "@/components/marketplaces/shopee/DiscountField";
 import ResultCard from "@/components/marketplaces/tiktok/ResultCard";
 import ProductNameAutocomplete from "@/components/marketplaces/shared/ProductNameAutocomplete";
 import { PresetPicker, type PresetItem } from "@/components/marketplaces/shared/PresetPicker";
@@ -36,6 +37,10 @@ const DEFAULT_INPUTS: TikTokInputs = {
   alvo1Percent: 10,
   alvo2Percent: 15,
   alvo3Percent: 20,
+  promocaoPercent: 0,
+  cupomLojaPercent: 0,
+  cupomMaxRS: 0,
+  ofertaRelampagoPercent: 0,
 };
 
 function brl(v: number) {
@@ -104,6 +109,17 @@ export default function TikTokCalculatorPage() {
       return null;
     }
   }, [inputs]);
+
+  // Cadeia de preços de referência para os campos %/R$: cadastro -> desconto normal
+  // (Promoção) -> oferta relâmpago (substitui o desconto, não acumula) -> cupom (em
+  // cima do que estiver ativo). Mesmo padrão usado na calculadora Shopee.
+  const discountChain = useMemo(() => {
+    const p0 = result?.precoCadastroSugerido ?? 0;
+    const comDesconto = p0 * (1 - (inputs.promocaoPercent || 0) / 100);
+    const oferta = inputs.ofertaRelampagoPercent || 0;
+    const precoAtivo = oferta > 0 ? p0 * (1 - oferta / 100) : comDesconto;
+    return { p0, comDesconto, precoAtivo };
+  }, [result?.precoCadastroSugerido, inputs.promocaoPercent, inputs.ofertaRelampagoPercent]);
 
   const setField = useCallback(<K extends keyof TikTokInputs>(k: K, v: TikTokInputs[K]) => {
     setInputs((p) => ({ ...p, [k]: v }));
@@ -178,8 +194,10 @@ export default function TikTokCalculatorPage() {
           <div className="rounded-xl border border-slate-200 p-3">
             <div className="text-xs font-semibold uppercase tracking-widest text-slate-700">Resultado</div>
             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-              <div className="text-slate-600">Preço sugerido</div>
-              <div className="text-right font-extrabold">{result ? brl(result.precoFinalSugerido) : "—"}</div>
+              <div className="text-slate-600">Preço de cadastro</div>
+              <div className="text-right font-extrabold">{result ? brl(result.precoCadastroSugerido) : "—"}</div>
+              <div className="text-slate-600">Preço final (ao cliente)</div>
+              <div className="text-right font-semibold">{result ? brl(result.precoFinalSugerido) : "—"}</div>
               <div className="text-slate-600">Comissão TikTok Shop</div>
               <div className="text-right font-semibold">{result ? brl(result.valorComissao) : "—"}</div>
               <div className="text-slate-600">Frete (Programa Frete Grátis)</div>
@@ -407,6 +425,46 @@ export default function TikTokCalculatorPage() {
                       Comissão 0% (missão novo vendedor, até R$17k)
                     </label>
                   </div>
+
+                  {inputs.modo === "margem" && (
+                    <div className="sm:col-span-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-200/90">
+                      No modo Margem, o preço final e o lucro ficam sempre travados na meta — os
+                      descontos abaixo só mudam quanto cadastrar, não o que o cliente paga. Pra
+                      ver o lucro cair de verdade com o desconto, use Lucro (R$) ou Preço travado.
+                    </div>
+                  )}
+
+                  <DiscountField
+                    label="Desconto (promoção)"
+                    percent={inputs.promocaoPercent}
+                    onPercentChange={(v) => setNum("promocaoPercent", v)}
+                    referencePrice={discountChain.p0}
+                    allowValorMode={inputs.modo !== "margem"}
+                  />
+                  <DiscountField
+                    label="Oferta relâmpago"
+                    percent={inputs.ofertaRelampagoPercent ?? 0}
+                    onPercentChange={(v) => setNum("ofertaRelampagoPercent", v)}
+                    referencePrice={discountChain.p0}
+                    ceilingPrice={discountChain.comDesconto}
+                    ceilingHint="do desconto normal (não acumula com ele, substitui)"
+                    allowValorMode={inputs.modo !== "margem"}
+                  />
+                  <DiscountField
+                    label="Cupom loja"
+                    percent={inputs.cupomLojaPercent}
+                    onPercentChange={(v) => setNum("cupomLojaPercent", v)}
+                    referencePrice={discountChain.precoAtivo}
+                    allowValorMode={inputs.modo !== "margem"}
+                  />
+                  <InputField
+                    label="Teto do cupom"
+                    value={inputs.cupomMaxRS ?? 0}
+                    onChange={(v) => setNum("cupomMaxRS", v)}
+                    prefix="R$"
+                    placeholder="Sem limite"
+                    hint="Ex.: cupom de 5%, até R$10 — deixe 0 pra não limitar."
+                  />
 
                   <InputField
                     label="Estimativa mensal (vendas)"

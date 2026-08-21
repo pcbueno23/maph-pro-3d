@@ -274,6 +274,14 @@ export default function ResultCard({
 
   const {
     precoFinalSugerido,
+    precoCadastroSugerido,
+    precoComDescontoECupom,
+    precoComOfertaECupom,
+    promocaoPercent,
+    cupomLojaPercent,
+    ofertaRelampagoPercent,
+    cupomMaxRS,
+    cupomLimitadoPeloTeto,
     lucroLiquido,
     margemReal,
     custoBase,
@@ -298,6 +306,10 @@ export default function ResultCard({
 
   const usaAds = roasAlvo > 0;
   const roasOk = !usaAds || roasAlvo >= roasMinimo;
+  const temDesconto = precoCadastroSugerido > precoFinalSugerido + 0.01;
+  const cupomLabel = `Cupom ${formatPct(cupomLojaPercent)}${
+    cupomMaxRS > 0 ? ` (máx. ${formatBRL(cupomMaxRS)})` : ""
+  }`;
 
   const [copied, setCopied] = useState(false);
 
@@ -305,7 +317,8 @@ export default function ResultCard({
     `
 *Análise de Precificação - TikTok Shop*
 
-🏷️ Preço sugerido: ${formatBRL(precoFinalSugerido)}
+💰 Preço de Cadastro: ${formatBRL(precoCadastroSugerido)}
+🏷️ Preço Final (ao cliente): ${formatBRL(precoFinalSugerido)}
 
 📊 Custo do produto: ${formatBRL(custoBase)}
 💸 Comissão TikTok Shop: ${formatBRL(valorComissao)} (${formatPct(pctComissao * 100)} + R$${fixoComissao.toFixed(2)})
@@ -344,10 +357,10 @@ Geração feita via MAPH PRO TIKTOK SHOP.
 
         <div className="px-5 py-5 text-center">
           <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Preço sugerido no TikTok Shop
+            Preço para Cadastrar no TikTok Shop
           </p>
           <p className="tabular-nums text-5xl font-black tracking-tight text-slate-50">
-            {formatBRL(precoFinalSugerido)}
+            {formatBRL(precoCadastroSugerido)}
           </p>
 
           <div className="mt-3 flex justify-center">
@@ -362,6 +375,70 @@ Geração feita via MAPH PRO TIKTOK SHOP.
               Lucro Real: {formatBRL(lucroLiquido)} ({formatPct(margemReal)})
             </span>
           </div>
+
+          {temDesconto && (
+            <div className="mx-auto mt-3 max-w-xs space-y-2.5 rounded-xl border border-slate-800 bg-slate-950/30 px-4 py-2.5">
+              <div>
+                <p className="text-xs text-slate-500">
+                  Preço com desconto + cupom
+                  {Math.abs(precoFinalSugerido - precoComDescontoECupom) < 0.01 && (
+                    <span className="ml-1.5 rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                      ativo agora
+                    </span>
+                  )}
+                </p>
+                <p className="mt-0.5 tabular-nums text-xl font-bold text-slate-100">
+                  {formatBRL(precoComDescontoECupom)}
+                  {(promocaoPercent > 0 || cupomLojaPercent > 0) && (
+                    <span className="ml-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      -{formatPct(100 - (precoComDescontoECupom / precoCadastroSugerido) * 100)}{" "}
+                      (
+                      {[
+                        promocaoPercent > 0 ? `Desconto ${formatPct(promocaoPercent)}` : null,
+                        cupomLojaPercent > 0 ? cupomLabel : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" + ")}
+                      )
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              {precoComOfertaECupom != null && (
+                <div className="border-t border-slate-800/70 pt-2.5">
+                  <p className="text-xs text-slate-500">
+                    Preço com oferta relâmpago + cupom
+                    {Math.abs(precoFinalSugerido - precoComOfertaECupom) < 0.01 && (
+                      <span className="ml-1.5 rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                        ativo agora
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-0.5 tabular-nums text-xl font-bold text-slate-100">
+                    {formatBRL(precoComOfertaECupom)}
+                    <span className="ml-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      -{formatPct(100 - (precoComOfertaECupom / precoCadastroSugerido) * 100)}{" "}
+                      (
+                      {[
+                        `Oferta relâmpago ${formatPct(ofertaRelampagoPercent)}`,
+                        cupomLojaPercent > 0 ? cupomLabel : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" + ")}
+                      )
+                    </span>
+                  </p>
+                </div>
+              )}
+
+              {cupomLimitadoPeloTeto && (
+                <p className="text-[11px] text-amber-300">
+                  Cupom limitado ao teto de {formatBRL(cupomMaxRS)} — {formatPct(cupomLojaPercent)} daria mais desconto.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid gap-3 px-5 pb-5 sm:grid-cols-2">

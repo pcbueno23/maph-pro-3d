@@ -38,10 +38,32 @@ export type TikTokInputs = {
   alvo1Percent: number;
   alvo2Percent: number;
   alvo3Percent: number;
+  /** Desconto normal de vitrine (%). No modo margem só sobe o preço de cadastro; nos demais reduz o preço real. */
+  promocaoPercent: number;
+  /** Cupom de loja (%, com teto opcional em R$), acumula por cima do desconto/oferta ativos. */
+  cupomLojaPercent: number;
+  /** Teto do cupom em R$ (opcional). Ex.: "5% de desconto, até R$10". 0/vazio = sem teto. */
+  cupomMaxRS?: number;
+  /** Desconto extra de oferta relâmpago (%); substitui a Promoção (não acumula com ela). */
+  ofertaRelampagoPercent?: number;
 };
 
 export type TikTokResult = {
   precoFinalSugerido: number;
+  /** Preço a digitar no cadastro do TikTok Shop (antes de desconto/oferta/cupom). */
+  precoCadastroSugerido: number;
+  /** Preço ao cliente com o desconto normal + cupom (fora da janela de oferta relâmpago). */
+  precoComDescontoECupom: number;
+  /** Preço ao cliente com a oferta relâmpago + cupom; null se oferta relâmpago não estiver definida. */
+  precoComOfertaECupom: number | null;
+  /** % de desconto total (cadastro → preço ativo). */
+  descTotal: number;
+  promocaoPercent: number;
+  cupomLojaPercent: number;
+  ofertaRelampagoPercent: number;
+  cupomMaxRS: number;
+  /** true se o teto do cupom (cupomMaxRS) realmente limitou o valor no cenário ativo. */
+  cupomLimitadoPeloTeto: boolean;
   lucroLiquido: number;
   margemReal: number;
   custoBase: number;
@@ -205,18 +227,90 @@ function resolverPorLucroRS(inputs: TikTokInputs) {
   return Math.ceil(pF) - 0.1;
 }
 
-export function calcularPrecoTikTok(inputs: TikTokInputs): TikTokResult {
-  const { modo, roasAlvo, estimativaVendas, referenciaPrecoMercado } = inputs;
+/** Aplica o cupom (%, com teto opcional em R$) a um preço, "pra frente". */
+function aplicarCupom(preco: number, cupomPercent: number, cupomMaxRS: number) {
+  if (cupomPercent <= 0) return { precoFinal: preco, valorCupom: 0, limitadoPeloTeto: false };
+  const semTeto = preco * (cupomPercent / 100);
+  const limitadoPeloTeto = cupomMaxRS > 0 && semTeto > cupomMaxRS;
+  const valorCupom = limitadoPeloTeto ? cupomMaxRS : semTeto;
+  return { precoFinal: Math.max(0.01, preco - valorCupom), valorCupom, limitadoPeloTeto };
+}
 
+/** Inverte o cupom (%, com teto opcional em R$): dado o preço final desejado, qual preço era necessário antes do cupom. */
+function resolverPrecoAntesCupom(precoFinalDesejado: number, cupomPercent: number, cupomMaxRS: number) {
+  if (cupomPercent <= 0) return { precoAntesCupom: precoFinalDesejado, limitadoPeloTeto: false };
+  const semTeto = precoFinalDesejado / (1 - cupomPercent / 100);
+  const naoLimitadoBate = cupomMaxRS <= 0 || semTeto * (cupomPercent / 100) <= cupomMaxRS;
+  if (naoLimitadoBate) return { precoAntesCupom: semTeto, limitadoPeloTeto: false };
+  return { precoAntesCupom: precoFinalDesejado + cupomMaxRS, limitadoPeloTeto: true };
+}
+
+export function calcularPrecoTikTok(inputs: TikTokInputs): TikTokResult {
+  const { modo, roasAlvo, estimativaVendas, referenciaPrecoMercado, promocaoPercent, cupomLojaPercent } = inputs;
+
+  const ofertaRelampagoPercent = inputs.ofertaRelampagoPercent || 0;
+  const cupomPercent = cupomLojaPercent || 0;
+  const cupomMaxRS = inputs.cupomMaxRS || 0;
+
+  // Desconto "ativo": oferta relâmpago NÃO acumula com a Promoção — ela substitui
+  // esse desconto. Cupom (%, com teto opcional em R$) sempre acumula por cima do que
+  // estiver ativo. Base das taxas do TikTok = preço após esse desconto do vendedor.
+  const descontoAtivoPercent = ofertaRelampagoPercent > 0 ? ofertaRelampagoPercent : (promocaoPercent || 0);
+  const descontoAtivoFracao = Math.min(0.999, descontoAtivoPercent / 100);
+
+  let precoCadastroSugerido: number;
   let precoFinalSugerido: number;
-  if (modo === "precoTravado") {
-    precoFinalSugerido = inputs.precoTravado;
-  } else if (modo === "lucroRS") {
-    precoFinalSugerido = resolverPorLucroRS(inputs);
+  let cupomLimitadoPeloTeto = false;
+
+  if (modo === "margem") {
+    // O preço final (e a margem) ficam garantidos na meta; o preço de cadastro sobe
+    // pra compensar qualquer desconto/cupom dado — igual ao modo margem da Shopee.
+    let precoFinalTarget = resolverPorMargem(inputs);
+    if (!precoFinalTarget || precoFinalTarget <= 0) precoFinalTarget = 0.01;
+    precoFinalSugerido = precoFinalTarget;
+
+    const { precoAntesCupom, limitadoPeloTeto } = resolverPrecoAntesCupom(
+      precoFinalTarget,
+      cupomPercent,
+      cupomMaxRS,
+    );
+    cupomLimitadoPeloTeto = limitadoPeloTeto;
+    precoCadastroSugerido =
+      descontoAtivoFracao > 0
+        ? Math.ceil(precoAntesCupom / (1 - descontoAtivoFracao)) - 0.1
+        : precoAntesCupom;
   } else {
-    precoFinalSugerido = resolverPorMargem(inputs);
+    // lucroRS / precoTravado: cadastro fixo (independe do desconto), e o desconto
+    // reduz de verdade o preço final — lucro/margem exibidos são o resultado real.
+    if (modo === "precoTravado") {
+      precoCadastroSugerido = inputs.precoTravado;
+    } else {
+      precoCadastroSugerido = resolverPorLucroRS(inputs);
+    }
+    if (!precoCadastroSugerido || precoCadastroSugerido <= 0) precoCadastroSugerido = 0.01;
+
+    const precoAntesCupom = precoCadastroSugerido * (1 - descontoAtivoFracao);
+    const cupomAplicado = aplicarCupom(precoAntesCupom, cupomPercent, cupomMaxRS);
+    precoFinalSugerido = cupomAplicado.precoFinal;
+    cupomLimitadoPeloTeto = cupomAplicado.limitadoPeloTeto;
   }
-  if (!precoFinalSugerido || precoFinalSugerido <= 0) precoFinalSugerido = 0.01;
+
+  const descTotal =
+    precoCadastroSugerido > 0 ? Math.max(0, (1 - precoFinalSugerido / precoCadastroSugerido) * 100) : 0;
+
+  // Os dois cenários que o cliente pode ver: com o desconto normal (fora da oferta
+  // relâmpago) ou com a oferta relâmpago — cupom (com teto) acumula nos dois. Um dos
+  // dois é sempre igual ao precoFinalSugerido (o cenário ativo).
+  const precoComDescontoECupom = aplicarCupom(
+    precoCadastroSugerido * (1 - (promocaoPercent || 0) / 100),
+    cupomPercent,
+    cupomMaxRS,
+  ).precoFinal;
+  const precoComOfertaECupom =
+    ofertaRelampagoPercent > 0
+      ? aplicarCupom(precoCadastroSugerido * (1 - ofertaRelampagoPercent / 100), cupomPercent, cupomMaxRS)
+          .precoFinal
+      : null;
 
   const d = derivar(precoFinalSugerido, inputs);
   const {
@@ -290,6 +384,15 @@ export function calcularPrecoTikTok(inputs: TikTokInputs): TikTokResult {
 
   return {
     precoFinalSugerido,
+    precoCadastroSugerido,
+    precoComDescontoECupom,
+    precoComOfertaECupom,
+    descTotal,
+    promocaoPercent: promocaoPercent || 0,
+    cupomLojaPercent: cupomPercent,
+    ofertaRelampagoPercent,
+    cupomMaxRS,
+    cupomLimitadoPeloTeto,
     lucroLiquido,
     margemReal,
     custoBase,
