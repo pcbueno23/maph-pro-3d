@@ -33,6 +33,9 @@ const DEFAULT_INPUTS: TikTokInputs = {
   novoVendedorIsento: false,
   estimativaVendas: 100,
   referenciaPrecoMercado: 0,
+  alvo1Percent: 10,
+  alvo2Percent: 15,
+  alvo3Percent: 20,
 };
 
 function brl(v: number) {
@@ -429,7 +432,14 @@ export default function TikTokCalculatorPage() {
             </div>
 
             <div className="space-y-4">
-              <ResultCard result={result} productName={nomeProduto} />
+              <ResultCard
+                result={result}
+                productName={nomeProduto}
+                alvo1Percent={inputs.alvo1Percent}
+                alvo2Percent={inputs.alvo2Percent}
+                alvo3Percent={inputs.alvo3Percent}
+                onChangeAlvoPercent={(qual, valor) => setNum(qual, valor)}
+              />
             </div>
           </div>
         </div>

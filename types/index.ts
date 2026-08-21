@@ -415,6 +415,9 @@ const tiktokInputsSchema = z.object({
   novoVendedorIsento: z.boolean().default(false),
   estimativaVendas: z.number().default(100),
   referenciaPrecoMercado: z.number().default(0),
+  alvo1Percent: z.number().default(10),
+  alvo2Percent: z.number().default(15),
+  alvo3Percent: z.number().default(20),
 });
 
 const vendaDiretaInputsSchema = z.object({

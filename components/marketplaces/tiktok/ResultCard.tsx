@@ -161,6 +161,66 @@ function Row({
   );
 }
 
+const TONE_CLASSES = {
+  danger: {
+    box: "border-rose-200 bg-rose-50 dark:border-rose-500/25 dark:bg-rose-500/10",
+    label: "text-rose-600 dark:text-rose-400",
+    price: "text-rose-700 dark:text-rose-300",
+  },
+  neutral: {
+    box: "border-slate-800 bg-slate-950/30",
+    label: "text-slate-400",
+    price: "text-slate-100",
+  },
+  success: {
+    box: "border-emerald-200 bg-emerald-50 dark:border-emerald-500/25 dark:bg-emerald-500/10",
+    label: "text-emerald-600 dark:text-emerald-400",
+    price: "text-emerald-700 dark:text-emerald-300",
+  },
+} as const;
+
+function AlvoTile({
+  label,
+  percent,
+  preco,
+  onChangePercent,
+  tone,
+}: {
+  label: string;
+  percent?: number;
+  preco: number;
+  onChangePercent?: (v: number) => void;
+  tone: keyof typeof TONE_CLASSES;
+}) {
+  const t = TONE_CLASSES[tone];
+  return (
+    <div className={`rounded-xl border p-3 text-center ${t.box}`}>
+      <div className={`flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wide ${t.label}`}>
+        {onChangePercent && typeof percent === "number" ? (
+          <>
+            <span>Alvo</span>
+            <input
+              type="number"
+              value={percent}
+              onChange={(e) => onChangePercent(Number(e.target.value))}
+              step={0.5}
+              min={0}
+              max={95}
+              className="w-8 rounded border-b border-current/40 bg-transparent px-0.5 text-center tabular-nums outline-none focus:border-current print:hidden"
+              aria-label={`Meta de margem do preço ${label}`}
+            />
+            <span className="print:hidden">%</span>
+            <span className="hidden print:inline">{percent}%</span>
+          </>
+        ) : (
+          <span>{label}</span>
+        )}
+      </div>
+      <p className={`mt-0.5 tabular-nums text-base font-black ${t.price}`}>{formatBRL(preco)}</p>
+    </div>
+  );
+}
+
 function CardBox({
   title,
   icon,
@@ -187,10 +247,19 @@ export default function ResultCard({
   result,
   productName,
   onPrint,
+  alvo1Percent,
+  alvo2Percent,
+  alvo3Percent,
+  onChangeAlvoPercent,
 }: {
   result: TikTokResult | null;
   productName?: string;
   onPrint?: () => void;
+  /** % de margem alvo dos 3 preços de referência (editáveis pelo usuário). */
+  alvo1Percent?: number;
+  alvo2Percent?: number;
+  alvo3Percent?: number;
+  onChangeAlvoPercent?: (qual: "alvo1Percent" | "alvo2Percent" | "alvo3Percent", valor: number) => void;
 }) {
   if (!result) {
     return (
@@ -342,34 +411,34 @@ Geração feita via MAPH PRO TIKTOK SHOP.
           mesmos custos de comissão, SFP, afiliado, ads e tributação — só muda a margem perseguida.
         </p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-center dark:border-rose-500/25 dark:bg-rose-500/10">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400">
-              Mínimo
-            </p>
-            <p className="mt-0.5 tabular-nums text-base font-black text-rose-700 dark:text-rose-300">
-              {formatBRL(precosReferencia.minimo)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-3 text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Alvo 10%</p>
-            <p className="mt-0.5 tabular-nums text-base font-black text-slate-100">
-              {formatBRL(precosReferencia.alvo10)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-3 text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Alvo 15%</p>
-            <p className="mt-0.5 tabular-nums text-base font-black text-slate-100">
-              {formatBRL(precosReferencia.alvo15)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center dark:border-emerald-500/25 dark:bg-emerald-500/10">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-              Alvo 20%
-            </p>
-            <p className="mt-0.5 tabular-nums text-base font-black text-emerald-700 dark:text-emerald-300">
-              {formatBRL(precosReferencia.alvo20)}
-            </p>
-          </div>
+          <AlvoTile label="Mínimo" preco={precosReferencia.minimo} tone="danger" />
+          <AlvoTile
+            label={`Alvo ${precosReferencia.alvo1.percent}%`}
+            percent={alvo1Percent ?? precosReferencia.alvo1.percent}
+            preco={precosReferencia.alvo1.preco}
+            tone="neutral"
+            onChangePercent={
+              onChangeAlvoPercent ? (v) => onChangeAlvoPercent("alvo1Percent", v) : undefined
+            }
+          />
+          <AlvoTile
+            label={`Alvo ${precosReferencia.alvo2.percent}%`}
+            percent={alvo2Percent ?? precosReferencia.alvo2.percent}
+            preco={precosReferencia.alvo2.preco}
+            tone="neutral"
+            onChangePercent={
+              onChangeAlvoPercent ? (v) => onChangeAlvoPercent("alvo2Percent", v) : undefined
+            }
+          />
+          <AlvoTile
+            label={`Alvo ${precosReferencia.alvo3.percent}%`}
+            percent={alvo3Percent ?? precosReferencia.alvo3.percent}
+            preco={precosReferencia.alvo3.preco}
+            tone="success"
+            onChangePercent={
+              onChangeAlvoPercent ? (v) => onChangeAlvoPercent("alvo3Percent", v) : undefined
+            }
+          />
         </div>
         <div className="mt-3 flex items-center justify-between rounded-xl border border-cyan-500/25 bg-cyan-500/10 px-4 py-2.5">
           <span className="text-xs font-semibold text-cyan-200">

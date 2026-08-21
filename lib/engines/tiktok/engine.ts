@@ -34,6 +34,10 @@ export type TikTokInputs = {
   novoVendedorIsento: boolean;
   estimativaVendas: number;
   referenciaPrecoMercado: number;
+  /** % de margem de contribuição dos 3 preços-alvo de referência (mín. costuma ser 0, fixo). */
+  alvo1Percent: number;
+  alvo2Percent: number;
+  alvo3Percent: number;
 };
 
 export type TikTokResult = {
@@ -72,9 +76,9 @@ export type TikTokResult = {
 export type TikTokPrecosReferencia = {
   /** Abaixo dele a margem de contribuição vira zero/negativa — não vender. */
   minimo: number;
-  alvo10: number;
-  alvo15: number;
-  alvo20: number;
+  alvo1: { percent: number; preco: number };
+  alvo2: { percent: number; preco: number };
+  alvo3: { percent: number; preco: number };
 };
 
 export function formatBRL(v: number) {
@@ -94,7 +98,8 @@ export function calcularComissaoTikTok(precoFinal: number, novoVendedorIsento: b
   return { percentual: 0.06, fixo: 6.0, valorComissao: precoFinal * 0.06 + 6.0 };
 }
 
-export function getFaixaLabel(preco: number) {
+export function getFaixaLabel(preco: number, novoVendedorIsento = false) {
+  if (novoVendedorIsento) return "Comissão isenta (missão novo vendedor ativa, até R$17k em vendas)";
   return preco < 50
     ? "Faixa abaixo de R$50 (comissão 10% + R$4 fixo)"
     : "Faixa a partir de R$50 (comissão 6% + R$6 fixo)";
@@ -174,11 +179,14 @@ function resolverPorMargem(inputs: TikTokInputs) {
  * SFP, afiliado, ads, tributação) do `inputs` mantidos fixos.
  */
 export function calcularPrecosReferenciaTikTok(inputs: TikTokInputs): TikTokPrecosReferencia {
+  const p1 = inputs.alvo1Percent ?? 10;
+  const p2 = inputs.alvo2Percent ?? 15;
+  const p3 = inputs.alvo3Percent ?? 20;
   return {
     minimo: resolverPrecoPorMargemAlvo(inputs, 0),
-    alvo10: resolverPrecoPorMargemAlvo(inputs, 10),
-    alvo15: resolverPrecoPorMargemAlvo(inputs, 15),
-    alvo20: resolverPrecoPorMargemAlvo(inputs, 20),
+    alvo1: { percent: p1, preco: resolverPrecoPorMargemAlvo(inputs, p1) },
+    alvo2: { percent: p2, preco: resolverPrecoPorMargemAlvo(inputs, p2) },
+    alvo3: { percent: p3, preco: resolverPrecoPorMargemAlvo(inputs, p3) },
   };
 }
 
@@ -296,7 +304,7 @@ export function calcularPrecoTikTok(inputs: TikTokInputs): TikTokResult {
     roasAlvo,
     margemContribuicao,
     margemContribuicaoPct,
-    faixaLabel: getFaixaLabel(precoFinalSugerido),
+    faixaLabel: getFaixaLabel(precoFinalSugerido, inputs.novoVendedorIsento),
     distribuicao,
     projecaoMensal,
     competitividade,

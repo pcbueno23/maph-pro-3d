@@ -23,6 +23,9 @@ const BASE_INPUTS: TikTokInputs = {
   novoVendedorIsento: false,
   estimativaVendas: 0,
   referenciaPrecoMercado: 0,
+  alvo1Percent: 10,
+  alvo2Percent: 15,
+  alvo3Percent: 20,
 };
 
 describe("calcularComissaoTikTok", () => {
@@ -105,22 +108,32 @@ describe("calcularPrecosReferenciaTikTok", () => {
     expect(noMinimo.margemReal).toBeGreaterThanOrEqual(0);
     expect(noMinimo.margemReal).toBeLessThan(2);
 
-    expect(ref.minimo).toBeLessThan(ref.alvo10);
-    expect(ref.alvo10).toBeLessThan(ref.alvo15);
-    expect(ref.alvo15).toBeLessThan(ref.alvo20);
+    expect(ref.minimo).toBeLessThan(ref.alvo1.preco);
+    expect(ref.alvo1.preco).toBeLessThan(ref.alvo2.preco);
+    expect(ref.alvo2.preco).toBeLessThan(ref.alvo3.preco);
   });
 
-  it("preço-alvo de 20% entrega ~20% de margem real quando travado nesse valor", () => {
+  it("preço-alvo 3 entrega ~a margem real configurada quando travado nesse valor", () => {
     const inputs: TikTokInputs = { ...BASE_INPUTS, participaSFP: true };
     const ref = calcularPrecosReferenciaTikTok(inputs);
-    const noAlvo20 = calcularPrecoTikTok({ ...inputs, modo: "precoTravado", precoTravado: ref.alvo20 });
-    expect(noAlvo20.margemReal).toBeGreaterThanOrEqual(20);
-    expect(noAlvo20.margemReal).toBeLessThan(22);
+    const noAlvo3 = calcularPrecoTikTok({ ...inputs, modo: "precoTravado", precoTravado: ref.alvo3.preco });
+    expect(noAlvo3.margemReal).toBeGreaterThanOrEqual(20);
+    expect(noAlvo3.margemReal).toBeLessThan(22);
+  });
+
+  it("usa as % alvo configuradas em vez de valores fixos", () => {
+    const inputs: TikTokInputs = { ...BASE_INPUTS, participaSFP: true, alvo1Percent: 5, alvo2Percent: 12, alvo3Percent: 30 };
+    const ref = calcularPrecosReferenciaTikTok(inputs);
+    expect(ref.alvo1.percent).toBe(5);
+    expect(ref.alvo2.percent).toBe(12);
+    expect(ref.alvo3.percent).toBe(30);
+    expect(ref.alvo1.preco).toBeLessThan(ref.alvo2.preco);
+    expect(ref.alvo2.preco).toBeLessThan(ref.alvo3.preco);
   });
 
   it("calcularPrecoTikTok expõe precosReferencia no resultado", () => {
     const result = calcularPrecoTikTok({ ...BASE_INPUTS, precoTravado: 120, participaSFP: true });
     expect(result.precosReferencia.minimo).toBeGreaterThan(0);
-    expect(result.precosReferencia.alvo20).toBeGreaterThan(result.precosReferencia.minimo);
+    expect(result.precosReferencia.alvo3.preco).toBeGreaterThan(result.precosReferencia.minimo);
   });
 });
