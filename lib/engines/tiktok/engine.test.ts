@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { calcularComissaoTikTok, calcularPrecoTikTok, type TikTokInputs } from "./engine";
+import {
+  calcularComissaoTikTok,
+  calcularPrecoTikTok,
+  calcularPrecosReferenciaTikTok,
+  type TikTokInputs,
+} from "./engine";
 
 const BASE_INPUTS: TikTokInputs = {
   fullCustoUnidade: 20,
@@ -88,5 +93,34 @@ describe("calcularPrecoTikTok (modo margem, com solver)", () => {
       participaSFP: true,
     });
     expect(result.margemReal).toBeCloseTo(25, 0);
+  });
+});
+
+describe("calcularPrecosReferenciaTikTok", () => {
+  it("mínimo é breakeven (margem ~0%) e os alvos crescem em ordem", () => {
+    const inputs: TikTokInputs = { ...BASE_INPUTS, participaSFP: true, comissaoAfiliadoPercent: 10 };
+    const ref = calcularPrecosReferenciaTikTok(inputs);
+
+    const noMinimo = calcularPrecoTikTok({ ...inputs, modo: "precoTravado", precoTravado: ref.minimo });
+    expect(noMinimo.margemReal).toBeGreaterThanOrEqual(0);
+    expect(noMinimo.margemReal).toBeLessThan(2);
+
+    expect(ref.minimo).toBeLessThan(ref.alvo10);
+    expect(ref.alvo10).toBeLessThan(ref.alvo15);
+    expect(ref.alvo15).toBeLessThan(ref.alvo20);
+  });
+
+  it("preço-alvo de 20% entrega ~20% de margem real quando travado nesse valor", () => {
+    const inputs: TikTokInputs = { ...BASE_INPUTS, participaSFP: true };
+    const ref = calcularPrecosReferenciaTikTok(inputs);
+    const noAlvo20 = calcularPrecoTikTok({ ...inputs, modo: "precoTravado", precoTravado: ref.alvo20 });
+    expect(noAlvo20.margemReal).toBeGreaterThanOrEqual(20);
+    expect(noAlvo20.margemReal).toBeLessThan(22);
+  });
+
+  it("calcularPrecoTikTok expõe precosReferencia no resultado", () => {
+    const result = calcularPrecoTikTok({ ...BASE_INPUTS, precoTravado: 120, participaSFP: true });
+    expect(result.precosReferencia.minimo).toBeGreaterThan(0);
+    expect(result.precosReferencia.alvo20).toBeGreaterThan(result.precosReferencia.minimo);
   });
 });

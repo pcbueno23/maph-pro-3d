@@ -65,6 +65,16 @@ export type TikTokResult = {
   };
   competitividade: { status: string; statusMsg: string };
   percentualAds: number;
+  /** Os 3 preços de referência da estratégia: mínimo (breakeven), alvos de margem e o comercial (o que o cliente paga). */
+  precosReferencia: TikTokPrecosReferencia;
+};
+
+export type TikTokPrecosReferencia = {
+  /** Abaixo dele a margem de contribuição vira zero/negativa — não vender. */
+  minimo: number;
+  alvo10: number;
+  alvo15: number;
+  alvo20: number;
 };
 
 export function formatBRL(v: number) {
@@ -138,19 +148,38 @@ function derivar(precoFinal: number, inputs: TikTokInputs) {
   };
 }
 
-function resolverPorMargem(inputs: TikTokInputs) {
+/** Resolve o preço final que entrega exatamente `metaLucroPercentAlvo` de margem, com os demais custos do inputs. */
+function resolverPrecoPorMargemAlvo(inputs: TikTokInputs, metaLucroPercentAlvo: number) {
   const custoBase = custoBaseDe(inputs);
-  const { metaLucroPercent } = inputs;
 
   let pF = custoBase * 2.5;
   for (let i = 0; i < 150; i++) {
     const d = derivar(pF, inputs);
-    const lucroAlvo = pF * ((metaLucroPercent || 0) / 100);
+    const lucroAlvo = pF * ((metaLucroPercentAlvo || 0) / 100);
     const necessario = d.custoBase + d.valorComissao + d.valorSFP + d.valorAfiliado + d.custoAds + d.valorTributacao + lucroAlvo;
     if (Math.abs(necessario - pF) < 0.005) break;
     pF = necessario;
   }
-  return Math.ceil(pF) - 0.1;
+  return Math.max(0.01, Math.ceil(pF) - 0.1);
+}
+
+function resolverPorMargem(inputs: TikTokInputs) {
+  return resolverPrecoPorMargemAlvo(inputs, inputs.metaLucroPercent);
+}
+
+/**
+ * Os 3 preços de referência da estratégia (mesma lógica pra qualquer SKU):
+ * mínimo = breakeven (margem de contribuição 0%, abaixo disso não vender);
+ * alvos = 10%/15%/20% de margem de contribuição, com o resto dos custos (comissão,
+ * SFP, afiliado, ads, tributação) do `inputs` mantidos fixos.
+ */
+export function calcularPrecosReferenciaTikTok(inputs: TikTokInputs): TikTokPrecosReferencia {
+  return {
+    minimo: resolverPrecoPorMargemAlvo(inputs, 0),
+    alvo10: resolverPrecoPorMargemAlvo(inputs, 10),
+    alvo15: resolverPrecoPorMargemAlvo(inputs, 15),
+    alvo20: resolverPrecoPorMargemAlvo(inputs, 20),
+  };
 }
 
 function resolverPorLucroRS(inputs: TikTokInputs) {
@@ -272,5 +301,6 @@ export function calcularPrecoTikTok(inputs: TikTokInputs): TikTokResult {
     projecaoMensal,
     competitividade,
     percentualAds: roasAlvo > 0 ? 100 / roasAlvo : 0,
+    precosReferencia: calcularPrecosReferenciaTikTok(inputs),
   };
 }

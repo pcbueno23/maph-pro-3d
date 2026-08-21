@@ -224,6 +224,7 @@ export default function ResultCard({
     projecaoMensal,
     competitividade,
     percentualAds,
+    precosReferencia,
   } = result;
 
   const usaAds = roasAlvo > 0;
@@ -330,6 +331,60 @@ Geração feita via MAPH PRO TIKTOK SHOP.
           </div>
         </div>
       </div>
+
+      <CardBox
+        title="Preços de Referência"
+        icon={<Tag size={14} className="text-slate-400" />}
+        iconBg="bg-slate-900/70"
+      >
+        <p className="mb-3 text-xs text-slate-400">
+          Mínimo trava a margem de contribuição em 0% (abaixo disso não vende). Alvos mantêm os
+          mesmos custos de comissão, SFP, afiliado, ads e tributação — só muda a margem perseguida.
+        </p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-center dark:border-rose-500/25 dark:bg-rose-500/10">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400">
+              Mínimo
+            </p>
+            <p className="mt-0.5 tabular-nums text-base font-black text-rose-700 dark:text-rose-300">
+              {formatBRL(precosReferencia.minimo)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-3 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Alvo 10%</p>
+            <p className="mt-0.5 tabular-nums text-base font-black text-slate-100">
+              {formatBRL(precosReferencia.alvo10)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-3 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Alvo 15%</p>
+            <p className="mt-0.5 tabular-nums text-base font-black text-slate-100">
+              {formatBRL(precosReferencia.alvo15)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center dark:border-emerald-500/25 dark:bg-emerald-500/10">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+              Alvo 20%
+            </p>
+            <p className="mt-0.5 tabular-nums text-base font-black text-emerald-700 dark:text-emerald-300">
+              {formatBRL(precosReferencia.alvo20)}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-cyan-500/25 bg-cyan-500/10 px-4 py-2.5">
+          <span className="text-xs font-semibold text-cyan-200">
+            Preço comercial (o que o cliente paga hoje)
+          </span>
+          <span className="tabular-nums text-sm font-bold text-cyan-100">
+            {formatBRL(precoFinalSugerido)} · {formatPct(margemReal)}
+          </span>
+        </div>
+        {precoFinalSugerido < precosReferencia.minimo && (
+          <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-400">
+            <AlertTriangle size={12} /> Preço comercial abaixo do mínimo — essa venda está destruindo margem.
+          </p>
+        )}
+      </CardBox>
 
       <CardBox title="Detalhamento de Custos" icon={<PieChart size={14} className="text-slate-400" />} iconBg="bg-slate-900/70">
         <Row label="Custo do produto + envio" value={formatBRL(custoBase)} />
