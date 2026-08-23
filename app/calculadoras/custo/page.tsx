@@ -17,6 +17,8 @@ import { calcularPrecoShopee } from "@/lib/engines/shopee/engine";
 import { calcularPrecoML } from "@/lib/engines/ml/engine";
 import { calcularPrecoVendaDireta } from "@/lib/engines/vendaDireta/engine";
 import { calcularPrecoTikTok } from "@/lib/engines/tiktok/engine";
+import { saveUserSettings } from "@/lib/supabaseUserData";
+import type { SettingsValues } from "@/types";
 
 function fmtBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -51,6 +53,34 @@ function LucroHoraRow({ value }: { value: number | null }) {
       </span>
     </div>
   );
+}
+
+function PotencialMensalRow({ value, units }: { value: number | null; units: number }) {
+  if (value == null || units <= 0) return null;
+  return (
+    <div className="flex justify-between gap-4 border-t border-slate-800 pt-1.5 text-sm">
+      <span className="text-slate-400">
+        Potencial <span className="text-slate-500">({units.toFixed(0)} peças/mês)</span>
+      </span>
+      <span
+        className={`shrink-0 tabular-nums font-semibold ${
+          value >= 0 ? "text-emerald-300" : "text-rose-300"
+        }`}
+      >
+        {fmtBRL(value)}/mês
+      </span>
+    </div>
+  );
+}
+
+function fmtHoras(h: number) {
+  if (!Number.isFinite(h) || h <= 0) return "—";
+  const totalMin = Math.round(h * 60);
+  const hh = Math.floor(totalMin / 60);
+  const mm = totalMin % 60;
+  if (hh <= 0) return `${mm}min`;
+  if (mm === 0) return `${hh}h`;
+  return `${hh}h ${mm}min`;
 }
 
 /** Caixa de precificação rápida por marketplace, alimentada pelo preset ativo daquele canal. */
@@ -117,7 +147,7 @@ function MarketplacePresetBox({
 export default function Custo3DPage() {
   const router = useRouter();
   const { form, results } = useCalculator();
-  const { settings } = useSettingsStore();
+  const { settings, updateSettings } = useSettingsStore();
   const { user } = useAuthStore();
   const addProduct = useProductsStore((s) => s.addProduct);
   const [saving, setSaving] = useState(false);
@@ -326,6 +356,28 @@ export default function Custo3DPage() {
   const tiktokLucroHora =
     tiktokResult && hoursPerUnit > 0 ? tiktokResult.lucroLiquido / hoursPerUnit : null;
 
+  // Potencial de produção mensal desse produto, a partir da capacidade de produção
+  // (horas/dia e dias/mês, persistidos em settings.defaults) e do tempo de impressão dele.
+  const horasProducaoDia = settings.defaults.horasProducaoDia ?? 8;
+  const diasProducaoMes = settings.defaults.diasProducaoMes ?? 26;
+  const unitsPerDay = hoursPerUnit > 0 ? horasProducaoDia / hoursPerUnit : 0;
+  const unitsPerMonth = unitsPerDay * diasProducaoMes;
+
+  const commitCapacidadeProducao = (next: Partial<{ horasProducaoDia: number; diasProducaoMes: number }>) => {
+    const merged: SettingsValues = { ...settings, defaults: { ...settings.defaults, ...next } };
+    updateSettings(merged);
+  };
+  const syncCapacidadeProducaoToCloud = () => {
+    if (!user) return;
+    saveUserSettings(user.id, useSettingsStore.getState().settings).catch(() => {});
+  };
+
+  const shopeePotencialMensal = shopeeResult ? shopeeResult.lucroLiquido * unitsPerMonth : null;
+  const mlPotencialMensal = mlResult ? mlResult.lucro * unitsPerMonth : null;
+  const tiktokPotencialMensal = tiktokResult ? tiktokResult.lucroLiquido * unitsPerMonth : null;
+  const vdPotencialMensalPix = vdResult ? vdResult.lucroPix * unitsPerMonth : null;
+  const vdPotencialMensalCard = vdResult ? vdResult.lucroCard * unitsPerMonth : null;
+
   const custoBreakdown = useMemo(() => {
     if (!results) return null;
     const f = Number(results.filamentCost ?? 0);
@@ -447,6 +499,73 @@ export default function Custo3DPage() {
             </p>
           </div>
 
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+              Potencial de Produção Mensal
+            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-slate-400">Horas de produção/dia</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={24}
+                  step={0.5}
+                  value={horasProducaoDia}
+                  onChange={(e) =>
+                    commitCapacidadeProducao({
+                      horasProducaoDia: Math.max(0, Math.min(24, parseFloat(e.currentTarget.value) || 0)),
+                    })
+                  }
+                  onBlur={syncCapacidadeProducaoToCloud}
+                  className="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/25"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-slate-400">Dias de produção/mês</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={31}
+                  step={1}
+                  value={diasProducaoMes}
+                  onChange={(e) =>
+                    commitCapacidadeProducao({
+                      diasProducaoMes: Math.max(0, Math.min(31, parseFloat(e.currentTarget.value) || 0)),
+                    })
+                  }
+                  onBlur={syncCapacidadeProducaoToCloud}
+                  className="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/25"
+                />
+              </label>
+            </div>
+
+            {hoursPerUnit > 0 ? (
+              <div className="mt-4 grid grid-cols-3 gap-3 border-t border-slate-800 pt-4 text-center">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500">Tempo/peça</p>
+                  <p className="mt-1 text-sm font-bold tabular-nums text-slate-100">{fmtHoras(hoursPerUnit)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500">Peças/dia</p>
+                  <p className="mt-1 text-sm font-bold tabular-nums text-cyan-300">{unitsPerDay.toFixed(1)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500">Peças/mês</p>
+                  <p className="mt-1 text-lg font-black tabular-nums text-emerald-300">
+                    {Math.floor(unitsPerMonth)}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-slate-500">
+                Informe o tempo de impressão do produto pra calcular quantas peças cabem na sua
+                capacidade de produção.
+              </p>
+            )}
+          </div>
+
           <MarketplacePresetBox
             title="Shopee"
             presetName={activeShopeePreset?.name}
@@ -470,6 +589,7 @@ export default function Custo3DPage() {
                   </span>
                 </div>
                 <LucroHoraRow value={shopeeLucroHora} />
+                <PotencialMensalRow value={shopeePotencialMensal} units={unitsPerMonth} />
               </div>
             )}
           </MarketplacePresetBox>
@@ -497,6 +617,7 @@ export default function Custo3DPage() {
                   </span>
                 </div>
                 <LucroHoraRow value={mlLucroHora} />
+                <PotencialMensalRow value={mlPotencialMensal} units={unitsPerMonth} />
               </div>
             )}
           </MarketplacePresetBox>
@@ -524,6 +645,7 @@ export default function Custo3DPage() {
                   </span>
                 </div>
                 <LucroHoraRow value={tiktokLucroHora} />
+                <PotencialMensalRow value={tiktokPotencialMensal} units={unitsPerMonth} />
               </div>
             )}
           </MarketplacePresetBox>
@@ -582,6 +704,23 @@ export default function Custo3DPage() {
                     </p>
                   )}
                 </div>
+              </div>
+            )}
+            {vdResult && (vdPotencialMensalPix != null || vdPotencialMensalCard != null) && unitsPerMonth > 0 && (
+              <div className="mt-2 flex justify-between gap-4 border-t border-slate-800 pt-1.5 text-sm">
+                <span className="text-slate-400">
+                  Potencial <span className="text-slate-500">({unitsPerMonth.toFixed(0)} peças/mês)</span>
+                </span>
+                <span className="shrink-0 tabular-nums font-semibold text-slate-200">
+                  Pix{" "}
+                  <span className={vdPotencialMensalPix! >= 0 ? "text-emerald-300" : "text-rose-300"}>
+                    {fmtBRL(vdPotencialMensalPix!)}
+                  </span>{" "}
+                  · Cartão{" "}
+                  <span className={vdPotencialMensalCard! >= 0 ? "text-emerald-300" : "text-rose-300"}>
+                    {fmtBRL(vdPotencialMensalCard!)}
+                  </span>
+                </span>
               </div>
             )}
           </MarketplacePresetBox>

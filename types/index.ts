@@ -564,6 +564,18 @@ export const settingsSchema = z.object({
       .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 10))
       .pipe(z.number().min(0).max(50))
       .default(10),
+    /** Horas por dia disponíveis pra produção — usado no potencial de produção mensal. */
+    horasProducaoDia: z
+      .union([z.number(), z.nan()])
+      .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
+      .pipe(z.number().min(0).max(24))
+      .default(8),
+    /** Dias de produção considerados por mês, pra converter capacidade diária em mensal. */
+    diasProducaoMes: z
+      .union([z.number(), z.nan()])
+      .transform((n) => (typeof n === "number" && !Number.isNaN(n) ? n : 0))
+      .pipe(z.number().min(0).max(31))
+      .default(26),
   }),
   printer: z.object({
     presetId: z.string().optional(),

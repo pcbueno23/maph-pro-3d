@@ -35,6 +35,8 @@ export const defaultSettings: SettingsValues = {
     cardFeePercent: 4.99,
     /** Pontos a mais na margem de venda direta vs margem marketplace (pré-preenche a calculadora). */
     directMarginExtraPoints: 10,
+    horasProducaoDia: 8,
+    diasProducaoMes: 26,
   },
   printer: {
     presetId: "",
