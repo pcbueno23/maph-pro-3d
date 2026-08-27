@@ -80,6 +80,8 @@ export function AdminLeadsTab() {
   }, [fetchLeads]);
 
   function exportCsv() {
+    // ";" como separador (não ","): é o delimitador padrão que o Excel em PT-BR
+    // espera pra CSV — com "," o Excel não separa em colunas, joga tudo numa célula só.
     const header = ["email", "whatsapp", "criado_em", "origem", "user_id"];
     const rows = leads.map((l) =>
       [
@@ -88,9 +90,11 @@ export function AdminLeadsTab() {
         csvEscape(new Date(l.created_at).toISOString()),
         csvEscape(l.source),
         csvEscape(l.user_id),
-      ].join(","),
+      ].join(";"),
     );
-    const blob = new Blob([[header.join(","), ...rows].join("\n")], {
+    // BOM no início pra acentos abrirem certo no Excel PT-BR.
+    const bom = String.fromCharCode(0xfeff);
+    const blob = new Blob([bom + [header.join(";"), ...rows].join("\n")], {
       type: "text/csv;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);

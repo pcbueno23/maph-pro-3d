@@ -595,11 +595,13 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
     const cols = EXPORT_COLUMNS.filter((c) => exportColumnIds.has(c.id));
     if (cols.length === 0 || sortedStandaloneRows.length === 0) return;
 
+    // ";" como separador (não ","): é o delimitador padrão que o Excel em PT-BR
+    // espera pra CSV — com "," o Excel não separa em colunas, joga tudo numa célula só.
     const header = cols.map((c) => csvEscape(c.group === "Geral" ? c.label : `${c.group} — ${c.label}`));
-    const rows = sortedStandaloneRows.map((row) => cols.map((c) => csvEscape(c.value(row))).join(","));
+    const rows = sortedStandaloneRows.map((row) => cols.map((c) => csvEscape(c.value(row))).join(";"));
     // BOM no início pra acentos abrirem certo no Excel PT-BR.
     const bom = String.fromCharCode(0xfeff);
-    const blob = new Blob([bom + [header.join(","), ...rows].join("\n")], {
+    const blob = new Blob([bom + [header.join(";"), ...rows].join("\n")], {
       type: "text/csv;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
