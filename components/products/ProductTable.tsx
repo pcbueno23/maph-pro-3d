@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  Download,
   Eye,
   EyeOff,
   FileText,
@@ -233,6 +234,91 @@ function MetricsCells({
   );
 }
 
+function csvEscape(value: string): string {
+  const v = value.replace(/"/g, '""');
+  return `"${v}"`;
+}
+
+type ExportColumn = {
+  id: string;
+  group: string;
+  label: string;
+  value: (row: Row) => string;
+};
+
+/** Uma coluna exportável pra cada coluna real da tabela (fora "Ações", que não é dado). */
+const EXPORT_COLUMNS: ExportColumn[] = [
+  { id: "name", group: "Geral", label: "Produto", value: (r) => r.product.name },
+  { id: "price", group: "Geral", label: "Preço", value: (r) => formatBRL(r.product.price ?? 0) },
+  { id: "totalCost", group: "Geral", label: "Custo", value: (r) => formatBRL(r.product.totalCost ?? 0) },
+  { id: "weight", group: "Geral", label: "Peso", value: (r) => formatWeight(r.product.weight) },
+  {
+    id: "printTimeMinutes",
+    group: "Geral",
+    label: "Tempo",
+    value: (r) => formatDuration(r.product.printTimeMinutes),
+  },
+  {
+    id: "best",
+    group: "Geral",
+    label: "Melhor canal",
+    value: (r) =>
+      r.best ? `${r.best.metric.channelLabel} (${formatBRL(r.best.metric.profitPerHour ?? 0)}/h)` : "—",
+  },
+  ...CHANNEL_ORDER.flatMap<ExportColumn>((ch) => [
+    {
+      id: `${ch}.price`,
+      group: CHANNEL_LABELS[ch],
+      label: "Preço",
+      value: (r) => (r.metrics[ch] ? formatBRL(r.metrics[ch]!.price) : "—"),
+    },
+    {
+      id: `${ch}.marginPercent`,
+      group: CHANNEL_LABELS[ch],
+      label: "Margem",
+      value: (r) => (r.metrics[ch] ? formatPct(r.metrics[ch]!.marginPercent) : "—"),
+    },
+    {
+      id: `${ch}.profitPerHour`,
+      group: CHANNEL_LABELS[ch],
+      label: "Margem/h",
+      value: (r) =>
+        r.metrics[ch]?.profitPerHour != null ? `${formatBRL(r.metrics[ch]!.profitPerHour!)}/h` : "—",
+    },
+  ]),
+];
+
+/** "Box" clicável de coluna — marca/desmarca o que sai no CSV. */
+function ColumnToggle({
+  label,
+  checked,
+  onToggle,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={checked}
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+        checked
+          ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200"
+          : "border-slate-800 bg-slate-950/40 text-slate-500 hover:border-slate-700 hover:text-slate-300"
+      }`}
+    >
+      {checked ? (
+        <Check className="h-3.5 w-3.5 shrink-0" />
+      ) : (
+        <span className="h-3.5 w-3.5 shrink-0 rounded border border-slate-700" />
+      )}
+      {label}
+    </button>
+  );
+}
+
 const iconBtnClass =
   "rounded-lg border border-slate-800 bg-slate-900/60 p-1.5 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200";
 
@@ -344,6 +430,21 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
 
   // Rodapé de produtos ocultos
   const [showHiddenList, setShowHiddenList] = useState(false);
+
+  // Exportar CSV com escolha de colunas
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportColumnIds, setExportColumnIds] = useState<Set<string>>(
+    () => new Set(EXPORT_COLUMNS.map((c) => c.id)),
+  );
+
+  function toggleExportColumn(id: string) {
+    setExportColumnIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function handleSort(key: SortKey) {
     setSort((prev) => {
@@ -489,6 +590,26 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
     const dirMul = sort.dir === "asc" ? 1 : -1;
     return [...standaloneRows].sort((a, b) => dirMul * (sortValue(a, sort.key) - sortValue(b, sort.key)));
   }, [standaloneRows, sort]);
+
+  function exportCsv() {
+    const cols = EXPORT_COLUMNS.filter((c) => exportColumnIds.has(c.id));
+    if (cols.length === 0 || sortedStandaloneRows.length === 0) return;
+
+    const header = cols.map((c) => csvEscape(c.group === "Geral" ? c.label : `${c.group} — ${c.label}`));
+    const rows = sortedStandaloneRows.map((row) => cols.map((c) => csvEscape(c.value(row))).join(","));
+    // BOM no início pra acentos abrirem certo no Excel PT-BR.
+    const bom = String.fromCharCode(0xfeff);
+    const blob = new Blob([bom + [header.join(","), ...rows].join("\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `produtos-maph-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setExportOpen(false);
+  }
 
   const materialCost = useMemo(() => {
     if (!bomProduct) return 0;
@@ -694,9 +815,18 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
             produção do produto + o preset ativo de cada canal. Clique num cabeçalho pra
             ordenar. Marque 2+ produtos pra agrupar num kit.
           </p>
-          {selectedIds.size > 0 ? (
-            <div className="flex items-center gap-2">
-              {showKitNamePrompt ? (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              disabled={sortedStandaloneRows.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/70 px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-900 disabled:opacity-40"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Exportar
+            </button>
+            {selectedIds.size > 0 ? (
+              showKitNamePrompt ? (
                 <>
                   <input
                     autoFocus
@@ -751,9 +881,9 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </>
-              )}
-            </div>
-          ) : null}
+              )
+            ) : null}
+          </div>
         </div>
         {showKitNamePrompt && selectedIds.size > 0 ? (
           <div className="mx-2 mb-2 flex flex-col gap-1.5 rounded-lg border border-slate-800 bg-slate-950/40 p-2.5">
@@ -1300,6 +1430,89 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                 className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
               >
                 Salvar ficha técnica
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {exportOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4 pb-20 lg:pb-4">
+          <div
+            className="w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-neon-cyan"
+            style={{ maxHeight: "calc(100dvh - 9rem)" }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-50">Exportar produtos (CSV)</p>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  Marque as colunas que devem sair no arquivo. {sortedStandaloneRows.length} produto(s)
+                  serão exportados, na ordem/ordenação atual da tabela.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExportOpen(false)}
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setExportColumnIds(new Set(EXPORT_COLUMNS.map((c) => c.id)))}
+                className="text-[11px] font-semibold text-cyan-300 hover:text-cyan-200"
+              >
+                Marcar todas
+              </button>
+              <span className="text-[11px] text-slate-600">·</span>
+              <button
+                type="button"
+                onClick={() => setExportColumnIds(new Set())}
+                className="text-[11px] font-semibold text-slate-400 hover:text-slate-200"
+              >
+                Limpar seleção
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-3">
+              {Array.from(new Set(EXPORT_COLUMNS.map((c) => c.group))).map((group) => (
+                <div key={group}>
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    {group}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {EXPORT_COLUMNS.filter((c) => c.group === group).map((c) => (
+                      <ColumnToggle
+                        key={c.id}
+                        label={c.label}
+                        checked={exportColumnIds.has(c.id)}
+                        onToggle={() => toggleExportColumn(c.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2 border-t border-slate-800 pt-3">
+              <button
+                type="button"
+                onClick={() => setExportOpen(false)}
+                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-2 text-xs font-semibold text-slate-100 hover:bg-slate-900"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={exportCsv}
+                disabled={exportColumnIds.size === 0 || sortedStandaloneRows.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Exportar CSV
               </button>
             </div>
           </div>
