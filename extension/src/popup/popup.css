@@ -1,0 +1,97 @@
+:root {
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  width: 320px;
+  background: #020617;
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13.5px;
+}
+.pop { padding: 16px; }
+.pop-brand {
+  font-weight: 800;
+  font-size: 15px;
+  background: linear-gradient(90deg, #22d3ee, #34d399);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: 2px;
+}
+.pop-sub { color: #94a3b8; font-size: 12px; margin-bottom: 14px; }
+
+.pop-field { margin-bottom: 10px; }
+.pop-field label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+.pop-field input {
+  width: 100%;
+  background: rgba(15,23,42,0.8);
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #f1f5f9;
+  font-size: 13px;
+}
+.pop-field input:focus { outline: 2px solid rgba(34,211,238,0.4); border-color: #22d3ee; }
+
+.pop-btn {
+  width: 100%;
+  background: linear-gradient(90deg, #06b6d4, #10b981);
+  color: #04121a;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.pop-btn:disabled { opacity: 0.6; cursor: default; }
+.pop-btn.ghost {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+}
+
+.pop-error {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.35);
+  color: #fca5a5;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.pop-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #1e293b;
+  font-size: 12.5px;
+}
+.pop-row:last-child { border-bottom: none; }
+.pop-muted { color: #94a3b8; }
+
+.pop-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.pop-badge.ok { background: rgba(52,211,153,0.15); color: #34d399; }
+.pop-badge.warn { background: rgba(251,191,36,0.15); color: #fbbf24; }
+
+.pop-links { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.pop-links a { color: #67e8f9; font-size: 12px; text-decoration: none; }
+.pop-links a:hover { text-decoration: underline; }
