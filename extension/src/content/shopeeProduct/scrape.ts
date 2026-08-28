@@ -90,3 +90,47 @@ export function scrapeListing(): ScrapedListing {
     document.title.replace(/\s*\|\s*Shopee.*$/i, "").trim();
   return { price, soldCount, title: title || null };
 }
+
+export type EnrichedListing = {
+  soldTotal: number | null;
+  salesPerDay: number | null;
+  rating: number | null;
+  reviewCount: number | null;
+  favorites: number | null;
+  createdDaysAgo: number | null;
+  sellerName: string | null;
+  sellerLocation: string | null;
+  isInternational: boolean;
+};
+
+/**
+ * Busca os campos "ricos" (nota, avaliações, favoritos, criado em, vendedor)
+ * via API interna da Shopee — não vêm do HTML visível. Retorna null em
+ * qualquer campo que não vier na resposta (ver aviso de fragilidade no topo
+ * de `lib/shopeeApi.ts`).
+ */
+export async function fetchEnrichedListing(): Promise<EnrichedListing | null> {
+  const { parseItemUrl, fetchItemDetail, fetchShopDetail, daysSince, salesPerDayEstimate } = await import(
+    "../../lib/shopeeApi"
+  );
+  const ids = parseItemUrl(location.href);
+  if (!ids) return null;
+
+  const item = await fetchItemDetail(ids.shopId, ids.itemId);
+  if (!item) return null;
+
+  const shop = await fetchShopDetail(ids.shopId);
+  const createdDaysAgo = daysSince(item.createdAt);
+
+  return {
+    soldTotal: item.sold,
+    salesPerDay: salesPerDayEstimate(item.sold, createdDaysAgo),
+    rating: item.rating,
+    reviewCount: item.reviewCount,
+    favorites: item.liked,
+    createdDaysAgo,
+    sellerName: shop?.name ?? null,
+    sellerLocation: shop?.location ?? null,
+    isInternational: shop?.isCrossBorder ?? false,
+  };
+}

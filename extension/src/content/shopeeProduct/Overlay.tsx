@@ -7,7 +7,7 @@ import {
 } from "../../../../lib/engines/shopee/engine";
 import { sendToBackground } from "../../lib/messaging";
 import type { ShopeeContext } from "../../lib/messaging";
-import type { ScrapedListing } from "./scrape";
+import { fetchEnrichedListing, type EnrichedListing, type ScrapedListing } from "./scrape";
 
 const LAST_COST_KEY = "mp3d_last_own_cost";
 
@@ -26,14 +26,28 @@ function useLastCost(): [number, (v: number) => void] {
   return [cost, update];
 }
 
+function fmtNum(n: number | null, opts?: Intl.NumberFormatOptions) {
+  return n == null ? "—" : n.toLocaleString("pt-BR", opts);
+}
+
+function makerWorldUrl(title: string | null) {
+  const q = (title ?? "").split(/[-–|]/)[0].trim(); // corta sufixos tipo "- Envio imediato"
+  return `https://makerworld.com/en/search/models?keyword=${encodeURIComponent(q)}`;
+}
+
 export function Overlay({ listing }: { listing: ScrapedListing }) {
   const [ctx, setCtx] = useState<ShopeeContext | null>(null);
+  const [enriched, setEnriched] = useState<EnrichedListing | null | "loading">("loading");
   const [ownCost, setOwnCost] = useLastCost();
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     sendToBackground({ type: "GET_SHOPEE_CONTEXT" }).then(setCtx);
   }, []);
+
+  useEffect(() => {
+    fetchEnrichedListing().then((r) => setEnriched(r ?? null));
+  }, [listing.title]);
 
   const results = useMemo(() => {
     if (!ctx || ctx.status !== "ok" || listing.price == null || ownCost <= 0) return null;
@@ -62,6 +76,9 @@ export function Overlay({ listing }: { listing: ScrapedListing }) {
     );
   }
 
+  const salesPerDay = enriched && enriched !== "loading" ? enriched.salesPerDay : null;
+  const isChampion = salesPerDay != null && salesPerDay >= 1;
+
   return (
     <div className="mp3d-card">
       <div className="mp3d-card-head">
@@ -71,15 +88,85 @@ export function Overlay({ listing }: { listing: ScrapedListing }) {
         </button>
       </div>
 
-      {ctx == null && <p className="mp3d-muted">Carregando...</p>}
+      <div className="mp3d-row">
+        <span>Preço do anúncio</span>
+        <strong>{listing.price != null ? formatBRL(listing.price) : "não encontrado"}</strong>
+      </div>
+
+      {enriched === "loading" && <p className="mp3d-muted">Buscando dados do anúncio...</p>}
+
+      {enriched === null && listing.soldCount != null && (
+        <div className="mp3d-row">
+          <span>Vendidos</span>
+          <strong>{listing.soldCount.toLocaleString("pt-BR")}</strong>
+        </div>
+      )}
+      {enriched === null && (
+        <p className="mp3d-muted">
+          Não consegui buscar os dados detalhados deste anúncio (nota, favoritos, idade) — a Shopee
+          pode ter mudado o formato da resposta.
+        </p>
+      )}
+
+      {enriched && enriched !== "loading" && (
+        <div className="mp3d-stats-grid">
+          <div className="mp3d-stat">
+            <span className="mp3d-stat-label">Vendidos · total</span>
+            <span className="mp3d-stat-value">{fmtNum(enriched.soldTotal)}</span>
+          </div>
+          <div className="mp3d-stat">
+            <span className="mp3d-stat-label">
+              Vendas / dia
+              {isChampion && <span className="mp3d-champion"> 🏆</span>}
+            </span>
+            <span className="mp3d-stat-value">
+              {salesPerDay != null ? fmtNum(salesPerDay, { maximumFractionDigits: 1 }) : "—"}{" "}
+              <span className="mp3d-muted">est.</span>
+            </span>
+          </div>
+          <div className="mp3d-stat">
+            <span className="mp3d-stat-label">Nota</span>
+            <span className="mp3d-stat-value">{fmtNum(enriched.rating, { maximumFractionDigits: 1 })}</span>
+          </div>
+          <div className="mp3d-stat">
+            <span className="mp3d-stat-label">Avaliações</span>
+            <span className="mp3d-stat-value">{fmtNum(enriched.reviewCount)}</span>
+          </div>
+          <div className="mp3d-stat">
+            <span className="mp3d-stat-label">Favoritos</span>
+            <span className="mp3d-stat-value">{fmtNum(enriched.favorites)}</span>
+          </div>
+          <div className="mp3d-stat">
+            <span className="mp3d-stat-label">Criado há</span>
+            <span className="mp3d-stat-value">
+              {enriched.createdDaysAgo != null ? `${enriched.createdDaysAgo} dias` : "—"}
+            </span>
+          </div>
+          {enriched.sellerName && (
+            <div className="mp3d-stat mp3d-stat-wide">
+              <span className="mp3d-stat-label">Vendedor</span>
+              <span className="mp3d-stat-value">
+                {enriched.sellerName}
+                {enriched.sellerLocation ? ` · ${enriched.sellerLocation}` : ""}
+                {enriched.isInternational ? " · internacional" : ""}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <a className="mp3d-btn mp3d-btn-secondary" href={makerWorldUrl(listing.title)} target="_blank" rel="noreferrer">
+        Buscar no MakerWorld
+      </a>
+
+      <div className="mp3d-divider" />
+
+      {ctx == null && <p className="mp3d-muted">Carregando conta...</p>}
 
       {ctx?.status === "signed_out" && (
         <div>
           <p className="mp3d-muted">Entre na sua conta pra simular a margem aqui.</p>
-          <button
-            className="mp3d-btn"
-            onClick={() => sendToBackground({ type: "OPEN_POPUP_TAB" })}
-          >
+          <button className="mp3d-btn" onClick={() => sendToBackground({ type: "OPEN_POPUP_TAB" })}>
             Fazer login
           </button>
         </div>
@@ -94,17 +181,6 @@ export function Overlay({ listing }: { listing: ScrapedListing }) {
 
       {ctx?.status === "ok" && (
         <>
-          <div className="mp3d-row">
-            <span>Preço do anúncio</span>
-            <strong>{listing.price != null ? formatBRL(listing.price) : "não encontrado"}</strong>
-          </div>
-          {listing.soldCount != null && (
-            <div className="mp3d-row">
-              <span>Vendidos</span>
-              <strong>{listing.soldCount.toLocaleString("pt-BR")}</strong>
-            </div>
-          )}
-
           <label className="mp3d-label">
             Meu custo de produção
             <input
