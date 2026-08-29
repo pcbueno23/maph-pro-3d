@@ -334,6 +334,8 @@ ${SHARED}
   box-shadow: 0 2px 8px rgba(0,0,0,0.35);
   pointer-events: none;
 }
+/* Posição real vem do host (position:fixed + arrastável pelo usuário — ver
+   content/shopeeSearch/index.tsx), não daqui. */
 .mp3d-panel {
   background: rgba(2, 6, 23, 0.97);
   border: 1px solid rgba(51, 65, 85, 0.9);
@@ -342,16 +344,11 @@ ${SHARED}
   box-shadow: 0 8px 30px rgba(0,0,0,0.45);
   color: #e2e8f0;
   font-size: 13px;
-}
-/* A posição de verdade (acima do cabeçalho "Filtros" da barra lateral de
-   busca, ou no canto se ainda não achou) vem do host, via coordenadas —
-   ver content/shopeeSearch/index.tsx. Aqui só preenche o espaço que o
-   host reserva. */
-.mp3d-panel {
-  position: relative;
-  width: 100%;
+  width: 320px;
+  max-width: calc(100vw - 32px);
   max-height: calc(100vh - 32px);
   overflow-y: auto;
+  overflow-x: hidden;
 }
 .mp3d-fab.topleft { left: 16px; top: 16px; right: auto; bottom: auto; }
 .mp3d-hero {
@@ -416,7 +413,11 @@ ${SHARED}
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 10px;
+  cursor: move;
+  user-select: none;
+  touch-action: none;
 }
+.mp3d-panel-head .mp3d-close { cursor: pointer; }
 .mp3d-tabs {
   display: flex;
   gap: 4px;
