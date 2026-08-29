@@ -92,19 +92,21 @@ export function parsePdpGetPc(json: unknown): ParsedItem | null {
   return parsed;
 }
 
+export type SearchItemsParseResult = {
+  items: ParsedItem[];
+  /** JSON bruto completo da resposta — pra debug quando `items` vem vazio (path "items"/"data.items" errado). */
+  rawJson: unknown;
+  /** O 1º item, ainda cru (antes de `parseItemNode`) — pra debug de nomes de campo quando os itens vêm, mas os valores não. */
+  rawFirstEntry: unknown;
+};
+
 /** `search_items`: lista de resultados — cada item historicamente vem embrulhado em `item_basic`. */
-export function parseSearchItems(json: unknown): ParsedItem[] {
+export function parseSearchItems(json: unknown): SearchItemsParseResult {
   const items = pick<any[]>(json, ["items", "data.items"]) ?? [];
   if (items.length === 0) {
-    console.error("[Maph Pro 3D] search_items não trouxe nenhum item reconhecível. JSON bruto:", json);
-    return [];
+    return { items: [], rawJson: json, rawFirstEntry: null };
   }
-  const raw0 = items[0];
-  console.debug(
-    "[Maph Pro 3D] amostra do 1º item bruto de search_items (pra ajustar os caminhos de campo em shopeeParse.ts):",
-    raw0,
-  );
+  const rawFirstEntry = items[0];
   const parsed = items.map((entry) => parseItemNode(entry.item_basic ?? entry.item ?? entry));
-  console.debug("[Maph Pro 3D] 1º item já parseado:", parsed[0]);
-  return parsed;
+  return { items: parsed, rawJson: json, rawFirstEntry };
 }

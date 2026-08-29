@@ -1,6 +1,6 @@
 import { createRoot, type Root } from "react-dom/client";
 import { Panel } from "./Panel";
-import { watchSearchItems, type EnrichedCard } from "./scrape";
+import { watchSearchItems, type EnrichedCard, type SearchDebugInfo } from "./scrape";
 import { extractKeywords } from "./keywordExtract";
 import { computePageStats, groupBySeller, pickChampions } from "./aggregate";
 import { onDiagnostic, type Diagnostic } from "../../lib/shopeeCapture";
@@ -50,6 +50,7 @@ function start() {
 
   let latestCards: EnrichedCard[] = [];
   let latestDiagnostic: Diagnostic | null = null;
+  let latestSearchDebug: SearchDebugInfo | null = null;
   let received = false;
 
   const render = (loading: boolean) => {
@@ -67,6 +68,7 @@ function start() {
         sellers={sellers}
         keywords={keywords}
         diagnostic={latestDiagnostic}
+        searchDebug={latestSearchDebug}
         onRescan={() => window.location.reload()}
       />,
     );
@@ -79,11 +81,17 @@ function start() {
     render(!received);
   });
 
-  watchSearchItems((cards) => {
-    received = true;
-    latestCards = cards;
-    render(false);
-  });
+  watchSearchItems(
+    (cards) => {
+      received = true;
+      latestCards = cards;
+      render(false);
+    },
+    (debug) => {
+      latestSearchDebug = debug;
+      render(!received);
+    },
+  );
 }
 
 start();

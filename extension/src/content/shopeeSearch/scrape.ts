@@ -50,29 +50,39 @@ function toEnrichedCard(item: ParsedItem, el: HTMLElement | null): EnrichedCard 
   };
 }
 
+export type SearchDebugInfo = {
+  capturesReceived: number;
+  itemsFoundLastCapture: number;
+  /** Preenchido só quando `itemsFoundLastCapture === 0` — o JSON completo, pra achar o caminho certo de "items". */
+  rawJsonWhenEmpty: unknown;
+  /** Preenchido quando itens foram encontrados — o 1º item cru, pra achar os nomes de campo certos. */
+  rawFirstEntry: unknown;
+};
+
 /**
  * Escuta capturas de `search_items` (pode disparar mais de uma vez — scroll
  * infinito, paginação) e devolve a lista combinada de cards enriquecidos,
  * casados com os elementos DOM por itemId+shopId. Chama `onUpdate` a cada
- * nova captura.
+ * nova captura, e `onDebug` sempre junto (mesmo quando não achou nada) —
+ * pensado pra aparecer na tela do painel, não no console.
  */
-export function watchSearchItems(onUpdate: (cards: EnrichedCard[]) => void): () => void {
+export function watchSearchItems(
+  onUpdate: (cards: EnrichedCard[]) => void,
+  onDebug: (info: SearchDebugInfo) => void,
+): () => void {
   const byId = new Map<string, ParsedItem>();
-  let gotAny = false;
-
-  window.setTimeout(() => {
-    if (!gotAny) {
-      console.error(
-        "[Maph Pro 3D] não capturei nenhuma chamada de search_items em 7s — role a página " +
-          "(a Shopee só busca mais resultados no scroll) ou confira se o interceptor carregou " +
-          '(procure "[Maph Pro 3D] interceptor carregado" no console).',
-      );
-    }
-  }, 7000);
+  let capturesReceived = 0;
 
   const stop = onCapture("searchItems", (capture) => {
-    gotAny = true;
-    const items = parseSearchItems(capture.json);
+    capturesReceived += 1;
+    const { items, rawJson, rawFirstEntry } = parseSearchItems(capture.json);
+    onDebug({
+      capturesReceived,
+      itemsFoundLastCapture: items.length,
+      rawJsonWhenEmpty: items.length === 0 ? rawJson : null,
+      rawFirstEntry,
+    });
+
     for (const item of items) {
       if (!item.itemId) continue;
       byId.set(`${item.shopId}:${item.itemId}`, item);

@@ -3,6 +3,58 @@ import type { KeywordHit } from "./keywordExtract";
 import type { PageStats, SellerGroup } from "./aggregate";
 import type { Diagnostic } from "../../lib/shopeeCapture";
 import type { CapturePatternKey } from "../../lib/shopeeCapturePatterns";
+import type { SearchDebugInfo } from "./scrape";
+
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+/** Bloco de JSON bruto, direto na tela, com botão de copiar — pra não depender do console do DevTools. */
+function RawJsonBlock({ label, value }: { label: string; value: unknown }) {
+  const [copied, setCopied] = useState(false);
+  const text = useMemo(() => safeStringify(value), [value]);
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div className="mp3d-row" style={{ borderBottom: "none", paddingBottom: 2 }}>
+        <span className="mp3d-muted">{label}</span>
+        <button
+          className="mp3d-btn-secondary"
+          style={{ marginTop: 0, padding: "3px 8px", fontSize: 10.5 }}
+          onClick={() => {
+            navigator.clipboard.writeText(text).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            });
+          }}
+        >
+          {copied ? "Copiado!" : "Copiar"}
+        </button>
+      </div>
+      <pre
+        style={{
+          maxHeight: 180,
+          overflow: "auto",
+          background: "rgba(15,23,42,0.7)",
+          border: "1px solid rgba(51,65,85,0.6)",
+          borderRadius: 8,
+          padding: 8,
+          fontSize: 10,
+          lineHeight: 1.4,
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-all",
+          color: "#cbd5e1",
+        }}
+      >
+        {text}
+      </pre>
+    </div>
+  );
+}
 
 function fmtBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -30,6 +82,7 @@ export function Panel({
   sellers,
   keywords,
   diagnostic,
+  searchDebug,
   onRescan,
 }: {
   loading: boolean;
@@ -38,6 +91,7 @@ export function Panel({
   sellers: SellerGroup[];
   keywords: KeywordHit[];
   diagnostic: Diagnostic | null;
+  searchDebug: SearchDebugInfo | null;
   onRescan: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -224,6 +278,27 @@ export function Panel({
                   — a Shopee pode ter renomeado o endpoint, ou a página carregou os resultados de
                   outro jeito. Role a página pra forçar mais chamadas.
                 </p>
+              )}
+
+              {searchDebug && (
+                <>
+                  <p className="mp3d-section-label">
+                    search_items: {searchDebug.capturesReceived} captura(s) · última trouxe{" "}
+                    {searchDebug.itemsFoundLastCapture} item(ns)
+                  </p>
+                  {searchDebug.itemsFoundLastCapture === 0 && searchDebug.rawJsonWhenEmpty != null && (
+                    <RawJsonBlock
+                      label='0 itens encontrados — JSON completo (pra achar o caminho certo de "items")'
+                      value={searchDebug.rawJsonWhenEmpty}
+                    />
+                  )}
+                  {searchDebug.rawFirstEntry != null && (
+                    <RawJsonBlock
+                      label="1º item bruto (pra ajustar os nomes de campo)"
+                      value={searchDebug.rawFirstEntry}
+                    />
+                  )}
+                </>
               )}
             </>
           )}
