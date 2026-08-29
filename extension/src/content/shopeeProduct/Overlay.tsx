@@ -7,8 +7,13 @@ import {
 } from "../../../../lib/engines/shopee/engine";
 import { sendToBackground } from "../../lib/messaging";
 import type { ShopeeContext } from "../../lib/messaging";
-import { fetchEnrichedListing, type EnrichedListing, type ScrapedListing } from "./scrape";
-import { onDiagnostic, type Diagnostic } from "../../lib/shopeeCapture";
+import { RawJsonBlock } from "../RawJsonBlock";
+import {
+  fetchEnrichedListing,
+  type EnrichedListing,
+  type EnrichedListingResult,
+  type ScrapedListing,
+} from "./scrape";
 
 const LAST_COST_KEY = "mp3d_last_own_cost";
 
@@ -36,22 +41,29 @@ function makerWorldUrl(title: string | null) {
   return `https://makerworld.com/en/search/models?keyword=${encodeURIComponent(q)}`;
 }
 
+function ageBucketClass(days: number | null): "new" | "mid" | "old" {
+  if (days == null) return "mid";
+  if (days <= 90) return "new";
+  if (days <= 365) return "mid";
+  return "old";
+}
+
 export function Overlay({ listing }: { listing: ScrapedListing }) {
   const [ctx, setCtx] = useState<ShopeeContext | null>(null);
-  const [enriched, setEnriched] = useState<EnrichedListing | null | "loading">("loading");
+  const [enrichResult, setEnrichResult] = useState<EnrichedListingResult | "loading">("loading");
   const [ownCost, setOwnCost] = useLastCost();
   const [collapsed, setCollapsed] = useState(false);
-  const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null);
 
   useEffect(() => {
     sendToBackground({ type: "GET_SHOPEE_CONTEXT" }).then(setCtx);
   }, []);
 
-  useEffect(() => onDiagnostic(setDiagnostic), []);
-
   useEffect(() => {
-    fetchEnrichedListing().then((r) => setEnriched(r ?? null));
+    fetchEnrichedListing().then(setEnrichResult);
   }, [listing.title]);
+
+  const enriched: EnrichedListing | null | "loading" =
+    enrichResult === "loading" ? "loading" : enrichResult.listing;
 
   const results = useMemo(() => {
     if (!ctx || ctx.status !== "ok" || listing.price == null || ownCost <= 0) return null;
@@ -82,6 +94,14 @@ export function Overlay({ listing }: { listing: ScrapedListing }) {
 
   const salesPerDay = enriched && enriched !== "loading" ? enriched.salesPerDay : null;
   const isChampion = salesPerDay != null && salesPerDay >= 1;
+  const faturamentoTotal =
+    listing.price != null && enriched && enriched !== "loading" && enriched.soldTotal != null
+      ? listing.price * enriched.soldTotal
+      : null;
+  const missingRichFields =
+    enriched != null &&
+    enriched !== "loading" &&
+    (enriched.soldTotal == null || enriched.reviewCount == null || enriched.favorites == null);
 
   return (
     <div className="mp3d-card">
@@ -89,6 +109,53 @@ export function Overlay({ listing }: { listing: ScrapedListing }) {
         <span className="mp3d-brand">Maph Pro 3D</span>
         <button className="mp3d-close" onClick={() => setCollapsed(true)} aria-label="Minimizar">
           –
+        </button>
+      </div>
+
+      <div className="mp3d-toolbar">
+        <button
+          type="button"
+          title="Baixar imagem do anúncio"
+          onClick={() => {
+            const img = document.querySelector<HTMLImageElement>('meta[property="og:image"]');
+            const src = img?.getAttribute("content");
+            if (!src) return;
+            const a = document.createElement("a");
+            a.href = src;
+            a.download = "anuncio.jpg";
+            a.target = "_blank";
+            a.rel = "noreferrer";
+            a.click();
+          }}
+        >
+          ⬇
+        </button>
+        <a href={makerWorldUrl(listing.title)} target="_blank" rel="noreferrer" title="Buscar modelo no MakerWorld">
+          🧊
+        </a>
+        <button
+          type="button"
+          title="Copiar dados deste anúncio"
+          onClick={(e) => {
+            const btn = e.currentTarget;
+            const lines = [
+              listing.title ?? "",
+              listing.price != null ? `Preço: ${formatBRL(listing.price)}` : null,
+              enriched && enriched !== "loading" && enriched.soldTotal != null
+                ? `Vendidos: ${enriched.soldTotal}`
+                : null,
+              salesPerDay != null ? `Vendas/dia: ${salesPerDay.toFixed(1)} (est.)` : null,
+            ]
+              .filter(Boolean)
+              .join("\n");
+            navigator.clipboard.writeText(lines).then(() => {
+              const original = btn.textContent;
+              btn.textContent = "✓";
+              setTimeout(() => (btn.textContent = original), 1200);
+            });
+          }}
+        >
+          📋
         </button>
       </div>
 
@@ -106,65 +173,79 @@ export function Overlay({ listing }: { listing: ScrapedListing }) {
         </div>
       )}
       {enriched === null && (
-        <>
-          <p className="mp3d-muted">
-            Não consegui buscar os dados detalhados deste anúncio (nota, favoritos, idade) — a
-            Shopee pode ter mudado o formato da resposta.
-          </p>
-          {diagnostic && (
-            <p className="mp3d-muted" style={{ fontSize: 10.5 }}>
-              Diagnóstico: {diagnostic.fetchesSeen} chamada(s) de rede vistas ·{" "}
-              {diagnostic.matchedCounts.pdpGetPc ?? 0} bateram com "pdp/get_pc".
-            </p>
-          )}
-        </>
+        <p className="mp3d-muted">
+          Não consegui buscar os dados detalhados deste anúncio (nota, favoritos, idade) — a Shopee
+          pode ter mudado o formato da resposta.
+        </p>
       )}
 
       {enriched && enriched !== "loading" && (
-        <div className="mp3d-stats-grid">
-          <div className="mp3d-stat">
-            <span className="mp3d-stat-label">Vendidos · total</span>
-            <span className="mp3d-stat-value">{fmtNum(enriched.soldTotal)}</span>
-          </div>
-          <div className="mp3d-stat">
-            <span className="mp3d-stat-label">
-              Vendas / dia
-              {isChampion && <span className="mp3d-champion"> 🏆</span>}
-            </span>
-            <span className="mp3d-stat-value">
-              {salesPerDay != null ? fmtNum(salesPerDay, { maximumFractionDigits: 1 }) : "—"}{" "}
-              <span className="mp3d-muted">est.</span>
-            </span>
-          </div>
-          <div className="mp3d-stat">
-            <span className="mp3d-stat-label">Nota</span>
-            <span className="mp3d-stat-value">{fmtNum(enriched.rating, { maximumFractionDigits: 1 })}</span>
-          </div>
-          <div className="mp3d-stat">
-            <span className="mp3d-stat-label">Avaliações</span>
-            <span className="mp3d-stat-value">{fmtNum(enriched.reviewCount)}</span>
-          </div>
-          <div className="mp3d-stat">
-            <span className="mp3d-stat-label">Favoritos</span>
-            <span className="mp3d-stat-value">{fmtNum(enriched.favorites)}</span>
-          </div>
-          <div className="mp3d-stat">
-            <span className="mp3d-stat-label">Criado há</span>
-            <span className="mp3d-stat-value">
-              {enriched.createdDaysAgo != null ? `${enriched.createdDaysAgo} dias` : "—"}
-            </span>
-          </div>
-          {enriched.sellerName && (
-            <div className="mp3d-stat mp3d-stat-wide">
-              <span className="mp3d-stat-label">Vendedor</span>
+        <>
+          <div className="mp3d-stats-grid">
+            <div className="mp3d-stat">
+              <span className="mp3d-stat-label">Vendidos · total</span>
+              <span className="mp3d-stat-value">{fmtNum(enriched.soldTotal)}</span>
+            </div>
+            <div className="mp3d-stat">
+              <span className="mp3d-stat-label">
+                Vendas / dia
+                {isChampion && <span className="mp3d-champion"> 🏆</span>}
+              </span>
               <span className="mp3d-stat-value">
-                {enriched.sellerName}
-                {enriched.sellerLocation ? ` · ${enriched.sellerLocation}` : ""}
-                {enriched.isInternational ? " · internacional" : ""}
+                {salesPerDay != null ? fmtNum(salesPerDay, { maximumFractionDigits: 1 }) : "—"}{" "}
+                <span className="mp3d-muted">est.</span>
               </span>
             </div>
+            <div className="mp3d-stat">
+              <span className="mp3d-stat-label">Nota</span>
+              <span className="mp3d-stat-value">{fmtNum(enriched.rating, { maximumFractionDigits: 1 })}</span>
+            </div>
+            <div className="mp3d-stat">
+              <span className="mp3d-stat-label">Avaliações</span>
+              <span className="mp3d-stat-value">{fmtNum(enriched.reviewCount)}</span>
+            </div>
+            <div className="mp3d-stat">
+              <span className="mp3d-stat-label">Favoritos</span>
+              <span className="mp3d-stat-value">{fmtNum(enriched.favorites)}</span>
+            </div>
+            <div className="mp3d-stat">
+              <span className="mp3d-stat-label">Criado há</span>
+              <span className="mp3d-stat-value">
+                {enriched.createdDaysAgo != null ? (
+                  <span className={`mp3d-age-pill ${ageBucketClass(enriched.createdDaysAgo)}`}>
+                    {enriched.createdDaysAgo}d
+                  </span>
+                ) : (
+                  "—"
+                )}
+              </span>
+            </div>
+            {enriched.sellerName && (
+              <div className="mp3d-stat mp3d-stat-wide">
+                <span className="mp3d-stat-label">Vendedor</span>
+                <span className="mp3d-stat-value">
+                  {enriched.sellerName}
+                  {enriched.sellerLocation ? ` · ${enriched.sellerLocation}` : ""}
+                  {enriched.isInternational ? " · internacional" : ""}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {faturamentoTotal != null && (
+            <div className="mp3d-hero" style={{ marginTop: 8 }}>
+              <div className="mp3d-hero-label">Faturamento estimado (preço × vendidos)</div>
+              <div className="mp3d-hero-value">{formatBRL(faturamentoTotal)}</div>
+            </div>
           )}
-        </div>
+
+          {missingRichFields && (
+            <RawJsonBlock
+              label='Alguns campos vieram vazios — JSON bruto do "pdp/get_pc"'
+              value={enrichResult !== "loading" ? enrichResult.rawJson : null}
+            />
+          )}
+        </>
       )}
 
       <a className="mp3d-btn mp3d-btn-secondary" href={makerWorldUrl(listing.title)} target="_blank" rel="noreferrer">

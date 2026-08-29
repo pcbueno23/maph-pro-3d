@@ -112,6 +112,26 @@ ${BASE}
 }
 .mp3d-btn-secondary:hover { background: rgba(34,211,238,0.18); }
 .mp3d-divider { height: 1px; background: rgba(51,65,85,0.6); margin: 10px 0; }
+.mp3d-toolbar { display: flex; gap: 4px; margin-bottom: 8px; }
+.mp3d-toolbar button, .mp3d-toolbar a {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(51,65,85,0.7);
+  background: rgba(15,23,42,0.7);
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 12px;
+  text-decoration: none;
+}
+.mp3d-toolbar button:hover, .mp3d-toolbar a:hover { color: #67e8f9; border-color: rgba(34,211,238,0.4); }
+.mp3d-age-pill { font-weight: 700; padding: 1px 7px; border-radius: 999px; font-size: 11px; }
+.mp3d-age-pill.new { background: rgba(52,211,153,0.15); color: #34d399; }
+.mp3d-age-pill.mid { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.mp3d-age-pill.old { background: rgba(251,113,133,0.15); color: #fb7185; }
 .mp3d-stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

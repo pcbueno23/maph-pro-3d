@@ -103,36 +103,43 @@ export type EnrichedListing = {
   isInternational: boolean;
 };
 
+export type EnrichedListingResult = {
+  listing: EnrichedListing | null;
+  /** JSON bruto capturado (ou null se nada foi capturado) — mostrado na tela quando algum campo vem vazio, pra ajustar `shopeeParse.ts` sem precisar do console. */
+  rawJson: unknown;
+};
+
 /**
  * Pega os campos "ricos" (nota, avaliações, favoritos, criado em, vendedor)
  * espiando a resposta que a própria página da Shopee busca ao renderizar o
  * anúncio (`pdp/get_pc`) — não vêm do HTML visível, e chamar a API por conta
  * própria é bloqueado pela proteção anti-bot deles (ver `content/inject.ts`).
- * Retorna null se a página não fizer essa chamada dentro do timeout, ou se o
- * formato da resposta não bater com nenhum caminho conhecido (ver console).
  */
-export async function fetchEnrichedListing(): Promise<EnrichedListing | null> {
+export async function fetchEnrichedListing(): Promise<EnrichedListingResult> {
   const { waitForCapture } = await import("../../lib/shopeeCapture");
   const { parsePdpGetPc } = await import("../../lib/shopeeParse");
   const { daysSince, salesPerDayEstimate } = await import("../../lib/shopeeApi");
 
   const captured = await waitForCapture("pdpGetPc");
-  if (!captured) return null;
+  if (!captured) return { listing: null, rawJson: null };
 
   const item = parsePdpGetPc(captured.json);
-  if (!item) return null;
+  if (!item) return { listing: null, rawJson: captured.json };
 
   const createdDaysAgo = daysSince(item.createdAt);
 
   return {
-    soldTotal: item.sold,
-    salesPerDay: salesPerDayEstimate(item.sold, createdDaysAgo),
-    rating: item.rating,
-    reviewCount: item.reviewCount,
-    favorites: item.liked,
-    createdDaysAgo,
-    sellerName: item.sellerName,
-    sellerLocation: item.sellerLocation,
-    isInternational: item.isInternational,
+    rawJson: captured.json,
+    listing: {
+      soldTotal: item.sold,
+      salesPerDay: salesPerDayEstimate(item.sold, createdDaysAgo),
+      rating: item.rating,
+      reviewCount: item.reviewCount,
+      favorites: item.liked,
+      createdDaysAgo,
+      sellerName: item.sellerName,
+      sellerLocation: item.sellerLocation,
+      isInternational: item.isInternational,
+    },
   };
 }
