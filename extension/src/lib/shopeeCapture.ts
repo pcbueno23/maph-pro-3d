@@ -21,6 +21,13 @@ export function waitForCapture(
   const { timeoutMs = 8000 } = opts;
 
   return new Promise((resolve) => {
+    // Declarado (mesmo que ainda sem valor) ANTES de registrar o listener e
+    // disparar "request-cache": se já existir uma captura em cache, o
+    // replay chega de volta SÍNCRONO (dispatchEvent chama listeners na
+    // hora), e `finish` roda antes da linha `window.setTimeout(...)` mais
+    // abaixo — sem isso, `timer` ainda estaria na "zona morta" (TDZ) nesse
+    // caminho, e limpar o timeout explodia com ReferenceError.
+    let timer: number | undefined;
     let done = false;
     const finish = (value: Capture | null) => {
       if (done) return;
@@ -38,7 +45,7 @@ export function waitForCapture(
     window.addEventListener("mp3d:shopee-api", handler as EventListener);
     window.dispatchEvent(new CustomEvent("mp3d:request-cache", { detail: { key: patternKey } }));
 
-    const timer = window.setTimeout(() => {
+    timer = window.setTimeout(() => {
       // Nível "warn", não "error": é comum e esperado — acontece sempre que a
       // Shopee mostra uma tela de captcha/verificação (nesse caso ela nunca
       // chega a fazer a chamada de dados do anúncio) e não é uma falha da
