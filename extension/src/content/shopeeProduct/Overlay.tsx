@@ -10,6 +10,7 @@ import type { ShopeeContext } from "../../lib/messaging";
 import { RawJsonBlock } from "../RawJsonBlock";
 import {
   fetchEnrichedListing,
+  getCachedListingFast,
   type EnrichedListing,
   type EnrichedListingResult,
   type ScrapedListing,
@@ -59,7 +60,20 @@ export function Overlay({ listing }: { listing: ScrapedListing }) {
   }, []);
 
   useEffect(() => {
-    fetchEnrichedListing().then(setEnrichResult);
+    let cancelled = false;
+    // Mostra na hora o que já foi visto numa busca antes (sem esperar rede),
+    // e some sozinho quando a captura ao vivo chegar com dado mais completo.
+    getCachedListingFast().then((cached) => {
+      if (cached && !cancelled) {
+        setEnrichResult((prev) => (prev === "loading" ? { listing: cached, rawJson: null } : prev));
+      }
+    });
+    fetchEnrichedListing().then((result) => {
+      if (!cancelled) setEnrichResult(result);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [listing.title]);
 
   const enriched: EnrichedListing | null | "loading" =

@@ -109,6 +109,48 @@ export type EnrichedListingResult = {
   rawJson: unknown;
 };
 
+async function toEnrichedListing(item: {
+  sold: number | null;
+  rating: number | null;
+  reviewCount: number | null;
+  liked: number | null;
+  createdAt: Date | null;
+  sellerName: string | null;
+  sellerLocation: string | null;
+  isInternational: boolean;
+}): Promise<EnrichedListing> {
+  const { daysSince, salesPerDayEstimate } = await import("../../lib/shopeeApi");
+  const createdDaysAgo = daysSince(item.createdAt);
+  return {
+    soldTotal: item.sold,
+    salesPerDay: salesPerDayEstimate(item.sold, createdDaysAgo),
+    rating: item.rating,
+    reviewCount: item.reviewCount,
+    favorites: item.liked,
+    createdDaysAgo,
+    sellerName: item.sellerName,
+    sellerLocation: item.sellerLocation,
+    isInternational: item.isInternational,
+  };
+}
+
+/**
+ * Versão instantânea: se esse anúncio já foi visto numa busca antes (cache
+ * de `lib/shopeeCache.ts`), devolve na hora sem esperar nenhuma captura de
+ * rede — pra não deixar a página "Buscando dados..." quando o usuário já
+ * tinha acabado de ver esses dados na grade de resultados.
+ */
+export async function getCachedListingFast(): Promise<EnrichedListing | null> {
+  const { parseItemUrl } = await import("../../lib/shopeeApi");
+  const { getCachedItem } = await import("../../lib/shopeeCache");
+
+  const ids = parseItemUrl(location.href);
+  if (!ids) return null;
+  const item = await getCachedItem(ids.shopId, ids.itemId);
+  if (!item) return null;
+  return toEnrichedListing(item);
+}
+
 /**
  * Pega os campos "ricos" (nota, avaliações, favoritos, criado em, vendedor)
  * espiando a resposta que a própria página da Shopee busca ao renderizar o
@@ -118,7 +160,6 @@ export type EnrichedListingResult = {
 export async function fetchEnrichedListing(): Promise<EnrichedListingResult> {
   const { waitForCapture } = await import("../../lib/shopeeCapture");
   const { parsePdpGetPc } = await import("../../lib/shopeeParse");
-  const { daysSince, salesPerDayEstimate } = await import("../../lib/shopeeApi");
 
   const captured = await waitForCapture("pdpGetPc");
   if (!captured) return { listing: null, rawJson: null };
@@ -126,20 +167,5 @@ export async function fetchEnrichedListing(): Promise<EnrichedListingResult> {
   const item = parsePdpGetPc(captured.json);
   if (!item) return { listing: null, rawJson: captured.json };
 
-  const createdDaysAgo = daysSince(item.createdAt);
-
-  return {
-    rawJson: captured.json,
-    listing: {
-      soldTotal: item.sold,
-      salesPerDay: salesPerDayEstimate(item.sold, createdDaysAgo),
-      rating: item.rating,
-      reviewCount: item.reviewCount,
-      favorites: item.liked,
-      createdDaysAgo,
-      sellerName: item.sellerName,
-      sellerLocation: item.sellerLocation,
-      isInternational: item.isInternational,
-    },
-  };
+  return { rawJson: captured.json, listing: await toEnrichedListing(item) };
 }

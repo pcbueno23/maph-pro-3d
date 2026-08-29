@@ -11,6 +11,7 @@ import { parseItemUrl } from "../../lib/shopeeApi";
 import { onCapture } from "../../lib/shopeeCapture";
 import { parseSearchItems, type ParsedItem } from "../../lib/shopeeParse";
 import { daysSince, salesPerDayEstimate } from "../../lib/shopeeApi";
+import { cacheParsedItems } from "../../lib/shopeeCache";
 
 export type CardElement = { el: HTMLElement; itemId: string | null; shopId: string | null };
 
@@ -154,6 +155,9 @@ export function watchSearchItems(
       if (!item.itemId) continue;
       byId.set(`${item.shopId}:${item.itemId}`, item);
     }
+    // Guarda pra quando o usuário clicar num anúncio: a página do produto
+    // mostra esse dado na hora em vez de esperar uma nova captura.
+    void cacheParsedItems(items);
 
     rematch();
     for (const delay of [300, 800, 1800]) window.setTimeout(rematch, delay);
