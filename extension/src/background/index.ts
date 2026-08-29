@@ -16,10 +16,28 @@ async function getAuthState(): Promise<AuthState> {
   return email ? { status: "signed_in", email } : { status: "signed_out" };
 }
 
-async function signIn(email: string, password: string) {
+/**
+ * Login sem senha: manda um código de 6 dígitos por e-mail (Supabase OTP).
+ * `shouldCreateUser: false` é o que garante a exigência de só liberar pra
+ * quem já é usuário do Maph Pro 3D — a Shopee não cria conta nova aqui, só
+ * autentica quem já existe (o Supabase recusa o pedido pra e-mail
+ * desconhecido em vez de cadastrar um novo).
+ */
+async function requestOtp(email: string) {
   const supabase = getSupabaseExtensionClient();
   if (!supabase) return { ok: false as const, error: "Supabase não configurado." };
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false },
+  });
+  if (error) return { ok: false as const, error: error.message };
+  return { ok: true as const };
+}
+
+async function verifyOtp(email: string, token: string) {
+  const supabase = getSupabaseExtensionClient();
+  if (!supabase) return { ok: false as const, error: "Supabase não configurado." };
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
   if (error) return { ok: false as const, error: error.message };
   return { ok: true as const };
 }
@@ -57,8 +75,11 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
       case "GET_AUTH_STATE":
         sendResponse(await getAuthState());
         break;
-      case "SIGN_IN":
-        sendResponse(await signIn(message.email, message.password));
+      case "REQUEST_OTP":
+        sendResponse(await requestOtp(message.email));
+        break;
+      case "VERIFY_OTP":
+        sendResponse(await verifyOtp(message.email, message.token));
         break;
       case "SIGN_OUT":
         sendResponse(await signOut());

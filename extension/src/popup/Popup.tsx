@@ -8,9 +8,11 @@ export function Popup() {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
   const [shopeeCtx, setShopeeCtx] = useState<ShopeeContext | null>(null);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"email" | "code">("email");
   const [error, setError] = useState<string | null>(null);
-  const [signingIn, setSigningIn] = useState(false);
+  const [info, setInfo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     sendToBackground({ type: "GET_AUTH_STATE" }).then(setAuth);
@@ -22,12 +24,27 @@ export function Popup() {
     }
   }, [auth.status]);
 
-  async function handleSignIn(e: React.FormEvent) {
+  async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setSigningIn(true);
-    const result = await sendToBackground({ type: "SIGN_IN", email, password });
-    setSigningIn(false);
+    setInfo(null);
+    setBusy(true);
+    const result = await sendToBackground({ type: "REQUEST_OTP", email });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setStep("code");
+    setInfo(`Mandamos um código de 6 dígitos pra ${email}. Confira sua caixa de entrada.`);
+  }
+
+  async function handleVerifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    const result = await sendToBackground({ type: "VERIFY_OTP", email, token: code });
+    setBusy(false);
     if (!result.ok) {
       setError(result.error);
       return;
@@ -39,6 +56,10 @@ export function Popup() {
     await sendToBackground({ type: "SIGN_OUT" });
     setAuth({ status: "signed_out" });
     setShopeeCtx(null);
+    setStep("email");
+    setEmail("");
+    setCode("");
+    setInfo(null);
   }
 
   return (
@@ -48,9 +69,12 @@ export function Popup() {
 
       {auth.status === "loading" && <p className="pop-muted">Carregando...</p>}
 
-      {auth.status === "signed_out" && (
-        <form onSubmit={handleSignIn}>
+      {auth.status === "signed_out" && step === "email" && (
+        <form onSubmit={handleRequestCode}>
           {error && <div className="pop-error">{error}</div>}
+          <p className="pop-muted" style={{ marginTop: 0 }}>
+            Sem senha — mandamos um código pro e-mail já cadastrado no Maph Pro 3D.
+          </p>
           <div className="pop-field">
             <label htmlFor="email">E-mail</label>
             <input
@@ -62,25 +86,49 @@ export function Popup() {
               autoFocus
             />
           </div>
-          <div className="pop-field">
-            <label htmlFor="password">Senha</label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.currentTarget.value)}
-            />
-          </div>
-          <button className="pop-btn" type="submit" disabled={signingIn}>
-            {signingIn ? "Entrando..." : "Entrar"}
+          <button className="pop-btn" type="submit" disabled={busy}>
+            {busy ? "Enviando..." : "Enviar código"}
           </button>
           <div className="pop-links">
             <a href={`${APP_URL}/login`} target="_blank" rel="noreferrer">
-              Esqueci minha senha
-            </a>
-            <a href={`${APP_URL}/login`} target="_blank" rel="noreferrer">
               Ainda não tenho conta
+            </a>
+          </div>
+        </form>
+      )}
+
+      {auth.status === "signed_out" && step === "code" && (
+        <form onSubmit={handleVerifyCode}>
+          {error && <div className="pop-error">{error}</div>}
+          {info && <p className="pop-muted" style={{ marginTop: 0 }}>{info}</p>}
+          <div className="pop-field">
+            <label htmlFor="code">Código de 6 dígitos</label>
+            <input
+              id="code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              required
+              value={code}
+              onChange={(e) => setCode(e.currentTarget.value.replace(/\D/g, ""))}
+              autoFocus
+            />
+          </div>
+          <button className="pop-btn" type="submit" disabled={busy || code.length < 6}>
+            {busy ? "Confirmando..." : "Confirmar"}
+          </button>
+          <div className="pop-links">
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                setStep("email");
+                setCode("");
+                setError(null);
+              }}
+            >
+              Usar outro e-mail
             </a>
           </div>
         </form>

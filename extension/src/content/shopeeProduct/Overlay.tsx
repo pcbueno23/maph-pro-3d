@@ -8,6 +8,7 @@ import {
 import { sendToBackground } from "../../lib/messaging";
 import type { ShopeeContext } from "../../lib/messaging";
 import { RawJsonBlock } from "../RawJsonBlock";
+import { MAPH_LOGO_DATA_URI } from "../logo";
 import {
   fetchEnrichedListing,
   getCachedListingFast,
@@ -101,7 +102,7 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
   if (collapsed) {
     return (
       <button className="mp3d-fab" onClick={() => setCollapsed(false)} title="Abrir Maph Pro 3D">
-        M
+        <img src={MAPH_LOGO_DATA_URI} alt="" />
       </button>
     );
   }

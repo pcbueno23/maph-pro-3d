@@ -103,8 +103,17 @@ export function scrapeListing(): ScrapedListing {
  * de volta pro card flutuante no canto, então isso nunca quebra a extensão,
  * só faz ela ficar num lugar pior.
  */
+/**
+ * "Visível" aqui exige um tamanho mínimo razoável — não basta offsetWidth/
+ * offsetHeight > 0. Sites costumam ter um texto "sr-only" (ex.: um <h1>
+ * duplicado só pra SEO/acessibilidade, de 1x1px, escondido via `clip`) que
+ * passaria num teste de visibilidade ingênuo e faria o card ser inserido no
+ * canto errado da página (foi exatamente o que aconteceu: a Shopee tem um
+ * `<h1>` assim, e o card acabava grudado no topo da página em vez de embaixo
+ * do título de verdade).
+ */
 function isVisible(el: HTMLElement): boolean {
-  return el.offsetWidth > 0 && el.offsetHeight > 0;
+  return el.offsetWidth > 24 && el.offsetHeight > 8 && !el.closest("header, nav");
 }
 
 function normalizeText(s: string): string {
@@ -123,11 +132,15 @@ function findTitleTextEl(normalizedTitle: string): HTMLElement | null {
     if (normalizeText(el.textContent ?? "") === normalizedTitle) return el;
   }
 
-  // 2ª tentativa: um <h1> visível de verdade na página, mesmo que o texto
-  // dele não bata 100% com o título extraído (og:title/document.title às
+  // 2ª tentativa: o maior <h1> visível da página (o de verdade costuma ser
+  // bem maior que qualquer outro <h1> perdido de SEO/menu), mesmo que o
+  // texto não bata 100% com o título extraído (og:title/document.title às
   // vezes vêm com sufixos diferentes do texto real da página).
-  const h1 = Array.from(document.querySelectorAll<HTMLElement>("h1")).find(isVisible);
-  if (h1) return h1;
+  const h1s = Array.from(document.querySelectorAll<HTMLElement>("h1")).filter(isVisible);
+  if (h1s.length > 0) {
+    h1s.sort((a, b) => b.offsetWidth * b.offsetHeight - a.offsetWidth * a.offsetHeight);
+    return h1s[0];
+  }
 
   // 3ª tentativa: casamento parcial (um contém o outro), só aceitando textos
   // de tamanho parecido pra não pegar um pedaço pequeno tipo uma migalha de

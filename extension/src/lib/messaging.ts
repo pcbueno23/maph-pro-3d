@@ -13,20 +13,23 @@ export type ShopeeContext =
 /** Todas as mensagens trocadas entre popup/content scripts e o background. */
 export type ExtensionMessage =
   | { type: "GET_AUTH_STATE" }
-  | { type: "SIGN_IN"; email: string; password: string }
+  | { type: "REQUEST_OTP"; email: string }
+  | { type: "VERIFY_OTP"; email: string; token: string }
   | { type: "SIGN_OUT" }
   | { type: "GET_SHOPEE_CONTEXT" }
   | { type: "OPEN_POPUP_TAB"; path?: string };
 
 export type ExtensionResponse<M extends ExtensionMessage["type"]> = M extends "GET_AUTH_STATE"
   ? AuthState
-  : M extends "SIGN_IN"
+  : M extends "REQUEST_OTP"
     ? { ok: true } | { ok: false; error: string }
-    : M extends "SIGN_OUT"
-      ? { ok: true }
-      : M extends "GET_SHOPEE_CONTEXT"
-        ? ShopeeContext
-        : void;
+    : M extends "VERIFY_OTP"
+      ? { ok: true } | { ok: false; error: string }
+      : M extends "SIGN_OUT"
+        ? { ok: true }
+        : M extends "GET_SHOPEE_CONTEXT"
+          ? ShopeeContext
+          : void;
 
 export function sendToBackground<M extends ExtensionMessage>(
   message: M,

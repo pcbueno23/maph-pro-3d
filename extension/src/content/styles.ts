@@ -22,13 +22,21 @@ ${BASE}
   z-index: 2147483000;
   width: 40px;
   height: 40px;
+  padding: 0;
   border-radius: 999px;
   border: 1px solid rgba(51,65,85,0.9);
   background: linear-gradient(135deg, #06b6d4, #10b981);
   color: #04121a;
   font-weight: 800;
   cursor: pointer;
+  overflow: hidden;
   box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+.mp3d-fab img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .mp3d-brand {
   font-weight: 700;

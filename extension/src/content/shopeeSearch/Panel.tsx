@@ -5,6 +5,7 @@ import type { Diagnostic } from "../../lib/shopeeCapture";
 import type { CapturePatternKey } from "../../lib/shopeeCapturePatterns";
 import type { SearchDebugInfo } from "./scrape";
 import { RawJsonBlock } from "../RawJsonBlock";
+import { MAPH_LOGO_DATA_URI } from "../logo";
 
 function fmtBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -61,7 +62,7 @@ export function Panel({
   if (collapsed) {
     return (
       <button className="mp3d-fab topleft" onClick={() => setCollapsed(false)} title="Abrir Maph Pro 3D">
-        M
+        <img src={MAPH_LOGO_DATA_URI} alt="" />
       </button>
     );
   }

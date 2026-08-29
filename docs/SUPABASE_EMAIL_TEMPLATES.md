@@ -111,10 +111,65 @@ Use o template **Reset password** e o mesmo estilo trocando o texto e mantendo `
 ## 4. Magic link — Assunto
 
 ```
-Seu link de acesso — MAPH PRO 3D
+Seu código de acesso — MAPH PRO 3D
 ```
 
-Mesma estrutura HTML; botão: **Entrar agora** com `{{ .ConfirmationURL }}`.
+**Usado também pelo login sem senha da extensão Chrome** (Authentication →
+Email → Templates → **Magic Link**) — a extensão pede o código com
+`supabase.auth.signInWithOtp()` e o usuário digita `{{ .Token }}` direto no
+popup, sem precisar clicar em nenhum link. Cole o corpo abaixo (mesmo
+esqueleto dos outros templates, com o código em destaque):
+
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seu código de acesso</title>
+</head>
+<body style="margin:0;padding:0;background-color:#020617;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#020617;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:480px;background-color:#0f172a;border:1px solid #1e293b;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td style="padding:28px 24px 8px 24px;text-align:center;">
+              <div style="display:inline-block;width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#06b6d4,#10b981);margin-bottom:16px;"></div>
+              <h1 style="margin:0;font-size:20px;font-weight:600;color:#f8fafc;letter-spacing:-0.02em;">MAPH PRO 3D</h1>
+              <p style="margin:8px 0 0 0;font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.12em;">Precificação & gestão 3D</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 24px 8px 24px;text-align:center;">
+              <p style="margin:0 0 16px 0;font-size:16px;font-weight:600;color:#e2e8f0;">Seu código de acesso</p>
+              <p style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#cbd5e1;">
+                Digite este código na extensão do Maph Pro 3D pra entrar. Se não foi você, pode ignorar este e-mail.
+              </p>
+              <div style="display:inline-block;padding:16px 28px;border-radius:12px;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.35);">
+                <span style="font-size:32px;font-weight:800;letter-spacing:0.3em;color:#67e8f9;">{{ .Token }}</span>
+              </div>
+              <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#64748b;">
+                Também dá pra clicar direto:
+                <a href="{{ .ConfirmationURL }}" style="color:#22d3ee;">entrar agora</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 24px 24px 24px;border-top:1px solid #1e293b;">
+              <p style="margin:0;font-size:11px;line-height:1.5;color:#475569;text-align:center;">
+                Este e-mail foi enviado para <strong style="color:#94a3b8;">{{ .Email }}</strong><br />
+                Cadastro em {{ .SiteURL }}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+```
 
 ---
 
