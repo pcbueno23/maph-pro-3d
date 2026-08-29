@@ -15,7 +15,7 @@ import {
   type EnrichedListingResult,
   type ScrapedListing,
 } from "./scrape";
-import { downloadImagesAsZip, scrapeGalleryImageUrls } from "./downloadImages";
+import { downloadImagesAsZip, scrapeGalleryImageUrls, scrapeMainImageUrl } from "./downloadImages";
 import { showMakerWorldMenu } from "../makerWorldMenu";
 
 function fmtNum(n: number | null, opts?: Intl.NumberFormatOptions) {
@@ -128,9 +128,7 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
         <button
           type="button"
           title="Buscar modelo no MakerWorld"
-          onClick={(e) =>
-            showMakerWorldMenu(e.currentTarget, listing.title, scrapeGalleryImageUrls()[0] ?? null)
-          }
+          onClick={(e) => showMakerWorldMenu(e.currentTarget, listing.title, scrapeMainImageUrl())}
         >
           🧊
         </button>

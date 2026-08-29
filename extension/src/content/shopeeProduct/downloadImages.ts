@@ -39,6 +39,20 @@ export function scrapeGalleryImageUrls(): string[] {
   return Array.from(urls);
 }
 
+/**
+ * A galeria (`scrapeGalleryImageUrls`) pega tudo na ordem que aparece no
+ * carrossel — quando o primeiro item é um vídeo, o primeiro resultado acaba
+ * sendo o frame de capa do vídeo, não uma foto do produto. Pra usos que
+ * precisam de UMA imagem representativa (ex.: recorte pra busca por imagem),
+ * o `og:image` é mais confiável: é a imagem que a própria Shopee escolhe pra
+ * representar o anúncio (compartilhamento/preview), e nunca é o vídeo.
+ */
+export function scrapeMainImageUrl(): string | null {
+  const og = document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.getAttribute("content");
+  if (og) return og;
+  return scrapeGalleryImageUrls()[0] ?? null;
+}
+
 function guessExt(url: string, contentType: string | null): string {
   const match = url.match(/\.(jpe?g|png|webp|gif)(?:$|[?#])/i);
   if (match) return `.${match[1].toLowerCase().replace("jpeg", "jpg")}`;
