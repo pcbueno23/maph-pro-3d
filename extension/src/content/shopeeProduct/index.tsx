@@ -34,7 +34,7 @@ export function mountProductOverlay(): () => void {
   if (document.getElementById(HOST_ID)) return () => {};
 
   let listing: ScrapedListing = scrapeListing();
-  const anchor = findInsertionAnchor(listing.title);
+  let anchor = findInsertionAnchor(listing.title);
   const inline = anchor != null;
 
   const host = document.createElement("div");
@@ -42,12 +42,30 @@ export function mountProductOverlay(): () => void {
   host.style.pointerEvents = "auto";
 
   let originalMargin = "";
-  let repositionTimers: number[] = [];
+  let pollTimer: number | undefined;
   let resizeObserver: ResizeObserver | null = null;
 
+  /**
+   * A Shopee re-renderiza o container do título depois do load inicial (ex.:
+   * quando o banner de "Oferta Relâmpago" ou o preço chegam via JS) — isso
+   * troca o nó do DOM que a gente guardou, deixando a referência antiga
+   * "órfã" (sem pai), cujo getBoundingClientRect() sempre devolve (0,0). Se
+   * isso acontecer, procura o título de novo em vez de grudar o card no
+   * canto da página pra sempre.
+   */
   const reposition = () => {
     if (!anchor) return;
+    if (!document.body.contains(anchor)) {
+      anchor = findInsertionAnchor(listing.title);
+      if (!anchor) {
+        host.style.display = "none";
+        return;
+      }
+      originalMargin = anchor.style.marginBottom || "";
+    }
     const rect = anchor.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return; // ainda sem layout — tenta de novo no próximo tick
+    host.style.display = "";
     host.style.position = "absolute";
     host.style.top = `${rect.bottom + window.scrollY + GAP}px`;
     host.style.left = `${rect.left + window.scrollX}px`;
@@ -55,12 +73,13 @@ export function mountProductOverlay(): () => void {
   };
 
   const applySpacing = () => {
-    if (!anchor) return;
+    if (!anchor || !document.body.contains(anchor)) return;
     anchor.style.marginBottom = `${host.offsetHeight + GAP}px`;
   };
 
   if (anchor) {
     originalMargin = anchor.style.marginBottom || "";
+    host.style.display = "none"; // some por trás até a 1ª posição válida — evita piscar no canto (0,0)
     getLayer().appendChild(host);
     reposition();
     resizeObserver = new ResizeObserver(() => {
@@ -69,10 +88,17 @@ export function mountProductOverlay(): () => void {
     });
     resizeObserver.observe(host);
     window.addEventListener("resize", reposition);
-    // O layout ao redor do título pode continuar mudando um pouco depois do
-    // load (imagens/preço/cupons carregando) — reforça a posição por um
-    // tempo, sem depender só do resize da janela.
-    repositionTimers = [300, 800, 1500, 3000, 6000].map((delay) => window.setTimeout(reposition, delay));
+    // O layout ao redor do título pode continuar mudando por um tempo depois
+    // do load (hidratação da Shopee, banners assíncronos, preço/cupom
+    // chegando) — reforça a posição nesse período em vez de depender só do
+    // resize da janela.
+    let ticks = 0;
+    pollTimer = window.setInterval(() => {
+      reposition();
+      applySpacing();
+      ticks += 1;
+      if (ticks >= 20) window.clearInterval(pollTimer); // ~14s, tempo de sobra pra hidratação assentar
+    }, 700);
   } else {
     document.body.appendChild(host);
   }
@@ -106,10 +132,10 @@ export function mountProductOverlay(): () => void {
 
   return () => {
     window.clearInterval(poll);
-    repositionTimers.forEach((t) => window.clearTimeout(t));
+    window.clearInterval(pollTimer);
     resizeObserver?.disconnect();
     window.removeEventListener("resize", reposition);
-    if (anchor) anchor.style.marginBottom = originalMargin;
+    if (anchor && document.body.contains(anchor)) anchor.style.marginBottom = originalMargin;
     root.unmount();
     host.remove();
   };
