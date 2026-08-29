@@ -412,6 +412,11 @@ ${SHARED}
   border: 1px solid rgba(51,65,85,0.55);
   border-radius: 8px;
   padding: 7px 9px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
+.mp3d-seller:hover { border-color: rgba(34,211,238,0.4); background: rgba(15,23,42,0.8); }
 .mp3d-seller-name { font-size: 12.5px; font-weight: 600; color: #f1f5f9; margin: 0; }
 `;

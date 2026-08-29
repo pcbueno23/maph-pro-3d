@@ -227,7 +227,14 @@ export function Panel({
           <div className="mp3d-seller-list">
             {filteredSellers.length === 0 && <p className="mp3d-muted">Nenhum vendedor identificado ainda.</p>}
             {filteredSellers.map((s) => (
-              <div key={s.shopId} className="mp3d-seller">
+              <a
+                key={s.shopId}
+                className="mp3d-seller"
+                href={`https://shopee.com.br/shop/${s.shopId}`}
+                target="_blank"
+                rel="noreferrer"
+                title="Abrir a loja deste vendedor"
+              >
                 <div>
                   <p className="mp3d-seller-name">{s.name}</p>
                   <p className="mp3d-muted">
@@ -236,7 +243,7 @@ export function Panel({
                   </p>
                 </div>
                 <span className="mp3d-stat-value">{fmtNum(s.salesPerDay30d)}/30d</span>
-              </div>
+              </a>
             ))}
           </div>
         </LockGate>
