@@ -136,6 +136,8 @@ function ensureMiniCardStyles() {
 .${MINI_CARD_CLASS}-rows { padding: 3px 10px; }
 .${MINI_CARD_CLASS}-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--mp3d-border-soft); }
 .${MINI_CARD_CLASS}-row:last-child { border-bottom: none; }
+.${MINI_CARD_CLASS}-row.stacked { flex-direction: column; align-items: flex-start; gap: 2px; }
+.${MINI_CARD_CLASS}-row.stacked .${MINI_CARD_CLASS}-row-value { font-size: 15px; }
 .${MINI_CARD_CLASS}-row-label { display: flex; align-items: center; gap: 6px; color: var(--mp3d-muted); }
 .${MINI_CARD_CLASS}-row-icon {
   display: inline-flex;
@@ -271,9 +273,10 @@ function fmtBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function row(label: string, icon: string, value: string, cls?: string): HTMLDivElement {
+/** `stacked` põe o valor numa linha própria embaixo do rótulo — usado nos valores em R$, que costumam ser compridos demais pra caber do lado do rótulo sem cortar. */
+function row(label: string, icon: string, value: string, cls?: string, stacked?: boolean): HTMLDivElement {
   const el = document.createElement("div");
-  el.className = `${MINI_CARD_CLASS}-row`;
+  el.className = `${MINI_CARD_CLASS}-row${stacked ? " stacked" : ""}`;
   el.innerHTML = `
     <span class="${MINI_CARD_CLASS}-row-label"><span class="${MINI_CARD_CLASS}-row-icon">${icon}</span>${label}</span>
     <span class="${MINI_CARD_CLASS}-row-value${cls ? " " + cls : ""}">${value}</span>
@@ -376,10 +379,10 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean)
   rows.appendChild(row("Nota", "⭐", card.rating != null ? `${card.rating.toFixed(1)} (${card.reviewCount ?? 0})` : "—"));
   rows.appendChild(row("Favoritos", "❤", card.liked != null ? String(card.liked) : "—"));
   if (card.price != null && card.sold != null) {
-    rows.appendChild(row("Faturamento total", "💰", fmtBRL(card.price * card.sold), "money"));
+    rows.appendChild(row("Faturamento total", "💰", fmtBRL(card.price * card.sold), "money", true));
   }
   if (card.price != null && card.salesPerDay != null) {
-    rows.appendChild(row("Faturamento/mês", "🏦", fmtBRL(card.price * card.salesPerDay * 30), "money"));
+    rows.appendChild(row("Faturamento/mês", "🏦", fmtBRL(card.price * card.salesPerDay * 30), "money", true));
   }
   content.appendChild(rows);
 
