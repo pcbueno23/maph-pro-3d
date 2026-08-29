@@ -21,6 +21,9 @@ export type ParsedItem = {
   shopId: string | null;
   name: string | null;
   price: number | null;
+  priceBeforeDiscount: number | null;
+  discountPercent: number | null;
+  thumbnailUrl: string | null;
   sold: number | null;
   liked: number | null;
   reviewCount: number | null;
@@ -47,6 +50,14 @@ export function parseItemNode(node: any): ParsedItem {
     shopId: String(pick(node, ["shopid", "shop_id"]) ?? "") || null,
     name: pick<string>(node, ["name", "title"]),
     price: normalizePrice(pick(node, ["price", "price_info.current_price", "price_min"])),
+    priceBeforeDiscount: normalizePrice(
+      pick(node, ["price_before_discount", "price_max_before_discount", "price_info.original_price"]),
+    ),
+    discountPercent: pick<number>(node, ["raw_discount", "discount"]),
+    thumbnailUrl: (() => {
+      const image = pick<string>(node, ["image", "images.0", "thumbnail"]);
+      return image ? `https://down-br.img.susercontent.com/file/${image}` : null;
+    })(),
     sold: pick<number>(node, ["historical_sold", "sold", "global_sold"]),
     liked: pick<number>(node, ["liked_count", "liked", "favorite_count"]),
     reviewCount: pick<number>(node, ["cmt_count", "comment_count", "item_rating.rating_count.0"]),
@@ -88,5 +99,12 @@ export function parseSearchItems(json: unknown): ParsedItem[] {
     console.error("[Maph Pro 3D] search_items não trouxe nenhum item reconhecível. JSON bruto:", json);
     return [];
   }
-  return items.map((entry) => parseItemNode(entry.item_basic ?? entry.item ?? entry));
+  const raw0 = items[0];
+  console.debug(
+    "[Maph Pro 3D] amostra do 1º item bruto de search_items (pra ajustar os caminhos de campo em shopeeParse.ts):",
+    raw0,
+  );
+  const parsed = items.map((entry) => parseItemNode(entry.item_basic ?? entry.item ?? entry));
+  console.debug("[Maph Pro 3D] 1º item já parseado:", parsed[0]);
+  return parsed;
 }
