@@ -13,6 +13,7 @@
 import { CARD_STYLES } from "./styles";
 import { getTheme, onThemeChange } from "../lib/theme";
 import { MAPH_LOGO_DATA_URI } from "./logo";
+import { MW_PENDING_KEY } from "../lib/makerworldHandoff";
 
 const HOST_ID = "mp3d-crop-modal-host";
 const MAKERWORLD_SEARCH_URL = "https://makerworld.com/en/search/models";
@@ -199,24 +200,30 @@ export async function openImageCropModal(imageUrl: string, titleForFilename: str
       ctx.drawImage(img, selection.x, selection.y, selection.w, selection.h, 0, 0, selection.w, selection.h);
       const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("falha ao gerar recorte");
+      const filename = `${slugify(titleForFilename ?? "anuncio")}-recorte.png`;
 
-      // Baixa o arquivo — garante que o usuário tem como enviar manualmente
-      // mesmo se a área de transferência não funcionar.
+      // Deixa a imagem pronta pra aba do MakerWorld pegar sozinha (ver
+      // src/content/makerworldInject.ts) — assim que a página deles carregar
+      // o campo de busca por imagem, ele já vem preenchido.
+      await chrome.storage.local.set({
+        [MW_PENDING_KEY]: { dataUrl: canvas.toDataURL("image/png"), filename, ts: Date.now() },
+      });
+
+      // Baixa o arquivo + copia pra área de transferência como reforço, caso
+      // o preenchimento automático não funcione (ex.: MakerWorld mudou a página).
       const dlUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = dlUrl;
-      a.download = `${slugify(titleForFilename ?? "anuncio")}-recorte.png`;
+      a.download = filename;
       a.click();
       window.setTimeout(() => URL.revokeObjectURL(dlUrl), 5000);
 
-      // Melhor esforço: copia pra área de transferência, pra colar (Ctrl+V)
-      // direto no campo de busca por imagem do MakerWorld.
       try {
         if (navigator.clipboard && "write" in navigator.clipboard && typeof ClipboardItem !== "undefined") {
           await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
         }
       } catch {
-        /* segue sem copiar — o download já garante o arquivo */
+        /* segue sem copiar — o download e o preenchimento automático já cobrem */
       }
 
       window.open(MAKERWORLD_SEARCH_URL, "_blank", "noreferrer");

@@ -32,6 +32,9 @@ export default defineManifest({
     // imagens da galeria sem cair no bloqueio de CORS (baixar tudo num .zip).
     "https://*.susercontent.com/*",
     "https://*.shopeemobile.com/*",
+    // Preenche sozinho o campo de busca por imagem do MakerWorld (ver
+    // src/content/makerworldInject.ts) quando vem de um recorte da Shopee.
+    "https://*.makerworld.com/*",
   ],
   content_scripts: [
     {
@@ -55,6 +58,14 @@ export default defineManifest({
       // deve mostrar o card de anúncio ou o painel de busca (ver router.tsx).
       matches: ["https://shopee.com.br/*", "https://*.shopee.com.br/*"],
       js: ["src/content/router.tsx"],
+      run_at: "document_idle",
+    },
+    {
+      // Preenche sozinho o campo de busca por imagem quando a aba abre com
+      // uma imagem pendente de um recorte feito na Shopee (ver
+      // src/lib/makerworldHandoff.ts).
+      matches: ["https://makerworld.com/*", "https://*.makerworld.com/*"],
+      js: ["src/content/makerworldInject.ts"],
       run_at: "document_idle",
     },
   ],
