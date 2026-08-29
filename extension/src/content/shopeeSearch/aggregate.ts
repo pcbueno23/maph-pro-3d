@@ -97,7 +97,10 @@ export function groupBySeller(cards: EnrichedCard[]): SellerGroup[] {
 
 /** Campeões = top 20% por vendas/dia (ou 5, o que for maior) — velocidade, não volume bruto acumulado. */
 export function pickChampions(cards: EnrichedCard[]): Set<HTMLElement> {
-  const withVelocity = cards.filter((c) => (c.salesPerDay ?? 0) > 0).sort((a, b) => (b.salesPerDay ?? 0) - (a.salesPerDay ?? 0));
+  const withVelocity = cards
+    .filter((c) => (c.salesPerDay ?? 0) > 0)
+    .sort((a, b) => (b.salesPerDay ?? 0) - (a.salesPerDay ?? 0));
   const n = Math.max(5, Math.round(withVelocity.length * 0.2));
-  return new Set(withVelocity.slice(0, n).map((c) => c.el));
+  const els = withVelocity.slice(0, n).map((c) => c.el).filter((el): el is HTMLElement => el != null);
+  return new Set(els);
 }

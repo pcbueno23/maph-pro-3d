@@ -1,115 +1,17 @@
 /**
- * Cliente pro endpoint JSON interno da Shopee (`/api/v4/...`) — o mesmo que o
- * próprio site usa pra montar a página. Chamado same-origin, na sessão do
- * usuário (sem servidor terceiro, sem CORS). Não é uma API pública
- * documentada — é reverse-engineered, igual toda ferramenta desse tipo faz,
- * e pode mudar de formato sem aviso. Todo campo é lido com fallback opcional
- * de propósito: se a Shopee mudar o schema, a extensão degrada mostrando "—"
- * em vez de quebrar.
- *
- * ⚠️ Isto NÃO foi testado contra a Shopee ao vivo nesta sessão (sem acesso a
- * browser real) — os nomes de campo seguem o schema conhecido/documentado
- * pela comunidade de scraping, mas precisa de uma passada de teste real
- * antes de confiar 100%. Se algo vier "—" que deveria vir preenchido, é aqui
- * que precisa ajustar primeiro.
+ * Utilidades pequenas em cima dos dados da Shopee. As chamadas diretas à API
+ * interna (`fetchItemDetail`/`fetchShopDetail` que existiam aqui antes)
+ * foram removidas — a Shopee rejeita qualquer fetch que não seja disparado
+ * pelo próprio bundle deles (`error: 90309999`, proteção anti-bot "shpsec").
+ * Os dados ricos agora vêm de espiar a resposta que a própria página já
+ * busca — ver `content/inject.ts` + `lib/shopeeCapture.ts` + `lib/shopeeParse.ts`.
  */
-
-export type ShopeeItemDetail = {
-  itemId: string;
-  shopId: string;
-  name: string | null;
-  price: number | null;
-  sold: number | null;
-  liked: number | null;
-  reviewCount: number | null;
-  rating: number | null;
-  createdAt: Date | null;
-};
-
-export type ShopeeShopDetail = {
-  shopId: string;
-  name: string | null;
-  location: string | null;
-  isOfficialShop: boolean;
-  isCrossBorder: boolean;
-};
 
 /** Extrai shopId/itemId de uma URL de anúncio Shopee (padrão "...-i.<shopId>.<itemId>"). */
 export function parseItemUrl(url: string): { shopId: string; itemId: string } | null {
   const match = url.match(/-i\.(\d+)\.(\d+)/);
   if (!match) return null;
   return { shopId: match[1], itemId: match[2] };
-}
-
-async function fetchJson(url: string): Promise<any | null> {
-  try {
-    const res = await fetch(url, { credentials: "include" });
-    if (!res.ok) {
-      console.error(`[Maph Pro 3D] ${url} respondeu ${res.status} ${res.statusText}`);
-      try {
-        console.error("[Maph Pro 3D] corpo da resposta:", await res.text());
-      } catch {
-        /* ignora — só era pra log */
-      }
-      return null;
-    }
-    const json = await res.json();
-    console.debug(`[Maph Pro 3D] ${url} ->`, json);
-    return json;
-  } catch (err) {
-    console.error(`[Maph Pro 3D] falha de rede em ${url}`, err);
-    return null;
-  }
-}
-
-export async function fetchItemDetail(shopId: string, itemId: string): Promise<ShopeeItemDetail | null> {
-  const data = await fetchJson(
-    `https://shopee.com.br/api/v4/item/get?itemid=${itemId}&shopid=${shopId}`,
-  );
-  const item = data?.data ?? data?.item;
-  if (!item) {
-    console.error(
-      "[Maph Pro 3D] resposta do item/get não trouxe data.item — formato inesperado. JSON completo acima.",
-    );
-    return null;
-  }
-
-  return {
-    itemId,
-    shopId,
-    name: item.name ?? null,
-    price: typeof item.price === "number" ? item.price / 100000 : null,
-    sold: item.historical_sold ?? item.sold ?? null,
-    liked: item.liked_count ?? null,
-    reviewCount: item.cmt_count ?? null,
-    rating: item.item_rating?.rating_star ?? null,
-    createdAt: typeof item.ctime === "number" ? new Date(item.ctime * 1000) : null,
-  };
-}
-
-const shopCache = new Map<string, Promise<ShopeeShopDetail | null>>();
-
-export function fetchShopDetail(shopId: string): Promise<ShopeeShopDetail | null> {
-  const cached = shopCache.get(shopId);
-  if (cached) return cached;
-
-  const promise = (async () => {
-    const data = await fetchJson(`https://shopee.com.br/api/v4/shop/get_shop_detail?shopid=${shopId}`);
-    const shop = data?.data ?? data;
-    if (!shop) return null;
-
-    const state = shop.shop_location ?? shop.address?.state ?? null;
-    return {
-      shopId,
-      name: shop.name ?? shop.account?.username ?? null,
-      location: state,
-      isOfficialShop: Boolean(shop.is_official_shop ?? shop.shopee_verified),
-      isCrossBorder: Boolean(shop.is_cb ?? shop.is_cross_border),
-    } as ShopeeShopDetail;
-  })();
-
-  shopCache.set(shopId, promise);
-  return promise;
 }
 
 export function daysSince(date: Date | null): number | null {
@@ -122,17 +24,4 @@ export function salesPerDayEstimate(sold: number | null, createdDaysAgo: number 
   if (sold == null) return null;
   const days = Math.max(1, createdDaysAgo ?? 1);
   return sold / days;
-}
-
-/** Roda `fetchers` com no máximo `limit` chamadas simultâneas — evita bombardear a Shopee numa página com 90+ cards. */
-export async function withConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<void>) {
-  let index = 0;
-  async function worker() {
-    while (index < items.length) {
-      const current = items[index];
-      index += 1;
-      await fn(current);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
 }

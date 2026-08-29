@@ -28,6 +28,19 @@ export default defineManifest({
   host_permissions: ["https://*.shopee.com.br/*", "https://*.supabase.co/*"],
   content_scripts: [
     {
+      // Roda no "MAIN world" (o mesmo contexto JS da própria página, não o
+      // isolado padrão de content script) — precisa ser assim pra poder
+      // interceptar o `window.fetch` que o bundle da Shopee usa. A API
+      // interna da Shopee (pdp/get_pc, search_items) tem proteção anti-bot
+      // (shpsec) que rejeita qualquer fetch que não seja disparado pelo
+      // próprio código deles — então em vez de replicar a chamada, a
+      // extensão espia a resposta da chamada que a página já faz sozinha.
+      matches: ["https://shopee.com.br/*", "https://*.shopee.com.br/*"],
+      js: ["src/content/inject.ts"],
+      world: "MAIN",
+      run_at: "document_start",
+    },
+    {
       matches: ["https://shopee.com.br/*-i.*", "https://*.shopee.com.br/*-i.*"],
       js: ["src/content/shopeeProduct/index.tsx"],
       run_at: "document_idle",

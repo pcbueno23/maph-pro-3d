@@ -104,28 +104,24 @@ export type EnrichedListing = {
 };
 
 /**
- * Busca os campos "ricos" (nota, avaliações, favoritos, criado em, vendedor)
- * via API interna da Shopee — não vêm do HTML visível. Retorna null em
- * qualquer campo que não vier na resposta (ver aviso de fragilidade no topo
- * de `lib/shopeeApi.ts`).
+ * Pega os campos "ricos" (nota, avaliações, favoritos, criado em, vendedor)
+ * espiando a resposta que a própria página da Shopee busca ao renderizar o
+ * anúncio (`pdp/get_pc`) — não vêm do HTML visível, e chamar a API por conta
+ * própria é bloqueado pela proteção anti-bot deles (ver `content/inject.ts`).
+ * Retorna null se a página não fizer essa chamada dentro do timeout, ou se o
+ * formato da resposta não bater com nenhum caminho conhecido (ver console).
  */
 export async function fetchEnrichedListing(): Promise<EnrichedListing | null> {
-  const { parseItemUrl, fetchItemDetail, fetchShopDetail, daysSince, salesPerDayEstimate } = await import(
-    "../../lib/shopeeApi"
-  );
-  const ids = parseItemUrl(location.href);
-  if (!ids) {
-    console.error(
-      `[Maph Pro 3D] não achei o padrão "-i.<shopId>.<itemId>" na URL: ${location.href}`,
-    );
-    return null;
-  }
-  console.debug("[Maph Pro 3D] shopId/itemId detectados:", ids);
+  const { waitForCapture } = await import("../../lib/shopeeCapture");
+  const { parsePdpGetPc } = await import("../../lib/shopeeParse");
+  const { daysSince, salesPerDayEstimate } = await import("../../lib/shopeeApi");
 
-  const item = await fetchItemDetail(ids.shopId, ids.itemId);
+  const captured = await waitForCapture("pdpGetPc");
+  if (!captured) return null;
+
+  const item = parsePdpGetPc(captured.json);
   if (!item) return null;
 
-  const shop = await fetchShopDetail(ids.shopId);
   const createdDaysAgo = daysSince(item.createdAt);
 
   return {
@@ -135,8 +131,8 @@ export async function fetchEnrichedListing(): Promise<EnrichedListing | null> {
     reviewCount: item.reviewCount,
     favorites: item.liked,
     createdDaysAgo,
-    sellerName: shop?.name ?? null,
-    sellerLocation: shop?.location ?? null,
-    isInternational: shop?.isCrossBorder ?? false,
+    sellerName: item.sellerName,
+    sellerLocation: item.sellerLocation,
+    isInternational: item.isInternational,
   };
 }

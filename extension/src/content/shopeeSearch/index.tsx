@@ -1,6 +1,6 @@
 import { createRoot, type Root } from "react-dom/client";
 import { Panel } from "./Panel";
-import { scrapeSearchCards, enrichCards, type EnrichedCard, type ScrapedCard } from "./scrape";
+import { watchSearchItems, type EnrichedCard } from "./scrape";
 import { extractKeywords } from "./keywordExtract";
 import { computePageStats, groupBySeller, pickChampions } from "./aggregate";
 import { BADGE_STYLES } from "../styles";
@@ -16,7 +16,7 @@ function paintChampionBadges(cards: EnrichedCard[]) {
   clearBadges();
   const champions = pickChampions(cards);
   for (const c of cards) {
-    if (!champions.has(c.el)) continue;
+    if (!c.el || !champions.has(c.el)) continue;
     const computed = window.getComputedStyle(c.el);
     if (computed.position === "static") c.el.style.position = "relative";
     const badge = document.createElement("div");
@@ -43,64 +43,54 @@ function mountPanel(): Root {
   return createRoot(mountPoint);
 }
 
-function toEnrichedFallback(cards: ScrapedCard[]): EnrichedCard[] {
-  return cards.map((c) => ({
-    ...c,
-    rating: null,
-    reviewCount: null,
-    favorites: null,
-    createdDaysAgo: null,
-    salesPerDay: null,
-    sellerName: null,
-    sellerLocation: null,
-    isInternational: false,
-  }));
-}
+function start() {
+  if (document.getElementById(HOST_ID)) return;
+  const root = mountPanel();
+  let received = false;
 
-async function analyze(root: Root) {
-  const rawCards = scrapeSearchCards();
+  const renderEmpty = () => {
+    root.render(
+      <Panel
+        loading={true}
+        championCount={0}
+        stats={computePageStats([])}
+        sellers={[]}
+        keywords={[]}
+        onRescan={() => {
+          /* rescan é automático — a Shopee reemite a chamada ao rolar/filtrar */
+        }}
+      />,
+    );
+  };
+  renderEmpty();
 
-  const render = (cards: EnrichedCard[], loading: boolean) => {
+  watchSearchItems((cards) => {
+    received = true;
     const championCount = paintChampionBadges(cards);
     const stats = computePageStats(cards);
     const sellers = groupBySeller(cards);
-    const titles = cards.map((c) => c.title).filter((t): t is string => !!t);
+    const titles = cards.map((c) => c.name).filter((t): t is string => !!t);
     const keywords = extractKeywords(titles);
 
     root.render(
       <Panel
-        loading={loading}
+        loading={false}
         championCount={championCount}
         stats={stats}
         sellers={sellers}
         keywords={keywords}
-        onRescan={() => void analyze(root)}
+        onRescan={() => window.location.reload()}
       />,
     );
-  };
+  });
 
-  // Pinta algo imediatamente com o scrape rápido, e vai enriquecendo em cima.
-  render(toEnrichedFallback(rawCards), true);
-  const enriched = await enrichCards(rawCards, (partial) => render(partial, true));
-  render(enriched, false);
-}
-
-function start() {
-  let root: Root;
-  const existing = document.getElementById(HOST_ID);
-  if (existing) return;
-  root = mountPanel();
-
-  void analyze(root);
-
-  // A lista carrega aos poucos (scroll infinito / lazy render) — reanalisa
-  // algumas vezes nos primeiros segundos pra pegar mais cards.
-  let attempts = 0;
-  const poll = window.setInterval(() => {
-    attempts += 1;
-    void analyze(root);
-    if (attempts >= 3) window.clearInterval(poll);
-  }, 3000);
+  window.setTimeout(() => {
+    if (!received) {
+      console.error(
+        "[Maph Pro 3D] não capturei nenhuma chamada de search_items nos primeiros segundos — role a página pra forçar a Shopee a buscar mais resultados.",
+      );
+    }
+  }, 8000);
 }
 
 start();
