@@ -82,7 +82,11 @@ function ensureMiniCardStyles() {
   --mp3d-shadow: rgba(15, 23, 42, 0.12);
   --mp3d-backdrop: rgba(255, 255, 255, 0.75);
 }
-.${MINI_CARD_CLASS}.champion { border-color: rgba(250,204,21,0.7); box-shadow: 0 0 0 1px rgba(250,204,21,0.3) inset, 0 6px 18px var(--mp3d-shadow); }
+.${MINI_CARD_CLASS}.champion {
+  border-width: 2.5px;
+  border-color: #facc15;
+  box-shadow: 0 0 0 2px rgba(250,204,21,0.45) inset, 0 0 16px rgba(250,204,21,0.35), 0 6px 18px var(--mp3d-shadow);
+}
 .${MINI_CARD_CLASS}-head {
   display: flex;
   align-items: center;

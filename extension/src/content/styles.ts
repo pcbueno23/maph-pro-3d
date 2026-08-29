@@ -185,22 +185,23 @@ ${BASE}
 }
 .mp3d-btn-secondary:hover { background: var(--mp3d-accent-soft-bg); filter: brightness(1.15); }
 .mp3d-divider { height: 1px; background: var(--mp3d-border-soft); margin: 10px 0; }
-.mp3d-toolbar { display: flex; gap: 4px; margin-bottom: 8px; }
+.mp3d-toolbar { display: flex; gap: 6px; margin-bottom: 8px; }
 .mp3d-toolbar button, .mp3d-toolbar a {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 24px;
-  border-radius: 6px;
+  height: 36px;
+  border-radius: 8px;
   border: 1px solid var(--mp3d-border-soft);
   background: var(--mp3d-surface);
   color: var(--mp3d-muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 18px;
+  line-height: 1;
   text-decoration: none;
 }
-.mp3d-toolbar button:hover, .mp3d-toolbar a:hover { color: var(--mp3d-accent-text); border-color: var(--mp3d-accent-soft-border); }
+.mp3d-toolbar button:hover, .mp3d-toolbar a:hover { color: var(--mp3d-accent-text); border-color: var(--mp3d-accent-soft-border); background: var(--mp3d-accent-soft-bg); }
 .mp3d-age-pill { font-weight: 700; padding: 1px 7px; border-radius: 999px; font-size: 11px; }
 .mp3d-age-pill.new { background: rgba(52,211,153,0.15); color: var(--mp3d-good); }
 .mp3d-age-pill.mid { background: rgba(251,191,36,0.15); color: var(--mp3d-warn); }
