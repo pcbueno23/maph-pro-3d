@@ -40,7 +40,6 @@ export function Panel({
   onRescan,
   signedIn,
   isAdmin,
-  inline,
 }: {
   loading: boolean;
   championCount: number;
@@ -56,8 +55,6 @@ export function Panel({
   signedIn: boolean;
   /** Painel de diagnóstico (dados brutos, status do interceptor) é ferramenta interna — só pro e-mail admin. */
   isAdmin: boolean;
-  /** true = encaixado acima do cabeçalho "Filtros" da barra lateral; false = flutuando fixo no canto (não achou onde encaixar). */
-  inline: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [tab, setTab] = useState<Tab>("raiox");
@@ -82,7 +79,7 @@ export function Panel({
   }
 
   return (
-    <div className={`mp3d-panel ${inline ? "mp3d-inline" : "mp3d-floating"}`}>
+    <div className="mp3d-panel">
       <div className="mp3d-panel-head">
         <span className="mp3d-brand">Maph Pro 3D · Raio-X da página</span>
         <button className="mp3d-close" onClick={() => setCollapsed(true)} aria-label="Minimizar">

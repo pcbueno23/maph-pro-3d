@@ -53,70 +53,67 @@ function paintMiniCards(cards: EnrichedCard[], filter: FilterKey | null, locked:
 export function mountSearchPanel(): () => void {
   if (document.getElementById(HOST_ID)) return () => {};
 
-  let anchor = findFilterAnchor();
-  const inline = anchor != null;
+  let anchor: HTMLElement | null = null;
+  let originalMargin = "";
 
   const host = document.createElement("div");
   host.id = HOST_ID;
   host.style.pointerEvents = "auto";
-
-  let originalMargin = "";
-  let anchorPollTimer: number | undefined;
-  let anchorResizeObserver: ResizeObserver | null = null;
+  host.style.position = "absolute";
+  host.style.display = "none"; // some até a 1ª posição válida — evita piscar no canto
+  getLayer().appendChild(host);
 
   /**
    * O painel fica ACIMA do cabeçalho "Filtros" — igual ao card do anúncio,
    * mas empurrando a âncora pra BAIXO com `margin-top` (não `margin-
    * bottom`) já que aqui é o conteúdo de baixo que precisa abrir espaço,
-   * não o de cima. Mesma lógica de auto-recuperação: se a Shopee trocar o
-   * nó do DOM (re-render deles), procura a âncora nova em vez de grudar
-   * numa referência órfã (que sempre mediria (0,0)).
+   * não o de cima.
+   *
+   * A barra lateral de filtros da Shopee às vezes ainda não existe no
+   * instante em que a extensão carrega (renderiza um pouco depois) — por
+   * isso NÃO paramos de procurar só porque a 1ª tentativa falhou: toda
+   * chamada tenta achar de novo (ou confirma que a âncora que já tínhamos
+   * ainda existe), promovendo o painel do modo flutuante pro ancorado
+   * assim que a barra lateral aparecer.
    */
   const repositionPanel = () => {
-    if (!anchor) return;
-    if (!document.body.contains(anchor)) {
-      anchor = findFilterAnchor();
-      if (!anchor) {
-        host.style.display = "none";
-        return;
+    if (!anchor || !document.body.contains(anchor)) {
+      const found = findFilterAnchor();
+      if (found !== anchor) {
+        if (anchor && document.body.contains(anchor)) anchor.style.marginTop = originalMargin;
+        anchor = found;
+        if (anchor) originalMargin = anchor.style.marginTop || "";
       }
-      originalMargin = anchor.style.marginTop || "";
     }
-    const rect = anchor.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) return;
-    const hostHeight = host.offsetHeight || 0;
-    host.style.display = "";
-    host.style.position = "absolute";
-    host.style.top = `${Math.max(8, rect.top + window.scrollY - hostHeight - GAP)}px`;
-    host.style.left = `${rect.left + window.scrollX}px`;
-    host.style.width = `${Math.min(rect.width || MAX_WIDTH, MAX_WIDTH)}px`;
+
+    if (anchor) {
+      const rect = anchor.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return;
+      const hostHeight = host.offsetHeight || 0;
+      host.style.top = `${Math.max(8, rect.top + window.scrollY - hostHeight - GAP)}px`;
+      host.style.left = `${rect.left + window.scrollX}px`;
+      host.style.width = `${Math.min(rect.width || MAX_WIDTH, MAX_WIDTH)}px`;
+      host.style.display = "";
+      anchor.style.marginTop = `${hostHeight + GAP}px`;
+    } else {
+      // Sem âncora (ainda): mesmo canto de sempre, só que via coordenadas
+      // em vez de `position:fixed` — assim que achar a âncora, muda sozinho.
+      host.style.top = `${16 + window.scrollY}px`;
+      host.style.left = `${16 + window.scrollX}px`;
+      host.style.width = `${MAX_WIDTH}px`;
+      host.style.display = "";
+    }
   };
 
-  const applyAnchorSpacing = () => {
-    if (!anchor || !document.body.contains(anchor)) return;
-    anchor.style.marginTop = `${host.offsetHeight + GAP}px`;
-  };
-
-  if (anchor) {
-    originalMargin = anchor.style.marginTop || "";
-    host.style.display = "none"; // some até a 1ª posição válida — evita piscar no canto
-    getLayer().appendChild(host);
-    anchorResizeObserver = new ResizeObserver(() => {
-      repositionPanel();
-      applyAnchorSpacing();
-    });
-    anchorResizeObserver.observe(host);
-    window.addEventListener("resize", repositionPanel);
-    let ticks = 0;
-    anchorPollTimer = window.setInterval(() => {
-      repositionPanel();
-      applyAnchorSpacing();
-      ticks += 1;
-      if (ticks >= 20) window.clearInterval(anchorPollTimer); // ~14s, tempo de sobra pra pagina assentar
-    }, 700);
-  } else {
-    document.body.appendChild(host);
-  }
+  const anchorResizeObserver = new ResizeObserver(repositionPanel);
+  anchorResizeObserver.observe(host);
+  window.addEventListener("resize", repositionPanel);
+  let ticks = 0;
+  const anchorPollTimer = window.setInterval(() => {
+    repositionPanel();
+    ticks += 1;
+    if (ticks >= 30) window.clearInterval(anchorPollTimer); // ~21s, tempo de sobra pra barra lateral aparecer
+  }, 700);
 
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
@@ -168,7 +165,6 @@ export function mountSearchPanel(): () => void {
         onRescan={() => window.location.reload()}
         signedIn={signedIn}
         isAdmin={isAdmin}
-        inline={inline}
       />,
     );
   };

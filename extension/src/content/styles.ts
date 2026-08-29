@@ -343,22 +343,13 @@ ${SHARED}
   color: #e2e8f0;
   font-size: 13px;
 }
-/* Local preferido: logo acima do cabeçalho "Filtros" da barra lateral de
-   busca (mesmo lugar onde concorrentes como o "3D Hunt" mostram o painel)
-   — a posição/largura vem do host (ver content/shopeeSearch/index.tsx). */
-.mp3d-panel.mp3d-inline {
+/* A posição de verdade (acima do cabeçalho "Filtros" da barra lateral de
+   busca, ou no canto se ainda não achou) vem do host, via coordenadas —
+   ver content/shopeeSearch/index.tsx. Aqui só preenche o espaço que o
+   host reserva. */
+.mp3d-panel {
   position: relative;
   width: 100%;
-  max-height: none;
-}
-/* Reserva: quando não achamos o cabeçalho de filtros (a Shopee mudou a
-   estrutura), volta a flutuar fixo no canto pra nunca ficar invisível. */
-.mp3d-panel.mp3d-floating {
-  position: fixed;
-  left: 16px;
-  top: 16px;
-  z-index: 2147483000;
-  width: 300px;
   max-height: calc(100vh - 32px);
   overflow-y: auto;
 }
