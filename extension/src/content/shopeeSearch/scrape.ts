@@ -84,10 +84,13 @@ export type SearchDebugInfo = {
  * nova captura, e `onDebug` sempre junto (mesmo quando não achou nada) —
  * pensado pra aparecer na tela do painel, não no console.
  *
- * O "casamento" com o DOM é refeito algumas vezes com atraso crescente após
- * cada captura: a resposta de rede chega antes da Shopee terminar de
- * renderizar os cards correspondentes na tela, então tentar casar no mesmo
- * instante em que a captura acontece sempre dá `el: null` pra tudo.
+ * O "casamento" com o DOM é refeito de duas formas: (1) com atraso crescente
+ * logo após cada captura de rede (a resposta chega antes da Shopee terminar
+ * de renderizar os cards correspondentes) e (2) sempre que novos cards
+ * aparecem no DOM — a Shopee costuma já ter os dados de TODOS os itens numa
+ * única resposta, mas só desenha o restante conforme o usuário rola a
+ * página, então sem isso só os primeiros ~20-25 cards visíveis no carregamento
+ * inicial ganhariam o card de estatísticas.
  */
 export function watchSearchItems(
   onUpdate: (cards: EnrichedCard[]) => void,
@@ -95,6 +98,8 @@ export function watchSearchItems(
 ): () => void {
   const byId = new Map<string, ParsedItem>();
   let capturesReceived = 0;
+  let rematchTimer: number | undefined;
+  let firstPendingMutationAt: number | null = null;
 
   const rematch = () => {
     const elements = scrapeCardElements();
@@ -104,6 +109,36 @@ export function watchSearchItems(
     );
     onUpdate(merged);
   };
+
+  // Debounce normal de 250ms após a última mutação — mas se o DOM ficar
+  // mudando sem parar por mais de 1s (comum numa SPA barulhenta como a da
+  // Shopee), força rodar mesmo assim em vez de esperar pra sempre.
+  const scheduleRematch = () => {
+    const now = Date.now();
+    if (firstPendingMutationAt == null) firstPendingMutationAt = now;
+    const waitingTooLong = now - firstPendingMutationAt > 1000;
+    if (rematchTimer != null) window.clearTimeout(rematchTimer);
+    rematchTimer = window.setTimeout(
+      () => {
+        firstPendingMutationAt = null;
+        rematch();
+      },
+      waitingTooLong ? 0 : 250,
+    );
+  };
+
+  // Reage a cards novos aparecendo no DOM (scroll infinito) sem precisar de
+  // uma nova captura de rede — debounced pra não rodar a cada mutação isolada
+  // numa página tão barulhenta quanto a da Shopee.
+  const observer = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.addedNodes.length > 0) {
+        scheduleRematch();
+        return;
+      }
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 
   const stop = onCapture("searchItems", (capture) => {
     capturesReceived += 1;
@@ -124,5 +159,9 @@ export function watchSearchItems(
     for (const delay of [300, 800, 1800]) window.setTimeout(rematch, delay);
   });
 
-  return stop;
+  return () => {
+    stop();
+    observer.disconnect();
+    if (rematchTimer != null) window.clearTimeout(rematchTimer);
+  };
 }
