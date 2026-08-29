@@ -26,6 +26,8 @@ export type AdminUserRow = {
   has_paid_plan: boolean;
   /** ISO da data em que o pagamento foi confirmado via webhook. */
   abacatepay_paid_at: string | null;
+  /** Liberação manual da extensão Chrome (user_metadata.extension_granted) — independe de pagamento. */
+  extension_granted: boolean;
 };
 
 export function toAdminUserRow(u: User): AdminUserRow {
@@ -63,5 +65,6 @@ export function toAdminUserRow(u: User): AdminUserRow {
     is_banned: isActiveBan(bannedStr),
     has_paid_plan: abacatepayPaidAt !== null,
     abacatepay_paid_at: abacatepayPaidAt,
+    extension_granted: u.user_metadata?.extension_granted === true,
   };
 }

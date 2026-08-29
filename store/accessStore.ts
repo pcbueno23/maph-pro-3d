@@ -15,6 +15,8 @@ interface AccessState {
   trialEndsAt: string | null;
   accountCreatedAt: string | null;
   hasPaidPlan: boolean;
+  /** Liberação manual do admin (user_metadata.extension_granted) — independe de pagamento. */
+  extensionGranted: boolean;
   daysRemaining: number | null;
   error: string | null;
   bumpAccessCheck: () => void;
@@ -24,6 +26,7 @@ interface AccessState {
     trialEndsAt: string;
     accountCreatedAt: string;
     hasPaidPlan: boolean;
+    extensionGranted: boolean;
     daysRemaining: number;
   }) => void;
   setAccessError: (message: string) => void;
@@ -38,6 +41,7 @@ const initial = {
   trialEndsAt: null as string | null,
   accountCreatedAt: null as string | null,
   hasPaidPlan: false,
+  extensionGranted: false,
   daysRemaining: null as number | null,
   error: null as string | null,
 };
@@ -57,6 +61,7 @@ export const useAccessStore = create<AccessState>((set) => ({
       trialEndsAt: payload.trialEndsAt,
       accountCreatedAt: payload.accountCreatedAt,
       hasPaidPlan: payload.hasPaidPlan,
+      extensionGranted: payload.extensionGranted,
       daysRemaining: payload.daysRemaining,
       error: null,
     }),

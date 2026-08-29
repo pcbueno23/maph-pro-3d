@@ -25,6 +25,7 @@ export function UserDetailModal({
   const [payment, setPayment] = useState<AdminPaymentSummary | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [trialDraft, setTrialDraft] = useState("");
+  const [extGrantDraft, setExtGrantDraft] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [linkOut, setLinkOut] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export function UserDetailModal({
             data.user.trial_ends_at_metadata ??
               data.user.effective_trial_ends_at,
           );
+          setExtGrantDraft(data.user.extension_granted);
         }
         if (data.payment) setPayment(data.payment);
       } catch {
@@ -96,10 +98,11 @@ export function UserDetailModal({
         },
         body: JSON.stringify(
           freeAccessMode
-            ? { admin_notes: noteDraft.trim() || null }
+            ? { admin_notes: noteDraft.trim() || null, extension_granted: extGrantDraft }
             : {
                 trial_ends_at: trialDraft.trim() || null,
                 admin_notes: noteDraft.trim() || null,
+                extension_granted: extGrantDraft,
               },
         ),
       });
@@ -282,6 +285,21 @@ export function UserDetailModal({
               </p>
             )}
 
+            <div className="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2">
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={extGrantDraft}
+                  onChange={(e) => setExtGrantDraft(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-900 accent-cyan-500"
+                />
+                Liberar extensão Chrome pra este usuário
+              </label>
+              <p className="mt-1 text-[10px] text-slate-500">
+                Independe de pagamento — libera a página /extensao mesmo sem plano ativo.
+              </p>
+            </div>
+
             <div>
               <label className="text-xs text-slate-500">Nota interna (admin)</label>
               <textarea
@@ -315,7 +333,7 @@ export function UserDetailModal({
                 onClick={() => void saveMeta()}
                 className="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-medium text-slate-950 disabled:opacity-50"
               >
-                {freeAccessMode ? "Salvar nota" : "Salvar trial e nota"}
+                {freeAccessMode ? "Salvar nota e extensão" : "Salvar trial, nota e extensão"}
               </button>
             </div>
 

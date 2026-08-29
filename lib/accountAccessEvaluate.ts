@@ -13,8 +13,26 @@ export type AccountAccessResponse = {
   trialEndsAt: string;
   accountCreatedAt: string;
   hasPaidPlan: boolean;
+  /** Liberação manual do admin (user_metadata.extension_granted) — independe de pagamento. */
+  extensionGranted: boolean;
   daysRemaining: number;
 };
+
+/** Usado quando o paywall geral está desligado (route.ts responde sem chamar evaluateAccountAccessFromJwt) — só precisa ler user_metadata, não a entitlement de pagamento inteira. */
+export async function getExtensionGrantedFromToken(jwt: string): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!url || !anon) return false;
+  try {
+    const supabase = createClient(url, anon);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser(jwt);
+    return user?.user_metadata?.extension_granted === true;
+  } catch {
+    return false;
+  }
+}
 
 export async function evaluateAccountAccessFromJwt(
   jwt: string,
@@ -102,6 +120,7 @@ export async function evaluateAccountAccessFromJwt(
     trialEndsAt: trialEndsIso,
     accountCreatedAt: user.created_at,
     hasPaidPlan,
+    extensionGranted: user.user_metadata?.extension_granted === true,
     daysRemaining,
   };
 

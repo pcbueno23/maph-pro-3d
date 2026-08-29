@@ -16,6 +16,8 @@ const FEATURES = [
 export default function ExtensaoPage() {
   const accessChecked = useAccessStore((s) => s.checked);
   const hasPaidPlan = useAccessStore((s) => s.hasPaidPlan);
+  const extensionGranted = useAccessStore((s) => s.extensionGranted);
+  const unlocked = hasPaidPlan || extensionGranted;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -51,7 +53,7 @@ export default function ExtensaoPage() {
         <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6 text-sm text-slate-400">
           Verificando seu acesso...
         </div>
-      ) : hasPaidPlan ? (
+      ) : unlocked ? (
         <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-6">
           <p className="text-sm font-semibold text-slate-50">Disponível pra você</p>
           <p className="mt-1 text-sm text-slate-300">

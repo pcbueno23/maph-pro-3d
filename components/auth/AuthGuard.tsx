@@ -231,6 +231,7 @@ export function AuthGuard({ children }: Props) {
           trialEndsAt?: string;
           accountCreatedAt?: string;
           hasPaidPlan?: boolean;
+          extensionGranted?: boolean;
           daysRemaining?: number;
           error?: string;
         };
@@ -284,6 +285,7 @@ export function AuthGuard({ children }: Props) {
           trialEndsAt: accessData.trialEndsAt ?? new Date().toISOString(),
           accountCreatedAt: accessData.accountCreatedAt ?? user.created_at,
           hasPaidPlan: Boolean(accessData.hasPaidPlan),
+          extensionGranted: Boolean(accessData.extensionGranted),
           daysRemaining: accessData.daysRemaining ?? 0,
         });
       } catch (e: unknown) {
