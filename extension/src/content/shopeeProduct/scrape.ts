@@ -91,6 +91,43 @@ export function scrapeListing(): ScrapedListing {
   return { price, soldCount, title: title || null };
 }
 
+/**
+ * Acha o elemento do título do anúncio na página (pra inserir o card logo
+ * ABAIXO dele, no fluxo normal da página — igual concorrentes como o "3D
+ * Hunt" — em vez de flutuando fixo no canto). Procura um nó de texto puro
+ * (sem filhos) cujo conteúdo bate exatamente com o título, depois sobe até
+ * achar o "bloco" da seção do título (o pai direto costuma ser só um wrapper
+ * de texto sem outros irmãos relevantes).
+ *
+ * Se não achar (a Shopee mudou a estrutura), devolve null — quem chama cai
+ * de volta pro card flutuante no canto, então isso nunca quebra a extensão,
+ * só faz ela ficar num lugar pior.
+ */
+export function findInsertionAnchor(title: string | null): HTMLElement | null {
+  const normalized = title?.trim();
+  if (!normalized) return null;
+
+  let titleEl: HTMLElement | null = null;
+  const candidates = document.querySelectorAll<HTMLElement>("h1, div, span");
+  for (const el of candidates) {
+    if (el.children.length > 0) continue;
+    if (el.textContent?.trim() === normalized) {
+      titleEl = el;
+      break;
+    }
+  }
+  if (!titleEl) return null;
+
+  let el: HTMLElement = titleEl;
+  for (let i = 0; i < 6; i++) {
+    const parent = el.parentElement;
+    if (!parent) break;
+    if (parent.children.length >= 2 && parent.offsetWidth > 200) return el;
+    el = parent;
+  }
+  return el;
+}
+
 export type EnrichedListing = {
   soldTotal: number | null;
   salesPerDay: number | null;

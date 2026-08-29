@@ -1,17 +1,22 @@
 import { createRoot } from "react-dom/client";
 import { Overlay } from "./Overlay";
-import { scrapeListing, type ScrapedListing } from "./scrape";
+import { scrapeListing, findInsertionAnchor, type ScrapedListing } from "./scrape";
 import { CARD_STYLES } from "../styles";
 
 const HOST_ID = "mp3d-shopee-product-overlay";
 
-/** Monta o card flutuante do anúncio. Devolve uma função de limpeza (usada quando a Shopee navega pra outro tipo de página via SPA, sem recarregar). */
+/** Monta o card do anúncio — logo abaixo do título, no fluxo normal da página, se achar onde encaixar; senão cai pro card flutuante no canto. Devolve uma função de limpeza (usada quando a Shopee navega pra outro tipo de página via SPA, sem recarregar). */
 export function mountProductOverlay(): () => void {
   if (document.getElementById(HOST_ID)) return () => {};
 
+  let listing: ScrapedListing = scrapeListing();
+  const anchor = findInsertionAnchor(listing.title);
+  const inline = anchor != null;
+
   const host = document.createElement("div");
   host.id = HOST_ID;
-  document.body.appendChild(host);
+  if (anchor) anchor.insertAdjacentElement("afterend", host);
+  else document.body.appendChild(host);
 
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
@@ -22,9 +27,7 @@ export function mountProductOverlay(): () => void {
   shadow.appendChild(mountPoint);
 
   const root = createRoot(mountPoint);
-
-  let listing: ScrapedListing = scrapeListing();
-  root.render(<Overlay listing={listing} />);
+  root.render(<Overlay listing={listing} inline={inline} />);
 
   // A Shopee é uma SPA e o preço costuma renderizar um pouco depois do load —
   // reescaneia por alguns segundos até achar um preço, sem ficar pra sempre
@@ -36,7 +39,7 @@ export function mountProductOverlay(): () => void {
     if (next.price != null || attempts > 8) {
       if (next.price !== listing.price || next.soldCount !== listing.soldCount) {
         listing = next;
-        root.render(<Overlay listing={listing} />);
+        root.render(<Overlay listing={listing} inline={inline} />);
       }
       window.clearInterval(poll);
     }

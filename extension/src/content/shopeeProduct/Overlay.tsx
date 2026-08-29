@@ -49,7 +49,7 @@ function ageBucketClass(days: number | null): "new" | "mid" | "old" {
   return "old";
 }
 
-export function Overlay({ listing }: { listing: ScrapedListing }) {
+export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: boolean }) {
   const [ctx, setCtx] = useState<ShopeeContext | null>(null);
   const [enrichResult, setEnrichResult] = useState<EnrichedListingResult | "loading">("loading");
   const [ownCost, setOwnCost] = useLastCost();
@@ -118,7 +118,7 @@ export function Overlay({ listing }: { listing: ScrapedListing }) {
     (enriched.soldTotal == null || enriched.reviewCount == null || enriched.favorites == null);
 
   return (
-    <div className="mp3d-card">
+    <div className={`mp3d-card ${inline ? "mp3d-inline" : "mp3d-floating"}`}>
       <div className="mp3d-card-head">
         <span className="mp3d-brand">Maph Pro 3D</span>
         <button className="mp3d-close" onClick={() => setCollapsed(true)} aria-label="Minimizar">

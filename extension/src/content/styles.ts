@@ -206,13 +206,6 @@ ${BASE}
 export const CARD_STYLES = `
 ${SHARED}
 .mp3d-card {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 2147483000;
-  width: 300px;
-  max-height: 80vh;
-  overflow-y: auto;
   background: rgba(2, 6, 23, 0.96);
   border: 1px solid rgba(51, 65, 85, 0.9);
   border-radius: 16px;
@@ -220,6 +213,25 @@ ${SHARED}
   box-shadow: 0 8px 30px rgba(0,0,0,0.45);
   color: #e2e8f0;
   font-size: 13px;
+}
+/* Local preferido: logo abaixo do título do anúncio, no fluxo normal da
+   página (mesmo lugar onde concorrentes como o "3D Hunt" mostram o painel). */
+.mp3d-card.mp3d-inline {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: 14px 0 18px;
+}
+/* Reserva: quando não achamos onde encaixar no fluxo da página (Shopee mudou
+   a estrutura), volta a flutuar fixo no canto pra nunca ficar invisível. */
+.mp3d-card.mp3d-floating {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483000;
+  width: 300px;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 .mp3d-card-head {
   display: flex;
