@@ -103,29 +103,81 @@ export function scrapeListing(): ScrapedListing {
  * de volta pro card flutuante no canto, então isso nunca quebra a extensão,
  * só faz ela ficar num lugar pior.
  */
-export function findInsertionAnchor(title: string | null): HTMLElement | null {
-  const normalized = title?.trim();
-  if (!normalized) return null;
+function isVisible(el: HTMLElement): boolean {
+  return el.offsetWidth > 0 && el.offsetHeight > 0;
+}
 
-  let titleEl: HTMLElement | null = null;
-  const candidates = document.querySelectorAll<HTMLElement>("h1, div, span");
+function normalizeText(s: string): string {
+  return s.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function findTitleTextEl(normalizedTitle: string): HTMLElement | null {
+  const candidates = Array.from(document.querySelectorAll<HTMLElement>("h1, div, span"));
+
+  // 1ª tentativa: nó de texto puro (sem filhos), visível, batendo exatamente
+  // — é o caso comum. Ignora nós escondidos (a Shopee costuma ter um <h1>
+  // só pra SEO, fora da tela, com o mesmo texto do título visível).
   for (const el of candidates) {
     if (el.children.length > 0) continue;
-    if (el.textContent?.trim() === normalized) {
-      titleEl = el;
-      break;
-    }
+    if (!isVisible(el)) continue;
+    if (normalizeText(el.textContent ?? "") === normalizedTitle) return el;
   }
+
+  // 2ª tentativa: um <h1> visível de verdade na página, mesmo que o texto
+  // dele não bata 100% com o título extraído (og:title/document.title às
+  // vezes vêm com sufixos diferentes do texto real da página).
+  const h1 = Array.from(document.querySelectorAll<HTMLElement>("h1")).find(isVisible);
+  if (h1) return h1;
+
+  // 3ª tentativa: casamento parcial (um contém o outro), só aceitando textos
+  // de tamanho parecido pra não pegar um pedaço pequeno tipo uma migalha de
+  // breadcrumb que por acaso é substring do título.
+  for (const el of candidates) {
+    if (el.children.length > 0) continue;
+    if (!isVisible(el)) continue;
+    const text = normalizeText(el.textContent ?? "");
+    if (text.length < 8) continue;
+    const longer = Math.max(text.length, normalizedTitle.length);
+    const shorter = Math.min(text.length, normalizedTitle.length);
+    if (shorter / longer < 0.6) continue;
+    if (text.includes(normalizedTitle) || normalizedTitle.includes(text)) return el;
+  }
+
+  return null;
+}
+
+/**
+ * Acha o elemento do título do anúncio na página (pra inserir o card logo
+ * ABAIXO dele, no fluxo normal da página — igual concorrentes como o "3D
+ * Hunt" — em vez de flutuando fixo no canto). Sobe a partir do nó de texto
+ * do título até achar o "bloco" da seção inteira (a linha do título costuma
+ * ter poucos irmãos — badge, título; o container que queremos é o nível
+ * acima, que empilha título/avaliação/preço/frete/variação como linhas).
+ *
+ * Se não achar (a Shopee mudou a estrutura), devolve null — quem chama cai
+ * de volta pro card flutuante no canto, então isso nunca quebra a extensão,
+ * só faz ela ficar num lugar pior.
+ */
+export function findInsertionAnchor(title: string | null): HTMLElement | null {
+  const normalized = title ? normalizeText(title) : "";
+  if (!normalized) return null;
+
+  const titleEl = findTitleTextEl(normalized);
   if (!titleEl) return null;
 
   let el: HTMLElement = titleEl;
-  for (let i = 0; i < 6; i++) {
+  let lastWithFewSiblings: HTMLElement = titleEl;
+  for (let i = 0; i < 8; i++) {
     const parent = el.parentElement;
     if (!parent) break;
-    if (parent.children.length >= 2 && parent.offsetWidth > 200) return el;
+    if (parent.children.length >= 4 && parent.offsetWidth > 200) return el;
+    if (parent.children.length >= 2) lastWithFewSiblings = el;
     el = parent;
   }
-  return el;
+  // Nunca achou um nível com 4+ "linhas" irmãs — melhor esforço: o último
+  // nível que já tinha ao menos outro irmão (evita inserir bem dentro da
+  // própria linha do título, ao lado de um badge).
+  return lastWithFewSiblings;
 }
 
 export type EnrichedListing = {
