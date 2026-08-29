@@ -3,29 +3,23 @@ import { Panel } from "./Panel";
 import { watchSearchItems, type EnrichedCard, type SearchDebugInfo } from "./scrape";
 import { extractKeywords } from "./keywordExtract";
 import { computePageStats, groupBySeller, pickChampions } from "./aggregate";
-import { renderMiniCard } from "./miniCard";
+import { upsertMiniCard, pruneMiniCards, repositionAllMiniCards } from "./miniCard";
 import { onDiagnostic, type Diagnostic } from "../../lib/shopeeCapture";
 import { BADGE_STYLES } from "../styles";
 
 const HOST_ID = "mp3d-shopee-search-panel";
-const MINI_CARD_CLASS = "mp3d-mini";
 
 function paintMiniCards(cards: EnrichedCard[]) {
   const champions = pickChampions(cards);
-  const seenEls = new Set<HTMLElement>();
+  const activeEls = new Set<HTMLElement>();
 
   for (const c of cards) {
     if (!c.el) continue;
-    seenEls.add(c.el);
-    renderMiniCard(c, champions.has(c.el));
+    activeEls.add(c.el);
+    upsertMiniCard(c, champions.has(c.el));
   }
 
-  // Limpa mini-cards de anúncios que saíram da lista (ex.: filtro/ordenação mudou).
-  document.querySelectorAll<HTMLElement>(`.${MINI_CARD_CLASS}`).forEach((el) => {
-    const parent = el.parentElement;
-    if (parent && !seenEls.has(parent)) el.remove();
-  });
-
+  pruneMiniCards(activeEls);
   return champions.size;
 }
 
@@ -75,6 +69,12 @@ function start() {
   };
 
   render(true);
+
+  // Coordenadas são absolutas na página (não fixas), então rolar a tela não
+  // precisa de reposicionamento — só resize e o próprio carregamento
+  // preguiçoso das imagens da Shopee, que muda a altura dos cards depois.
+  window.addEventListener("resize", repositionAllMiniCards);
+  for (const delay of [500, 1200, 2500, 4000]) window.setTimeout(repositionAllMiniCards, delay);
 
   onDiagnostic((d) => {
     latestDiagnostic = d;

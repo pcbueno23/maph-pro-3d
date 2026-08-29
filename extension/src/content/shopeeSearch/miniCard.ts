@@ -1,51 +1,52 @@
 /**
- * Card de estatísticas anexado embaixo de CADA anúncio na grade de busca —
- * DOM puro (não React) por performance: uma busca pode ter 60-90 cards, e
- * recriar uma árvore React por card a cada nova captura seria caro. O CSS é
- * injetado uma vez em `document.head` (não em Shadow DOM): esse card precisa
- * participar do fluxo normal do grid da Shopee, empurrando a altura do card
- * pra baixo — Shadow DOM não impediria isso, mas manter tudo num único
- * stylesheet global fica mais simples de manter aqui.
+ * Card de estatísticas exibido embaixo de CADA anúncio na grade de busca.
+ *
+ * Tentei inserir isso DENTRO do card da Shopee (empurrando a altura da linha
+ * da grade pra baixo) — não funciona: a grade deles usa altura fixa por
+ * linha, e a linha seguinte é desenhada por cima de qualquer conteúdo que
+ * "vaze" pra baixo, deixando invisível mesmo estando certinho no HTML
+ * (confirmado inspecionando ao vivo). Por isso isso aqui vive numa camada
+ * separada, fora da árvore da Shopee, posicionada por coordenadas
+ * (`getBoundingClientRect`) — funciona não importa o que a grade deles faça.
+ *
+ * DOM puro (não React) por performance: uma busca pode ter 60-90 cards.
  */
 import type { EnrichedCard } from "./scrape";
 
 const MINI_CARD_CLASS = "mp3d-mini";
 const STYLE_ID = "mp3d-mini-style";
+const LAYER_ID = "mp3d-mini-layer";
 
-export function ensureMiniCardStyles() {
+function ensureMiniCardStyles() {
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
 .${MINI_CARD_CLASS} {
-  margin-top: 6px;
+  position: absolute;
   border-radius: 10px;
-  border: 1px solid rgba(51,65,85,0.7);
-  background: rgba(2,6,23,0.96);
+  border: 1px solid rgba(51,65,85,0.85);
+  background: rgba(2,6,23,0.98);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 11px;
+  font-size: 10.5px;
   color: #e2e8f0;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
   overflow: hidden;
 }
-.${MINI_CARD_CLASS}.champion { border-color: rgba(250,204,21,0.6); box-shadow: 0 0 0 1px rgba(250,204,21,0.25) inset; }
-.${MINI_CARD_CLASS}-actions {
-  display: flex;
-  gap: 4px;
-  padding: 6px;
-  border-bottom: 1px solid rgba(51,65,85,0.6);
-}
+.${MINI_CARD_CLASS}.champion { border-color: rgba(250,204,21,0.7); box-shadow: 0 0 0 1px rgba(250,204,21,0.3) inset, 0 6px 18px rgba(0,0,0,0.35); }
+.${MINI_CARD_CLASS}-actions { display: flex; gap: 3px; padding: 4px; border-bottom: 1px solid rgba(51,65,85,0.6); }
 .${MINI_CARD_CLASS}-actions button {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 22px;
-  border-radius: 6px;
+  height: 19px;
+  border-radius: 5px;
   border: 1px solid rgba(51,65,85,0.7);
   background: rgba(15,23,42,0.7);
   color: #94a3b8;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 10px;
   padding: 0;
 }
 .${MINI_CARD_CLASS}-actions button:hover { color: #67e8f9; border-color: rgba(34,211,238,0.4); }
@@ -53,39 +54,28 @@ export function ensureMiniCardStyles() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 8px;
+  padding: 3px 6px;
   border-bottom: 1px solid rgba(51,65,85,0.5);
-  font-size: 10.5px;
+  font-size: 9.5px;
   color: #94a3b8;
 }
-.${MINI_CARD_CLASS}-age {
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 999px;
-  font-size: 10px;
-}
+.${MINI_CARD_CLASS}-age { font-weight: 700; padding: 1px 5px; border-radius: 999px; font-size: 9px; }
 .${MINI_CARD_CLASS}-age.new { background: rgba(52,211,153,0.15); color: #34d399; }
 .${MINI_CARD_CLASS}-age.mid { background: rgba(251,191,36,0.15); color: #fbbf24; }
 .${MINI_CARD_CLASS}-age.old { background: rgba(251,113,133,0.15); color: #fb7185; }
-.${MINI_CARD_CLASS}-rows { padding: 2px 8px; }
-.${MINI_CARD_CLASS}-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 3.5px 0;
-  border-bottom: 1px solid rgba(51,65,85,0.35);
-}
+.${MINI_CARD_CLASS}-rows { padding: 1px 6px; }
+.${MINI_CARD_CLASS}-row { display: flex; align-items: center; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid rgba(51,65,85,0.3); }
 .${MINI_CARD_CLASS}-row:last-child { border-bottom: none; }
-.${MINI_CARD_CLASS}-row-label { display: flex; align-items: center; gap: 5px; color: #94a3b8; }
+.${MINI_CARD_CLASS}-row-label { display: flex; align-items: center; gap: 4px; color: #94a3b8; }
 .${MINI_CARD_CLASS}-row-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 4px;
   background: rgba(99,102,241,0.15);
-  font-size: 9px;
+  font-size: 8px;
   flex-shrink: 0;
 }
 .${MINI_CARD_CLASS}-row-value { font-weight: 700; color: #f1f5f9; }
@@ -95,16 +85,48 @@ export function ensureMiniCardStyles() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: 4px;
+  padding: 4px 6px;
   border-top: 1px solid rgba(51,65,85,0.6);
-  font-size: 10px;
+  font-size: 9px;
   color: #94a3b8;
 }
 .${MINI_CARD_CLASS}-footer b { color: #cbd5e1; font-weight: 600; }
+.${MINI_CARD_CLASS}-toggle {
+  position: absolute;
+  top: -9px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(51,65,85,0.9);
+  background: #0f172a;
+  color: #94a3b8;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 `;
   document.head.appendChild(style);
 }
+
+function getLayer(): HTMLElement {
+  let layer = document.getElementById(LAYER_ID);
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.id = LAYER_ID;
+    layer.style.cssText = "position:absolute; top:0; left:0; width:0; height:0; pointer-events:none; z-index:2147483000;";
+    document.body.appendChild(layer);
+  }
+  return layer;
+}
+
+/** card.el -> elemento mini-card já criado (evita recriar do zero a cada render). */
+const registry = new Map<HTMLElement, HTMLElement>();
+/** card.el -> se está no modo compacto (colapsado pelo usuário). */
+const collapsedState = new WeakMap<HTMLElement, boolean>();
 
 function ageBucketClass(days: number | null): "new" | "mid" | "old" {
   if (days == null) return "mid";
@@ -147,15 +169,26 @@ function summaryText(card: EnrichedCard): string {
   return lines.filter(Boolean).join("\n");
 }
 
-/** Cria (ou atualiza, se já existir) o mini-card de estatísticas dentro de `card.el`. */
-export function renderMiniCard(card: EnrichedCard, isChampion: boolean) {
-  if (!card.el) return;
-  ensureMiniCardStyles();
-
-  card.el.querySelector(`.${MINI_CARD_CLASS}`)?.remove();
-
+function buildMiniCard(card: EnrichedCard, isChampion: boolean): HTMLElement {
   const mini = document.createElement("div");
   mini.className = MINI_CARD_CLASS + (isChampion ? " champion" : "");
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = `${MINI_CARD_CLASS}-toggle`;
+  toggle.title = "Esconder/mostrar este card";
+  toggle.textContent = "–";
+  toggle.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const collapsed = !collapsedState.get(card.el!);
+    collapsedState.set(card.el!, collapsed);
+    body.style.display = collapsed ? "none" : "";
+    toggle.textContent = collapsed ? "+" : "–";
+  };
+  mini.appendChild(toggle);
+
+  const body = document.createElement("div");
 
   const actions = document.createElement("div");
   actions.className = `${MINI_CARD_CLASS}-actions`;
@@ -201,7 +234,7 @@ export function renderMiniCard(card: EnrichedCard, isChampion: boolean) {
   };
 
   actions.append(downloadBtn, makerWorldBtn, copyBtn);
-  mini.appendChild(actions);
+  body.appendChild(actions);
 
   const created = document.createElement("div");
   created.className = `${MINI_CARD_CLASS}-created`;
@@ -210,7 +243,7 @@ export function renderMiniCard(card: EnrichedCard, isChampion: boolean) {
     <span>📅 ${card.createdAt ? card.createdAt.toLocaleDateString("pt-BR") : "data desconhecida"}</span>
     <span class="${MINI_CARD_CLASS}-age ${bucket}">${card.createdDaysAgo != null ? `${card.createdDaysAgo}d` : "?"}</span>
   `;
-  mini.appendChild(created);
+  body.appendChild(created);
 
   const rows = document.createElement("div");
   rows.className = `${MINI_CARD_CLASS}-rows`;
@@ -223,25 +256,78 @@ export function renderMiniCard(card: EnrichedCard, isChampion: boolean) {
       isChampion ? "champ" : undefined,
     ),
   );
-  rows.appendChild(row("Avaliações", "💬", card.reviewCount != null ? String(card.reviewCount) : "—"));
-  rows.appendChild(row("Nota", "⭐", card.rating != null ? card.rating.toFixed(1) : "—"));
+  rows.appendChild(row("Nota", "⭐", card.rating != null ? `${card.rating.toFixed(1)} (${card.reviewCount ?? 0})` : "—"));
   rows.appendChild(row("Favoritos", "❤", card.liked != null ? String(card.liked) : "—"));
-
   if (card.price != null && card.sold != null) {
     rows.appendChild(row("Faturamento total", "💰", fmtBRL(card.price * card.sold), "money"));
   }
   if (card.price != null && card.salesPerDay != null) {
-    rows.appendChild(row("Faturamento/dia", "📈", fmtBRL(card.price * card.salesPerDay), "money"));
     rows.appendChild(row("Faturamento/mês", "🏦", fmtBRL(card.price * card.salesPerDay * 30), "money"));
   }
-  mini.appendChild(rows);
+  body.appendChild(rows);
 
   if (card.sellerName) {
     const footer = document.createElement("div");
     footer.className = `${MINI_CARD_CLASS}-footer`;
     footer.innerHTML = `<b>${card.sellerName}</b><span>${card.sellerLocation ?? ""}${card.isInternational ? " · internacional" : ""}</span>`;
-    mini.appendChild(footer);
+    body.appendChild(footer);
   }
 
-  card.el.appendChild(mini);
+  mini.appendChild(body);
+  if (collapsedState.get(card.el!)) {
+    body.style.display = "none";
+    toggle.textContent = "+";
+  }
+  return mini;
+}
+
+function positionMiniCard(mini: HTMLElement, cardEl: HTMLElement) {
+  const rect = cardEl.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) {
+    // Card saiu da tela/DOM (ex.: filtro mudou) — esconde em vez de deixar em (0,0).
+    mini.style.display = "none";
+    return;
+  }
+  mini.style.display = "";
+  mini.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  mini.style.left = `${rect.left + window.scrollX}px`;
+  mini.style.width = `${rect.width}px`;
+  mini.style.pointerEvents = "auto";
+}
+
+/** Cria (ou atualiza) o mini-card de `card` na camada de overlay e reposiciona sobre o card real. */
+export function upsertMiniCard(card: EnrichedCard, isChampion: boolean) {
+  if (!card.el) return;
+  ensureMiniCardStyles();
+
+  let mini = registry.get(card.el);
+  if (!mini) {
+    mini = buildMiniCard(card, isChampion);
+    registry.set(card.el, mini);
+    getLayer().appendChild(mini);
+  } else {
+    const rebuilt = buildMiniCard(card, isChampion);
+    mini.replaceWith(rebuilt);
+    registry.set(card.el, rebuilt);
+    mini = rebuilt;
+  }
+  positionMiniCard(mini, card.el);
+}
+
+/** Remove mini-cards de anúncios que não estão mais na lista atual (ex.: filtro/ordenação mudou). */
+export function pruneMiniCards(activeEls: Set<HTMLElement>) {
+  for (const [el, mini] of registry) {
+    if (!activeEls.has(el) || !document.contains(el)) {
+      mini.remove();
+      registry.delete(el);
+    }
+  }
+}
+
+/** Reposiciona todos os mini-cards ativos — chamar em scroll/resize (a posição é em coordenadas de página, então só precisa disso se o layout mudar de tamanho, não a cada scroll). */
+export function repositionAllMiniCards() {
+  for (const [el, mini] of registry) {
+    if (!document.contains(el)) continue;
+    positionMiniCard(mini, el);
+  }
 }
