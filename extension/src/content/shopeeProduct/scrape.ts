@@ -114,7 +114,13 @@ export async function fetchEnrichedListing(): Promise<EnrichedListing | null> {
     "../../lib/shopeeApi"
   );
   const ids = parseItemUrl(location.href);
-  if (!ids) return null;
+  if (!ids) {
+    console.error(
+      `[Maph Pro 3D] não achei o padrão "-i.<shopId>.<itemId>" na URL: ${location.href}`,
+    );
+    return null;
+  }
+  console.debug("[Maph Pro 3D] shopId/itemId detectados:", ids);
 
   const item = await fetchItemDetail(ids.shopId, ids.itemId);
   if (!item) return null;

@@ -44,9 +44,20 @@ export function parseItemUrl(url: string): { shopId: string; itemId: string } | 
 async function fetchJson(url: string): Promise<any | null> {
   try {
     const res = await fetch(url, { credentials: "include" });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
+    if (!res.ok) {
+      console.error(`[Maph Pro 3D] ${url} respondeu ${res.status} ${res.statusText}`);
+      try {
+        console.error("[Maph Pro 3D] corpo da resposta:", await res.text());
+      } catch {
+        /* ignora — só era pra log */
+      }
+      return null;
+    }
+    const json = await res.json();
+    console.debug(`[Maph Pro 3D] ${url} ->`, json);
+    return json;
+  } catch (err) {
+    console.error(`[Maph Pro 3D] falha de rede em ${url}`, err);
     return null;
   }
 }
@@ -56,7 +67,12 @@ export async function fetchItemDetail(shopId: string, itemId: string): Promise<S
     `https://shopee.com.br/api/v4/item/get?itemid=${itemId}&shopid=${shopId}`,
   );
   const item = data?.data ?? data?.item;
-  if (!item) return null;
+  if (!item) {
+    console.error(
+      "[Maph Pro 3D] resposta do item/get não trouxe data.item — formato inesperado. JSON completo acima.",
+    );
+    return null;
+  }
 
   return {
     itemId,
