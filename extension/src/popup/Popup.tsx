@@ -36,7 +36,7 @@ export function Popup() {
       return;
     }
     setStep("code");
-    setInfo(`Mandamos um código de 6 dígitos pra ${email}. Confira sua caixa de entrada.`);
+    setInfo(`Mandamos um código de acesso pra ${email}. Confira sua caixa de entrada.`);
   }
 
   async function handleVerifyCode(e: React.FormEvent) {
@@ -102,13 +102,13 @@ export function Popup() {
           {error && <div className="pop-error">{error}</div>}
           {info && <p className="pop-muted" style={{ marginTop: 0 }}>{info}</p>}
           <div className="pop-field">
-            <label htmlFor="code">Código de 6 dígitos</label>
+            <label htmlFor="code">Código de acesso</label>
             <input
               id="code"
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
+              maxLength={12}
               required
               value={code}
               onChange={(e) => setCode(e.currentTarget.value.replace(/\D/g, ""))}
