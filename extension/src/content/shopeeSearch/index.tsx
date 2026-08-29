@@ -3,6 +3,7 @@ import { Panel } from "./Panel";
 import { watchSearchItems, type EnrichedCard } from "./scrape";
 import { extractKeywords } from "./keywordExtract";
 import { computePageStats, groupBySeller, pickChampions } from "./aggregate";
+import { onDiagnostic, type Diagnostic } from "../../lib/shopeeCapture";
 import { BADGE_STYLES } from "../styles";
 
 const HOST_ID = "mp3d-shopee-search-panel";
@@ -46,51 +47,43 @@ function mountPanel(): Root {
 function start() {
   if (document.getElementById(HOST_ID)) return;
   const root = mountPanel();
+
+  let latestCards: EnrichedCard[] = [];
+  let latestDiagnostic: Diagnostic | null = null;
   let received = false;
 
-  const renderEmpty = () => {
-    root.render(
-      <Panel
-        loading={true}
-        championCount={0}
-        stats={computePageStats([])}
-        sellers={[]}
-        keywords={[]}
-        onRescan={() => {
-          /* rescan é automático — a Shopee reemite a chamada ao rolar/filtrar */
-        }}
-      />,
-    );
-  };
-  renderEmpty();
-
-  watchSearchItems((cards) => {
-    received = true;
-    const championCount = paintChampionBadges(cards);
-    const stats = computePageStats(cards);
-    const sellers = groupBySeller(cards);
-    const titles = cards.map((c) => c.name).filter((t): t is string => !!t);
+  const render = (loading: boolean) => {
+    const championCount = paintChampionBadges(latestCards);
+    const stats = computePageStats(latestCards);
+    const sellers = groupBySeller(latestCards);
+    const titles = latestCards.map((c) => c.name).filter((t): t is string => !!t);
     const keywords = extractKeywords(titles);
 
     root.render(
       <Panel
-        loading={false}
+        loading={loading}
         championCount={championCount}
         stats={stats}
         sellers={sellers}
         keywords={keywords}
+        diagnostic={latestDiagnostic}
         onRescan={() => window.location.reload()}
       />,
     );
+  };
+
+  render(true);
+
+  onDiagnostic((d) => {
+    latestDiagnostic = d;
+    render(!received);
   });
 
-  window.setTimeout(() => {
-    if (!received) {
-      console.error(
-        "[Maph Pro 3D] não capturei nenhuma chamada de search_items nos primeiros segundos — role a página pra forçar a Shopee a buscar mais resultados.",
-      );
-    }
-  }, 8000);
+  watchSearchItems((cards) => {
+    received = true;
+    latestCards = cards;
+    render(false);
+  });
 }
 
 start();

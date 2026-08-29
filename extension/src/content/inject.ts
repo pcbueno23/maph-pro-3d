@@ -43,12 +43,31 @@ window.addEventListener("mp3d:request-cache", ((e: CustomEvent<{ key: CapturePat
   }
 }) as EventListener);
 
+// Diagnóstico visível na própria tela (painel) em vez de depender do usuário
+// vasculhar o console — mostra que o interceptor está de fato vivo e vendo
+// tráfego, mesmo que nada tenha batido com os padrões observados ainda.
+const diagnostic = {
+  loadedAt: Date.now(),
+  fetchesSeen: 0,
+  lastUrl: null as string | null,
+  matchedCounts: {} as Partial<Record<CapturePatternKey, number>>,
+};
+function broadcastDiagnostic() {
+  window.dispatchEvent(new CustomEvent("mp3d:diagnostic", { detail: { ...diagnostic } }));
+}
+window.addEventListener("mp3d:request-diagnostic", broadcastDiagnostic);
+broadcastDiagnostic();
+
 const originalFetch = window.fetch;
 window.fetch = async function patchedFetch(...args: Parameters<typeof fetch>) {
   const response = await originalFetch.apply(this, args);
   try {
     const url = typeof args[0] === "string" ? args[0] : (args[0] as Request).url;
-    if (matchedKey(url)) {
+    diagnostic.fetchesSeen += 1;
+    diagnostic.lastUrl = url;
+    const key = matchedKey(url);
+    if (key) {
+      diagnostic.matchedCounts[key] = (diagnostic.matchedCounts[key] ?? 0) + 1;
       response
         .clone()
         .json()
@@ -57,6 +76,7 @@ window.fetch = async function patchedFetch(...args: Parameters<typeof fetch>) {
           /* corpo não é JSON — ignora */
         });
     }
+    broadcastDiagnostic();
   } catch {
     /* nunca deixa o interceptor quebrar a página */
   }

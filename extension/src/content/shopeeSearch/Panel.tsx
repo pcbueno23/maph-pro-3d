@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import type { KeywordHit } from "./keywordExtract";
 import type { PageStats, SellerGroup } from "./aggregate";
+import type { Diagnostic } from "../../lib/shopeeCapture";
+import type { CapturePatternKey } from "../../lib/shopeeCapturePatterns";
 
 function fmtBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -13,7 +15,13 @@ function fmtNum(v: number) {
   return Math.round(v).toLocaleString("pt-BR");
 }
 
-type Tab = "raiox" | "vendedores" | "palavras";
+type Tab = "raiox" | "vendedores" | "palavras" | "diagnostico";
+
+const PATTERN_LABELS: Record<CapturePatternKey, string> = {
+  pdpGetPc: "Detalhe do anúncio (pdp/get_pc)",
+  searchItems: "Resultados da busca (search_items)",
+  itemGet: "item/get (endpoint antigo, fallback)",
+};
 
 export function Panel({
   loading,
@@ -21,6 +29,7 @@ export function Panel({
   stats,
   sellers,
   keywords,
+  diagnostic,
   onRescan,
 }: {
   loading: boolean;
@@ -28,6 +37,7 @@ export function Panel({
   stats: PageStats;
   sellers: SellerGroup[];
   keywords: KeywordHit[];
+  diagnostic: Diagnostic | null;
   onRescan: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -72,6 +82,13 @@ export function Panel({
           onClick={() => setTab("palavras")}
         >
           Palavras-chave
+        </button>
+        <button
+          className={tab === "diagnostico" ? "mp3d-tab active" : "mp3d-tab"}
+          onClick={() => setTab("diagnostico")}
+          title="Estado interno do interceptor — útil pra depurar se algo não aparecer"
+        >
+          ⚙
         </button>
       </div>
 
@@ -168,6 +185,49 @@ export function Panel({
             ))}
           </div>
         </>
+      )}
+
+      {tab === "diagnostico" && (
+        <div style={{ marginTop: 8 }}>
+          <p className="mp3d-muted">
+            Estado do interceptor (o script que espia as chamadas que a própria Shopee faz). Se
+            algo não aparecer nos outros painéis, olhe aqui primeiro.
+          </p>
+          {diagnostic == null ? (
+            <p className="mp3d-warn">Interceptor não respondeu ainda — a página pode não ter carregado o script.</p>
+          ) : (
+            <>
+              <div className="mp3d-row">
+                <span>Interceptor ativo há</span>
+                <strong>{Math.round((Date.now() - diagnostic.loadedAt) / 1000)}s</strong>
+              </div>
+              <div className="mp3d-row">
+                <span>Chamadas de rede vistas</span>
+                <strong>{diagnostic.fetchesSeen}</strong>
+              </div>
+              <div className="mp3d-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
+                <span>Última URL vista</span>
+                <strong style={{ wordBreak: "break-all", fontSize: 10.5 }}>
+                  {diagnostic.lastUrl ?? "nenhuma ainda"}
+                </strong>
+              </div>
+              <p className="mp3d-section-label">Capturas por tipo</p>
+              {(Object.keys(PATTERN_LABELS) as CapturePatternKey[]).map((key) => (
+                <div key={key} className="mp3d-row">
+                  <span>{PATTERN_LABELS[key]}</span>
+                  <strong>{diagnostic.matchedCounts[key] ?? 0}</strong>
+                </div>
+              ))}
+              {diagnostic.fetchesSeen > 0 && (diagnostic.matchedCounts.searchItems ?? 0) === 0 && (
+                <p className="mp3d-warn" style={{ marginTop: 8 }}>
+                  O interceptor está vendo chamadas de rede, mas nenhuma bateu com "search_items"
+                  — a Shopee pode ter renomeado o endpoint, ou a página carregou os resultados de
+                  outro jeito. Role a página pra forçar mais chamadas.
+                </p>
+              )}
+            </>
+          )}
+        </div>
       )}
 
       <button className="mp3d-btn" onClick={onRescan} style={{ marginTop: 10 }}>

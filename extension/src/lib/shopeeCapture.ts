@@ -59,3 +59,22 @@ export function onCapture(
   window.dispatchEvent(new CustomEvent("mp3d:request-cache", { detail: { key: patternKey } }));
   return () => window.removeEventListener("mp3d:shopee-api", handler as EventListener);
 }
+
+export type Diagnostic = {
+  loadedAt: number;
+  fetchesSeen: number;
+  lastUrl: string | null;
+  matchedCounts: Partial<Record<CapturePatternKey, number>>;
+};
+
+/**
+ * Estado ao vivo do interceptor (MAIN world) — pra mostrar direto na tela
+ * que ele está de fato ativo, sem precisar abrir o console. `onUpdate`
+ * dispara de novo a cada fetch que a página faz.
+ */
+export function onDiagnostic(onUpdate: (d: Diagnostic) => void): () => void {
+  const handler = (e: CustomEvent<Diagnostic>) => onUpdate(e.detail);
+  window.addEventListener("mp3d:diagnostic", handler as EventListener);
+  window.dispatchEvent(new CustomEvent("mp3d:request-diagnostic"));
+  return () => window.removeEventListener("mp3d:diagnostic", handler as EventListener);
+}

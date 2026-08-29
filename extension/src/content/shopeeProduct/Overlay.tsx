@@ -8,6 +8,7 @@ import {
 import { sendToBackground } from "../../lib/messaging";
 import type { ShopeeContext } from "../../lib/messaging";
 import { fetchEnrichedListing, type EnrichedListing, type ScrapedListing } from "./scrape";
+import { onDiagnostic, type Diagnostic } from "../../lib/shopeeCapture";
 
 const LAST_COST_KEY = "mp3d_last_own_cost";
 
@@ -40,10 +41,13 @@ export function Overlay({ listing }: { listing: ScrapedListing }) {
   const [enriched, setEnriched] = useState<EnrichedListing | null | "loading">("loading");
   const [ownCost, setOwnCost] = useLastCost();
   const [collapsed, setCollapsed] = useState(false);
+  const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null);
 
   useEffect(() => {
     sendToBackground({ type: "GET_SHOPEE_CONTEXT" }).then(setCtx);
   }, []);
+
+  useEffect(() => onDiagnostic(setDiagnostic), []);
 
   useEffect(() => {
     fetchEnrichedListing().then((r) => setEnriched(r ?? null));
@@ -102,10 +106,18 @@ export function Overlay({ listing }: { listing: ScrapedListing }) {
         </div>
       )}
       {enriched === null && (
-        <p className="mp3d-muted">
-          Não consegui buscar os dados detalhados deste anúncio (nota, favoritos, idade) — a Shopee
-          pode ter mudado o formato da resposta.
-        </p>
+        <>
+          <p className="mp3d-muted">
+            Não consegui buscar os dados detalhados deste anúncio (nota, favoritos, idade) — a
+            Shopee pode ter mudado o formato da resposta.
+          </p>
+          {diagnostic && (
+            <p className="mp3d-muted" style={{ fontSize: 10.5 }}>
+              Diagnóstico: {diagnostic.fetchesSeen} chamada(s) de rede vistas ·{" "}
+              {diagnostic.matchedCounts.pdpGetPc ?? 0} bateram com "pdp/get_pc".
+            </p>
+          )}
+        </>
       )}
 
       {enriched && enriched !== "loading" && (
