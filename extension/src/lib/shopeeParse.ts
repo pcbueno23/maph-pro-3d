@@ -51,6 +51,17 @@ function sumRatingCount(arr: unknown): number | null {
   return Number.isFinite(sum) ? sum : null;
 }
 
+/** `pdp/get_pc` só traz "vendidos" como texto formatado ("672", "1,2mil") — não como número limpo. */
+function parseDisplayCount(value: unknown): number | null {
+  if (typeof value === "number") return value;
+  if (typeof value !== "string") return null;
+  const lower = value.toLowerCase();
+  const cleaned = lower.replace(/[^\d,.-]/g, "").replace(",", ".");
+  const n = parseFloat(cleaned);
+  if (!Number.isFinite(n)) return null;
+  return lower.includes("mil") ? Math.round(n * 1000) : Math.round(n);
+}
+
 /**
  * Parseia um item de `search_items` (orgânico OU patrocinado) ou de
  * `pdp/get_pc`. Cada campo tenta, nessa ordem: formato orgânico
@@ -154,17 +165,40 @@ export function parseItemNode(node: any): ParsedItem {
   };
 }
 
-/** `pdp/get_pc`: o item costuma vir em algum desses caminhos. */
+/**
+ * `pdp/get_pc`: o item vem em `data.item`, mas vendidos/avaliações/favoritos
+ * de verdade ficam numa seção IRMÃ — `data.product_review` — não dentro do
+ * item (confirmado com resposta real capturada ao vivo em 29/08/2026:
+ * `product_review.liked_count`, `product_review.total_rating_count`,
+ * `product_review.historical_sold_display` — esse último só existe como
+ * texto formatado "672", não como número).
+ */
 export function parsePdpGetPc(json: unknown): ParsedItem | null {
   const item = pick<object>(json, ["data.item", "item", "data.item_detail.item"]);
   if (!item) return null;
 
   const parsed = parseItemNode(item);
+
+  const reviewNode = pick<any>(json, ["data.product_review", "product_review"]);
+  if (reviewNode) {
+    parsed.sold =
+      parsed.sold ??
+      parseDisplayCount(
+        pick(reviewNode, ["historical_sold_display", "sold_count_display", "global_sold_display"]),
+      ) ??
+      pick<number>(reviewNode, ["historical_sold", "global_sold"]);
+    parsed.liked = parsed.liked ?? pick<number>(reviewNode, ["liked_count"]);
+    parsed.reviewCount =
+      parsed.reviewCount ?? pick<number>(reviewNode, ["total_rating_count", "cmt_count"]);
+    parsed.rating = parsed.rating ?? pick<number>(reviewNode, ["rating_star"]);
+  }
+
   // Vendedor às vezes vem numa seção irmã (data.shop_detailed), não dentro do item.
   const shopNode = pick<object>(json, ["data.shop_detailed", "data.shop", "shop_detailed"]);
   if (shopNode) {
     parsed.sellerName = parsed.sellerName ?? pick<string>(shopNode, ["name", "shop_name"]);
-    parsed.sellerLocation = parsed.sellerLocation ?? pick<string>(shopNode, ["shop_location"]);
+    parsed.sellerLocation =
+      parsed.sellerLocation ?? pick<string>(shopNode, ["place", "shop_location"]);
     parsed.isInternational = parsed.isInternational || Boolean(pick(shopNode, ["is_cb"]));
   }
   return parsed;
