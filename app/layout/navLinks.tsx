@@ -17,6 +17,7 @@ import {
   User,
   GraduationCap,
   MessageCircle,
+  Puzzle,
 } from "lucide-react";
 
 export type NavLinkItem = {
@@ -77,6 +78,7 @@ export const navGroups: NavGroup[] = [
 /** Links secundários — acima do divisor */
 export const secondaryNavLinksBeforeDivider: NavLinkItem[] = [
   { href: "/tutorial", label: "Tutorial", icon: GraduationCap },
+  { href: "/extensao", label: "Extensão", icon: Puzzle },
   { href: "/suporte", label: "Suporte", icon: MessageCircle },
   { href: "/promocoes", label: "Promoções", icon: Percent },
   { href: "/fornecedores", label: "Fornecedores", icon: Store },
