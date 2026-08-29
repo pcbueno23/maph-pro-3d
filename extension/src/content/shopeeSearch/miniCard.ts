@@ -127,6 +127,22 @@ function getLayer(): HTMLElement {
 const registry = new Map<HTMLElement, HTMLElement>();
 /** card.el -> se está no modo compacto (colapsado pelo usuário). */
 const collapsedState = new WeakMap<HTMLElement, boolean>();
+/** card.el -> margin-bottom original (pra restaurar quando o mini-card some). */
+const originalMargins = new WeakMap<HTMLElement, string>();
+
+/**
+ * Empurra a linha seguinte da grade pra baixo, dando espaço pro mini-card
+ * sem sobrepor o próximo anúncio — `margin-bottom` funciona mesmo sem
+ * conseguir fazer a grade da Shopee "crescer" por dentro, porque margem é
+ * espaço por fora da caixa do card, não depende do conteúdo interno dela.
+ */
+function applySpacing(cardEl: HTMLElement, mini: HTMLElement) {
+  if (!originalMargins.has(cardEl)) {
+    originalMargins.set(cardEl, cardEl.style.marginBottom || "");
+  }
+  const gap = 10;
+  cardEl.style.marginBottom = `${mini.offsetHeight + gap}px`;
+}
 
 function ageBucketClass(days: number | null): "new" | "mid" | "old" {
   if (days == null) return "mid";
@@ -185,6 +201,7 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean): HTMLElement {
     collapsedState.set(card.el!, collapsed);
     body.style.display = collapsed ? "none" : "";
     toggle.textContent = collapsed ? "+" : "–";
+    applySpacing(card.el!, mini);
   };
   mini.appendChild(toggle);
 
@@ -281,18 +298,20 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean): HTMLElement {
   return mini;
 }
 
-function positionMiniCard(mini: HTMLElement, cardEl: HTMLElement) {
+/** Retorna false quando o mini-card ficou escondido (card sumiu/saiu do fluxo) — quem chama pula `applySpacing` nesse caso. */
+function positionMiniCard(mini: HTMLElement, cardEl: HTMLElement): boolean {
   const rect = cardEl.getBoundingClientRect();
   if (rect.width === 0 && rect.height === 0) {
     // Card saiu da tela/DOM (ex.: filtro mudou) — esconde em vez de deixar em (0,0).
     mini.style.display = "none";
-    return;
+    return false;
   }
   mini.style.display = "";
   mini.style.top = `${rect.bottom + window.scrollY + 4}px`;
   mini.style.left = `${rect.left + window.scrollX}px`;
   mini.style.width = `${rect.width}px`;
   mini.style.pointerEvents = "auto";
+  return true;
 }
 
 /** Cria (ou atualiza) o mini-card de `card` na camada de overlay e reposiciona sobre o card real. */
@@ -311,15 +330,17 @@ export function upsertMiniCard(card: EnrichedCard, isChampion: boolean) {
     registry.set(card.el, rebuilt);
     mini = rebuilt;
   }
-  positionMiniCard(mini, card.el);
+  if (positionMiniCard(mini, card.el)) applySpacing(card.el, mini);
 }
 
-/** Remove mini-cards de anúncios que não estão mais na lista atual (ex.: filtro/ordenação mudou). */
+/** Remove mini-cards de anúncios que não estão mais na lista atual (ex.: filtro/ordenação mudou) — restaura a margem original do card. */
 export function pruneMiniCards(activeEls: Set<HTMLElement>) {
   for (const [el, mini] of registry) {
     if (!activeEls.has(el) || !document.contains(el)) {
       mini.remove();
       registry.delete(el);
+      el.style.marginBottom = originalMargins.get(el) ?? "";
+      originalMargins.delete(el);
     }
   }
 }
@@ -328,6 +349,6 @@ export function pruneMiniCards(activeEls: Set<HTMLElement>) {
 export function repositionAllMiniCards() {
   for (const [el, mini] of registry) {
     if (!document.contains(el)) continue;
-    positionMiniCard(mini, el);
+    if (positionMiniCard(mini, el)) applySpacing(el, mini);
   }
 }
