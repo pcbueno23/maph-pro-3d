@@ -12,6 +12,7 @@
  * DOM puro (não React) por performance: uma busca pode ter 60-90 cards.
  */
 import type { EnrichedCard } from "./scrape";
+import { sendToBackground } from "../../lib/messaging";
 
 const MINI_CARD_CLASS = "mp3d-mini";
 const STYLE_ID = "mp3d-mini-style";
@@ -108,6 +109,36 @@ function ensureMiniCardStyles() {
   align-items: center;
   justify-content: center;
 }
+.${MINI_CARD_CLASS}-content { position: relative; }
+.${MINI_CARD_CLASS}-content.locked > *:not(.${MINI_CARD_CLASS}-lock) {
+  filter: blur(4px);
+  user-select: none;
+  pointer-events: none;
+}
+.${MINI_CARD_CLASS}-lock {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  text-align: center;
+  padding: 4px;
+  background: rgba(2,6,23,0.5);
+}
+.${MINI_CARD_CLASS}-lock span { font-size: 9.5px; color: #e2e8f0; font-weight: 600; }
+.${MINI_CARD_CLASS}-lock button {
+  background: linear-gradient(90deg, #06b6d4, #10b981);
+  color: #04121a;
+  border: none;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-weight: 700;
+  font-size: 9.5px;
+  cursor: pointer;
+}
 `;
   document.head.appendChild(style);
 }
@@ -202,7 +233,7 @@ function summaryText(card: EnrichedCard): string {
   return lines.filter(Boolean).join("\n");
 }
 
-function buildMiniCard(card: EnrichedCard, isChampion: boolean): HTMLElement {
+function buildMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean): HTMLElement {
   const mini = document.createElement("div");
   mini.className = MINI_CARD_CLASS + (isChampion ? " champion" : "");
 
@@ -270,6 +301,9 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean): HTMLElement {
   actions.append(downloadBtn, makerWorldBtn, copyBtn);
   body.appendChild(actions);
 
+  const content = document.createElement("div");
+  content.className = `${MINI_CARD_CLASS}-content${locked ? " locked" : ""}`;
+
   const created = document.createElement("div");
   created.className = `${MINI_CARD_CLASS}-created`;
   const bucket = ageBucketClass(card.createdDaysAgo);
@@ -277,7 +311,7 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean): HTMLElement {
     <span>📅 ${card.createdAt ? card.createdAt.toLocaleDateString("pt-BR") : "data desconhecida"}</span>
     <span class="${MINI_CARD_CLASS}-age ${bucket}">${card.createdDaysAgo != null ? `${card.createdDaysAgo}d` : "?"}</span>
   `;
-  body.appendChild(created);
+  content.appendChild(created);
 
   const rows = document.createElement("div");
   rows.className = `${MINI_CARD_CLASS}-rows`;
@@ -298,15 +332,33 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean): HTMLElement {
   if (card.price != null && card.salesPerDay != null) {
     rows.appendChild(row("Faturamento/mês", "🏦", fmtBRL(card.price * card.salesPerDay * 30), "money"));
   }
-  body.appendChild(rows);
+  content.appendChild(rows);
 
   if (card.sellerName) {
     const footer = document.createElement("div");
     footer.className = `${MINI_CARD_CLASS}-footer`;
     footer.innerHTML = `<b>${card.sellerName}</b><span>${card.sellerLocation ?? ""}${card.isInternational ? " · internacional" : ""}</span>`;
-    body.appendChild(footer);
+    content.appendChild(footer);
   }
 
+  if (locked) {
+    const lock = document.createElement("div");
+    lock.className = `${MINI_CARD_CLASS}-lock`;
+    const lockLabel = document.createElement("span");
+    lockLabel.textContent = "🔒 Login pra ver";
+    const lockBtn = document.createElement("button");
+    lockBtn.type = "button";
+    lockBtn.textContent = "Entrar";
+    lockBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      sendToBackground({ type: "OPEN_POPUP_TAB" });
+    };
+    lock.append(lockLabel, lockBtn);
+    content.appendChild(lock);
+  }
+
+  body.appendChild(content);
   mini.appendChild(body);
   if (collapsedState.get(card.el!)) {
     body.style.display = "none";
@@ -331,18 +383,18 @@ function positionMiniCard(mini: HTMLElement, cardEl: HTMLElement): boolean {
   return true;
 }
 
-/** Cria (ou atualiza) o mini-card de `card` na camada de overlay e reposiciona sobre o card real. */
-export function upsertMiniCard(card: EnrichedCard, isChampion: boolean) {
+/** Cria (ou atualiza) o mini-card de `card` na camada de overlay e reposiciona sobre o card real. `locked` borra os dados até o usuário logar numa conta do Maph Pro 3D. */
+export function upsertMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean) {
   if (!card.el) return;
   ensureMiniCardStyles();
 
   let mini = registry.get(card.el);
   if (!mini) {
-    mini = buildMiniCard(card, isChampion);
+    mini = buildMiniCard(card, isChampion, locked);
     registry.set(card.el, mini);
     getLayer().appendChild(mini);
   } else {
-    const rebuilt = buildMiniCard(card, isChampion);
+    const rebuilt = buildMiniCard(card, isChampion, locked);
     mini.replaceWith(rebuilt);
     registry.set(card.el, rebuilt);
     mini = rebuilt;

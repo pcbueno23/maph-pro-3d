@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { KeywordHit } from "./keywordExtract";
 import type { PageStats, SellerGroup, FilterKey } from "./aggregate";
 import type { Diagnostic } from "../../lib/shopeeCapture";
 import type { CapturePatternKey } from "../../lib/shopeeCapturePatterns";
 import type { SearchDebugInfo } from "./scrape";
 import { RawJsonBlock } from "../RawJsonBlock";
+import { LockGate } from "../LockGate";
 import { MAPH_LOGO_DATA_URI } from "../logo";
 
 function fmtBRL(v: number) {
@@ -37,6 +38,8 @@ export function Panel({
   activeFilter,
   onFilterChange,
   onRescan,
+  signedIn,
+  isAdmin,
 }: {
   loading: boolean;
   championCount: number;
@@ -48,10 +51,18 @@ export function Panel({
   activeFilter: FilterKey | null;
   onFilterChange: (filter: FilterKey) => void;
   onRescan: () => void;
+  /** Dados agregados (faturamento, campeões, idade dos anúncios) só aparecem sem borrão pra quem está logado numa conta do Maph Pro 3D. */
+  signedIn: boolean;
+  /** Painel de diagnóstico (dados brutos, status do interceptor) é ferramenta interna — só pro e-mail admin. */
+  isAdmin: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [tab, setTab] = useState<Tab>("raiox");
   const [sellerQuery, setSellerQuery] = useState("");
+
+  useEffect(() => {
+    if (tab === "diagnostico" && !isAdmin) setTab("raiox");
+  }, [tab, isAdmin]);
 
   const filteredSellers = useMemo(() => {
     const q = sellerQuery.trim().toLowerCase();
@@ -92,19 +103,21 @@ export function Panel({
         >
           Palavras-chave
         </button>
-        <button
-          className={tab === "diagnostico" ? "mp3d-tab active" : "mp3d-tab"}
-          onClick={() => setTab("diagnostico")}
-          title="Estado interno do interceptor — útil pra depurar se algo não aparecer"
-        >
-          ⚙
-        </button>
+        {isAdmin && (
+          <button
+            className={tab === "diagnostico" ? "mp3d-tab active" : "mp3d-tab"}
+            onClick={() => setTab("diagnostico")}
+            title="Estado interno do interceptor — útil pra depurar se algo não aparecer"
+          >
+            ⚙
+          </button>
+        )}
       </div>
 
       {loading && <p className="mp3d-muted">Analisando anúncios ({stats.cardCount} lidos)...</p>}
 
       {tab === "raiox" && (
-        <>
+        <LockGate locked={!signedIn} label="Faça login no Maph Pro 3D pra ver o Raio-X desta busca">
           <div className="mp3d-hero">
             <div className="mp3d-hero-label">Faturamento total da página</div>
             <div className="mp3d-hero-value">{fmtBRLCompact(stats.totalRevenue)}</div>
@@ -199,11 +212,11 @@ export function Panel({
               <span className="mp3d-age-cell-text"><b>{stats.ageBuckets.older}</b><span>+ de 365 dias</span></span>
             </button>
           </div>
-        </>
+        </LockGate>
       )}
 
       {tab === "vendedores" && (
-        <>
+        <LockGate locked={!signedIn} label="Faça login no Maph Pro 3D pra ver os vendedores desta busca">
           <input
             className="mp3d-input"
             style={{ marginTop: 8 }}
@@ -226,11 +239,11 @@ export function Panel({
               </div>
             ))}
           </div>
-        </>
+        </LockGate>
       )}
 
       {tab === "palavras" && (
-        <>
+        <LockGate locked={!signedIn} label="Faça login no Maph Pro 3D pra ver as palavras-chave desta busca">
           <p className="mp3d-muted" style={{ marginTop: 8 }}>
             Palavras que mais se repetem nos títulos desta busca — pistas do que os concorrentes
             estão usando pra ranquear:
@@ -243,7 +256,7 @@ export function Panel({
               </span>
             ))}
           </div>
-        </>
+        </LockGate>
       )}
 
       {tab === "diagnostico" && (

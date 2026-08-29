@@ -209,6 +209,39 @@ ${BASE}
   font-size: 11.5px;
 }
 .mp3d-kw-chip b { color: #a5f3fc; }
+.mp3d-lock-wrap { position: relative; }
+.mp3d-locked {
+  filter: blur(6px);
+  user-select: none;
+  pointer-events: none;
+}
+.mp3d-lock-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 12px;
+  background: rgba(2,6,23,0.55);
+  border-radius: 10px;
+}
+.mp3d-lock-icon { font-size: 20px; }
+.mp3d-lock-text { font-size: 11.5px; color: #e2e8f0; font-weight: 600; max-width: 220px; line-height: 1.4; }
+.mp3d-lock-btn {
+  margin-top: 2px;
+  background: linear-gradient(90deg, #06b6d4, #10b981);
+  color: #04121a;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-weight: 700;
+  font-size: 11.5px;
+  cursor: pointer;
+}
 `;
 
 export const CARD_STYLES = `

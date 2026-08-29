@@ -6,8 +6,10 @@ import {
   type ShopeeInputs,
 } from "../../../../lib/engines/shopee/engine";
 import { sendToBackground } from "../../lib/messaging";
-import type { ShopeeContext } from "../../lib/messaging";
+import type { AuthState, ShopeeContext } from "../../lib/messaging";
+import { onAuthChange, isAdminEmail } from "../../lib/authGate";
 import { RawJsonBlock } from "../RawJsonBlock";
+import { LockGate } from "../LockGate";
 import { MAPH_LOGO_DATA_URI } from "../logo";
 import {
   fetchEnrichedListing,
@@ -52,12 +54,20 @@ function ageBucketClass(days: number | null): "new" | "mid" | "old" {
 
 export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: boolean }) {
   const [ctx, setCtx] = useState<ShopeeContext | null>(null);
+  const [auth, setAuth] = useState<AuthState | null>(null);
   const [enrichResult, setEnrichResult] = useState<EnrichedListingResult | "loading">("loading");
   const [ownCost, setOwnCost] = useLastCost();
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    sendToBackground({ type: "GET_SHOPEE_CONTEXT" }).then(setCtx);
+    const refresh = () => {
+      sendToBackground({ type: "GET_SHOPEE_CONTEXT" }).then(setCtx);
+      sendToBackground({ type: "GET_AUTH_STATE" }).then(setAuth);
+    };
+    refresh();
+    // O login acontece numa aba separada (popup) — reage sozinho quando a
+    // sessão muda, sem precisar recarregar a página da Shopee.
+    return onAuthChange(refresh);
   }, []);
 
   useEffect(() => {
@@ -117,6 +127,8 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
     enriched != null &&
     enriched !== "loading" &&
     (enriched.soldTotal == null || enriched.reviewCount == null || enriched.favorites == null);
+  const signedIn = ctx != null && ctx.status !== "signed_out";
+  const isAdmin = auth?.status === "signed_in" && isAdminEmail(auth.email);
 
   return (
     <div className={`mp3d-card ${inline ? "mp3d-inline" : "mp3d-floating"}`}>
@@ -196,65 +208,67 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
 
       {enriched && enriched !== "loading" && (
         <>
-          <div className="mp3d-stats-grid">
-            <div className="mp3d-stat">
-              <span className="mp3d-stat-label">Vendidos · total</span>
-              <span className="mp3d-stat-value">{fmtNum(enriched.soldTotal)}</span>
-            </div>
-            <div className="mp3d-stat">
-              <span className="mp3d-stat-label">
-                Vendas / dia
-                {isChampion && <span className="mp3d-champion"> 🏆</span>}
-              </span>
-              <span className="mp3d-stat-value">
-                {salesPerDay != null ? fmtNum(salesPerDay, { maximumFractionDigits: 1 }) : "—"}{" "}
-                <span className="mp3d-muted">est.</span>
-              </span>
-            </div>
-            <div className="mp3d-stat">
-              <span className="mp3d-stat-label">Nota</span>
-              <span className="mp3d-stat-value">{fmtNum(enriched.rating, { maximumFractionDigits: 1 })}</span>
-            </div>
-            <div className="mp3d-stat">
-              <span className="mp3d-stat-label">Avaliações</span>
-              <span className="mp3d-stat-value">{fmtNum(enriched.reviewCount)}</span>
-            </div>
-            <div className="mp3d-stat">
-              <span className="mp3d-stat-label">Favoritos</span>
-              <span className="mp3d-stat-value">{fmtNum(enriched.favorites)}</span>
-            </div>
-            <div className="mp3d-stat">
-              <span className="mp3d-stat-label">Criado há</span>
-              <span className="mp3d-stat-value">
-                {enriched.createdDaysAgo != null ? (
-                  <span className={`mp3d-age-pill ${ageBucketClass(enriched.createdDaysAgo)}`}>
-                    {enriched.createdDaysAgo}d
-                  </span>
-                ) : (
-                  "—"
-                )}
-              </span>
-            </div>
-            {enriched.sellerName && (
-              <div className="mp3d-stat mp3d-stat-wide">
-                <span className="mp3d-stat-label">Vendedor</span>
+          <LockGate locked={!signedIn}>
+            <div className="mp3d-stats-grid">
+              <div className="mp3d-stat">
+                <span className="mp3d-stat-label">Vendidos · total</span>
+                <span className="mp3d-stat-value">{fmtNum(enriched.soldTotal)}</span>
+              </div>
+              <div className="mp3d-stat">
+                <span className="mp3d-stat-label">
+                  Vendas / dia
+                  {isChampion && <span className="mp3d-champion"> 🏆</span>}
+                </span>
                 <span className="mp3d-stat-value">
-                  {enriched.sellerName}
-                  {enriched.sellerLocation ? ` · ${enriched.sellerLocation}` : ""}
-                  {enriched.isInternational ? " · internacional" : ""}
+                  {salesPerDay != null ? fmtNum(salesPerDay, { maximumFractionDigits: 1 }) : "—"}{" "}
+                  <span className="mp3d-muted">est.</span>
                 </span>
               </div>
-            )}
-          </div>
-
-          {faturamentoTotal != null && (
-            <div className="mp3d-hero" style={{ marginTop: 8 }}>
-              <div className="mp3d-hero-label">Faturamento estimado (preço × vendidos)</div>
-              <div className="mp3d-hero-value">{formatBRL(faturamentoTotal)}</div>
+              <div className="mp3d-stat">
+                <span className="mp3d-stat-label">Nota</span>
+                <span className="mp3d-stat-value">{fmtNum(enriched.rating, { maximumFractionDigits: 1 })}</span>
+              </div>
+              <div className="mp3d-stat">
+                <span className="mp3d-stat-label">Avaliações</span>
+                <span className="mp3d-stat-value">{fmtNum(enriched.reviewCount)}</span>
+              </div>
+              <div className="mp3d-stat">
+                <span className="mp3d-stat-label">Favoritos</span>
+                <span className="mp3d-stat-value">{fmtNum(enriched.favorites)}</span>
+              </div>
+              <div className="mp3d-stat">
+                <span className="mp3d-stat-label">Criado há</span>
+                <span className="mp3d-stat-value">
+                  {enriched.createdDaysAgo != null ? (
+                    <span className={`mp3d-age-pill ${ageBucketClass(enriched.createdDaysAgo)}`}>
+                      {enriched.createdDaysAgo}d
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </span>
+              </div>
+              {enriched.sellerName && (
+                <div className="mp3d-stat mp3d-stat-wide">
+                  <span className="mp3d-stat-label">Vendedor</span>
+                  <span className="mp3d-stat-value">
+                    {enriched.sellerName}
+                    {enriched.sellerLocation ? ` · ${enriched.sellerLocation}` : ""}
+                    {enriched.isInternational ? " · internacional" : ""}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
 
-          {missingRichFields && (
+            {faturamentoTotal != null && (
+              <div className="mp3d-hero" style={{ marginTop: 8 }}>
+                <div className="mp3d-hero-label">Faturamento estimado (preço × vendidos)</div>
+                <div className="mp3d-hero-value">{formatBRL(faturamentoTotal)}</div>
+              </div>
+            )}
+          </LockGate>
+
+          {isAdmin && missingRichFields && (
             <RawJsonBlock
               label='Alguns campos vieram vazios — JSON bruto do "pdp/get_pc"'
               value={enrichResult !== "loading" ? enrichResult.rawJson : null}

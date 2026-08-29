@@ -5,6 +5,8 @@ import { extractKeywords } from "./keywordExtract";
 import { computePageStats, groupBySeller, pickChampions, matchesFilter, type FilterKey } from "./aggregate";
 import { upsertMiniCard, pruneMiniCards, repositionAllMiniCards, setCardVisible, clearAllMiniCards } from "./miniCard";
 import { onDiagnostic, type Diagnostic } from "../../lib/shopeeCapture";
+import { sendToBackground } from "../../lib/messaging";
+import { onAuthChange, isAdminEmail } from "../../lib/authGate";
 import { BADGE_STYLES } from "../styles";
 
 const HOST_ID = "mp3d-shopee-search-panel";
@@ -14,7 +16,7 @@ const HOST_ID = "mp3d-shopee-search-panel";
  * cria mini-card pros que ficam visíveis) e devolve a contagem de campeões
  * pro painel.
  */
-function paintMiniCards(cards: EnrichedCard[], filter: FilterKey | null) {
+function paintMiniCards(cards: EnrichedCard[], filter: FilterKey | null, locked: boolean) {
   const champions = pickChampions(cards);
   const activeEls = new Set<HTMLElement>();
 
@@ -24,7 +26,7 @@ function paintMiniCards(cards: EnrichedCard[], filter: FilterKey | null) {
     setCardVisible(c.el, visible);
     if (!visible) continue;
     activeEls.add(c.el);
-    upsertMiniCard(c, champions.has(c.el));
+    upsertMiniCard(c, champions.has(c.el), locked);
   }
 
   pruneMiniCards(activeEls);
@@ -57,10 +59,12 @@ export function mountSearchPanel(): () => void {
   let activeFilter: FilterKey | null = null;
   let received = false;
   let stopped = false;
+  let signedIn = false;
+  let isAdmin = false;
 
   const render = (loading: boolean) => {
     if (stopped) return;
-    const championCount = paintMiniCards(latestCards, activeFilter);
+    const championCount = paintMiniCards(latestCards, activeFilter, !signedIn);
     // Reposiciona de novo logo em seguida: esconder/mostrar cards muda a
     // altura da página, então as posições lidas durante paintMiniCards já
     // podem estar levemente desatualizadas pros cards processados depois.
@@ -88,9 +92,22 @@ export function mountSearchPanel(): () => void {
           render(false);
         }}
         onRescan={() => window.location.reload()}
+        signedIn={signedIn}
+        isAdmin={isAdmin}
       />,
     );
   };
+
+  const refreshAuth = async () => {
+    const auth = await sendToBackground({ type: "GET_AUTH_STATE" });
+    signedIn = auth.status === "signed_in";
+    isAdmin = auth.status === "signed_in" && isAdminEmail(auth.email);
+    render(!received);
+  };
+  refreshAuth();
+  // O login acontece numa aba separada (popup) — reage sozinho quando a
+  // sessão muda, sem precisar recarregar a página da Shopee.
+  const stopAuthWatch = onAuthChange(refreshAuth);
 
   render(true);
 
@@ -125,6 +142,7 @@ export function mountSearchPanel(): () => void {
     stopped = true;
     stopWatch();
     stopDiagnostic();
+    stopAuthWatch();
     window.removeEventListener("resize", repositionAllMiniCards);
     warmupTimers.forEach((t) => window.clearTimeout(t));
     clearAllMiniCards();
