@@ -12,7 +12,7 @@
  * DOM puro (não React) por performance: uma busca pode ter 60-90 cards.
  */
 import type { EnrichedCard } from "./scrape";
-import { sendToBackground } from "../../lib/messaging";
+import { OPEN_LOGIN_EVENT } from "../../lib/authGate";
 
 const MINI_CARD_CLASS = "mp3d-mini";
 const STYLE_ID = "mp3d-mini-style";
@@ -352,7 +352,7 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean)
     lockBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      sendToBackground({ type: "OPEN_POPUP_TAB" });
+      window.dispatchEvent(new CustomEvent(OPEN_LOGIN_EVENT));
     };
     lock.append(lockLabel, lockBtn);
     content.appendChild(lock);

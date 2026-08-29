@@ -87,14 +87,6 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
       case "GET_SHOPEE_CONTEXT":
         sendResponse(await getShopeeContext());
         break;
-      case "OPEN_POPUP_TAB": {
-        // Usa o caminho que o manifest realmente aponta (o build do CRXJS pode
-        // reescrever o path de "src/popup/index.html" pra outro em produção).
-        const popupPath = chrome.runtime.getManifest().action?.default_popup ?? "src/popup/index.html";
-        await chrome.tabs.create({ url: chrome.runtime.getURL(`${popupPath}${message.path ?? ""}`) });
-        sendResponse();
-        break;
-      }
     }
   })();
   return true; // mantém o canal aberto pra resposta assíncrona

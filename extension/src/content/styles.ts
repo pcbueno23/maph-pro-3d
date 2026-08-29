@@ -192,6 +192,9 @@ ${BASE}
   box-shadow: 0 0 0 1px rgba(34,211,238,0.3) inset;
 }
 .mp3d-filter-clear {
+  background: none;
+  border: none;
+  padding: 0;
   text-transform: none;
   letter-spacing: normal;
   color: #67e8f9;
@@ -199,6 +202,26 @@ ${BASE}
   font-size: 10px;
 }
 .mp3d-filter-clear:hover { text-decoration: underline; }
+.mp3d-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2,6,23,0.7);
+}
+.mp3d-modal-card {
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: rgba(2, 6, 23, 0.98);
+  border: 1px solid rgba(51, 65, 85, 0.9);
+  border-radius: 16px;
+  padding: 16px 18px 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  color: #e2e8f0;
+  font-size: 13px;
+}
 .mp3d-kw-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .mp3d-kw-chip {
   background: rgba(34,211,238,0.12);

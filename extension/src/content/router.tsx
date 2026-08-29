@@ -15,6 +15,11 @@
  */
 import { mountProductOverlay } from "./shopeeProduct";
 import { mountSearchPanel } from "./shopeeSearch";
+import { mountAuthModal } from "./authModalMount";
+
+// Modal de login — independente de a página ser anúncio ou busca, então
+// fica montado uma vez só, fora do liga/desliga de `applyKind` abaixo.
+mountAuthModal();
 
 type PageKind = "product" | "search" | null;
 

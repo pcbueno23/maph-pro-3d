@@ -105,7 +105,7 @@ export function mountSearchPanel(): () => void {
     render(!received);
   };
   refreshAuth();
-  // O login acontece numa aba separada (popup) — reage sozinho quando a
+  // O login acontece no modal (ou no popup da extensão) — reage sozinho quando a
   // sessão muda, sem precisar recarregar a página da Shopee.
   const stopAuthWatch = onAuthChange(refreshAuth);
 

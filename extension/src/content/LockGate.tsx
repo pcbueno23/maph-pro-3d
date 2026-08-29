@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { sendToBackground } from "../lib/messaging";
+import { OPEN_LOGIN_EVENT } from "../lib/authGate";
 
 /**
  * Borra o conteúdo real (dado que vem da captura da Shopee — vendidos,
@@ -29,7 +29,7 @@ export function LockGate({
         <button
           type="button"
           className="mp3d-lock-btn"
-          onClick={() => sendToBackground({ type: "OPEN_POPUP_TAB" })}
+          onClick={() => window.dispatchEvent(new CustomEvent(OPEN_LOGIN_EVENT))}
         >
           Fazer login
         </button>

@@ -2,16 +2,15 @@ import { useEffect, useState } from "react";
 import { sendToBackground } from "../lib/messaging";
 import type { AuthState, ShopeeContext } from "../lib/messaging";
 import { APP_URL } from "../lib/appUrl";
+import { useOtpAuth } from "../lib/useOtpAuth";
 
 export function Popup() {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
   const [shopeeCtx, setShopeeCtx] = useState<ShopeeContext | null>(null);
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [step, setStep] = useState<"email" | "code">("email");
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const otp = useOtpAuth(() => {
+    sendToBackground({ type: "GET_AUTH_STATE" }).then(setAuth);
+  });
+  const { email, setEmail, code, setCode, step, error, info, busy, requestCode, verifyCode, backToEmail } = otp;
 
   useEffect(() => {
     sendToBackground({ type: "GET_AUTH_STATE" }).then(setAuth);
@@ -23,42 +22,11 @@ export function Popup() {
     }
   }, [auth.status]);
 
-  async function handleRequestCode(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setInfo(null);
-    setBusy(true);
-    const result = await sendToBackground({ type: "REQUEST_OTP", email });
-    setBusy(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    setStep("code");
-    setInfo(`Mandamos um código de acesso pra ${email}. Confira sua caixa de entrada.`);
-  }
-
-  async function handleVerifyCode(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setBusy(true);
-    const result = await sendToBackground({ type: "VERIFY_OTP", email, token: code });
-    setBusy(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    setAuth(await sendToBackground({ type: "GET_AUTH_STATE" }));
-  }
-
   async function handleSignOut() {
     await sendToBackground({ type: "SIGN_OUT" });
     setAuth({ status: "signed_out" });
     setShopeeCtx(null);
-    setStep("email");
-    setEmail("");
-    setCode("");
-    setInfo(null);
+    otp.reset();
   }
 
   return (
@@ -69,7 +37,7 @@ export function Popup() {
       {auth.status === "loading" && <p className="pop-muted">Carregando...</p>}
 
       {auth.status === "signed_out" && step === "email" && (
-        <form onSubmit={handleRequestCode}>
+        <form onSubmit={requestCode}>
           {error && <div className="pop-error">{error}</div>}
           <p className="pop-muted" style={{ marginTop: 0 }}>
             Sem senha — mandamos um código pro e-mail já cadastrado no Maph Pro 3D.
@@ -97,7 +65,7 @@ export function Popup() {
       )}
 
       {auth.status === "signed_out" && step === "code" && (
-        <form onSubmit={handleVerifyCode}>
+        <form onSubmit={verifyCode}>
           {error && <div className="pop-error">{error}</div>}
           {info && <p className="pop-muted" style={{ marginTop: 0 }}>{info}</p>}
           <div className="pop-field">
@@ -122,9 +90,7 @@ export function Popup() {
               href="#"
               onClick={(e) => {
                 e.preventDefault();
-                setStep("email");
-                setCode("");
-                setError(null);
+                backToEmail();
               }}
             >
               Usar outro e-mail

@@ -45,7 +45,7 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
       sendToBackground({ type: "GET_AUTH_STATE" }).then(setAuth);
     };
     refresh();
-    // O login acontece numa aba separada (popup) — reage sozinho quando a
+    // O login acontece no modal (ou no popup da extensão) — reage sozinho quando a
     // sessão muda, sem precisar recarregar a página da Shopee.
     return onAuthChange(refresh);
   }, []);

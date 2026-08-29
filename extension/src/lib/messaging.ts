@@ -16,8 +16,7 @@ export type ExtensionMessage =
   | { type: "REQUEST_OTP"; email: string }
   | { type: "VERIFY_OTP"; email: string; token: string }
   | { type: "SIGN_OUT" }
-  | { type: "GET_SHOPEE_CONTEXT" }
-  | { type: "OPEN_POPUP_TAB"; path?: string };
+  | { type: "GET_SHOPEE_CONTEXT" };
 
 export type ExtensionResponse<M extends ExtensionMessage["type"]> = M extends "GET_AUTH_STATE"
   ? AuthState
