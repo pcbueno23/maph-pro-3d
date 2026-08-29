@@ -248,7 +248,7 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
           Abre a calculadora de verdade numa janela à parte — evita repetir aqui uma versão
           simplificada da fórmula (comissão, tributação, ROAS, cupom...) que ficaria desatualizada.
         </p>
-        <button type="button" className="mp3d-btn" onClick={() => openCalcWindow("/calculator")}>
+        <button type="button" className="mp3d-btn" onClick={() => openCalcWindow("/calculadoras/custo")}>
           Calculadora de custo (3D)
         </button>
         <button
