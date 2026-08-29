@@ -60,30 +60,13 @@ window.fetch = async function patchedFetch(...args: Parameters<typeof fetch>) {
   return response;
 };
 
-// Cobre o caso (menos provável, mas barato de tratar) da Shopee usar XHR em
-// vez de fetch pra alguma dessas chamadas.
-const OriginalXHR = window.XMLHttpRequest;
-function PatchedXHR(this: XMLHttpRequest) {
-  const xhr = new OriginalXHR();
-  const originalOpen = xhr.open.bind(xhr);
-  let requestUrl = "";
-  xhr.open = ((method: string, url: string, ...rest: unknown[]) => {
-    requestUrl = url;
-    // @ts-expect-error — assinatura variádica do XHR.open não tipa bem aqui
-    return originalOpen(method, url, ...rest);
-  }) as typeof xhr.open;
-
-  xhr.addEventListener("load", () => {
-    if (!matchedKey(requestUrl)) return;
-    try {
-      record(requestUrl, JSON.parse(xhr.responseText));
-    } catch {
-      /* corpo não é JSON — ignora */
-    }
-  });
-
-  return xhr;
-}
-PatchedXHR.prototype = OriginalXHR.prototype;
-// @ts-expect-error — substituição intencional do construtor global
-window.XMLHttpRequest = PatchedXHR;
+// Um patch de XMLHttpRequest chegou a existir aqui (pro caso da Shopee usar
+// XHR em vez de fetch pra alguma dessas chamadas), mas foi removido: um
+// construtor substituto "na mão" perde as constantes estáticas da classe
+// original (`XMLHttpRequest.DONE` etc.), e qualquer código da própria Shopee
+// que compare `xhr.readyState === XMLHttpRequest.DONE` quebra silenciosamente
+// (foi exatamente isso que causou o "Cannot read properties of null" na
+// própria página ao testar). A Shopee é uma SPA moderna e usa fetch pras
+// chamadas de API observadas aqui, então isso não deveria fazer falta — se um
+// dia precisar cobrir XHR de novo, copiar TODAS as propriedades estáticas
+// (`UNSENT/OPENED/HEADERS_RECEIVED/LOADING/DONE`) pro substituto.
