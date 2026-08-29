@@ -244,10 +244,6 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
 
       <LockGate locked={!signedIn} label="Faça login no Maph Pro 3D pra calcular seu custo e preço">
         <p className="mp3d-section-label" style={{ marginTop: 0 }}>Calcule seu preço</p>
-        <p className="mp3d-muted" style={{ marginTop: 0 }}>
-          Abre a calculadora de verdade numa janela à parte — evita repetir aqui uma versão
-          simplificada da fórmula (comissão, tributação, ROAS, cupom...) que ficaria desatualizada.
-        </p>
         <button type="button" className="mp3d-btn" onClick={() => openCalcWindow("/calculadoras/custo")}>
           Calculadora de custo (3D)
         </button>
