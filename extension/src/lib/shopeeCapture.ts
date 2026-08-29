@@ -39,8 +39,13 @@ export function waitForCapture(
     window.dispatchEvent(new CustomEvent("mp3d:request-cache", { detail: { key: patternKey } }));
 
     const timer = window.setTimeout(() => {
-      console.error(
-        `[Maph Pro 3D] não capturei nenhuma chamada "${patternKey}" da própria Shopee em ${timeoutMs}ms — a página pode não ter feito essa chamada nesse período, ou mudou de endpoint.`,
+      // Nível "warn", não "error": é comum e esperado — acontece sempre que a
+      // Shopee mostra uma tela de captcha/verificação (nesse caso ela nunca
+      // chega a fazer a chamada de dados do anúncio) e não é uma falha da
+      // extensão. Um "error" real aqui poluía a aba "Erros" do
+      // chrome://extensions com algo que não precisa de ação nenhuma.
+      console.warn(
+        `[Maph Pro 3D] não capturei nenhuma chamada "${patternKey}" da própria Shopee em ${timeoutMs}ms — a página pode não ter feito essa chamada nesse período (comum quando a Shopee mostra captcha/verificação), ou mudou de endpoint.`,
       );
       finish(null);
     }, timeoutMs);
