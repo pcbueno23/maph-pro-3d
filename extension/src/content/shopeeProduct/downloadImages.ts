@@ -1,29 +1,46 @@
 /**
  * Junta todas as imagens do anúncio (galeria) num único .zip pra baixar de
- * uma vez. Heurística de melhor esforço — a Shopee não expõe a lista de
- * imagens num JSON fácil de ler, então varremos as tags <img> da página
- * procurando o CDN de imagens deles (susercontent.com). Se pegar alguma
- * imagem errada (ex.: avatar do vendedor) ou perder alguma da galeria, é
- * aqui que precisa ajustar — melhor com uma captura de tela real da página
- * pra confirmar o que está sobrando/faltando.
+ * uma vez. A Shopee não expõe a lista de imagens num JSON fácil de ler,
+ * então varremos o DOM — confirmado com HTML real capturado da página:
+ *
+ * - Cada miniatura da galeria é um <img> quadrado (82x82) dentro de um
+ *   <picture> (com <source> webp redimensionado) — outros usos de imagem
+ *   na página (logo da loja, banner, QR code, selo de libras...) não têm
+ *   essa combinação exata de "dentro de <picture>" + "quadrada".
+ * - O atributo `src` do <img> (não `.currentSrc`!) já é o arquivo ORIGINAL
+ *   sem sufixo de redimensionamento — ex.:
+ *   "https://down-br.img.susercontent.com/file/br-...-mrp8xibhi3np79".
+ *   `.currentSrc` pegaria a variante pequena que o navegador escolheu do
+ *   `srcset` do <picture> (82-164px), então não usamos.
  */
 import { zipSync } from "fflate";
 
 const CDN_PATTERN = /susercontent\.com|shopeemobile\.com/i;
-const MIN_SIZE_PX = 80; // corta ícones/avatares pequenos, mantém fotos de galeria
+
+function isGalleryThumbnail(img: HTMLImageElement): boolean {
+  if (!img.closest("picture")) return false;
+  const w = Number(img.getAttribute("width")) || img.width;
+  const h = Number(img.getAttribute("height")) || img.height;
+  if (!w || !h || w !== h) return false; // miniaturas da galeria são sempre quadradas
+  return true;
+}
 
 export function scrapeGalleryImageUrls(): string[] {
   const urls = new Set<string>();
 
-  const og = document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.getAttribute("content");
-  if (og) urls.add(og);
-
   const imgs = Array.from(document.querySelectorAll<HTMLImageElement>("img"));
   for (const img of imgs) {
-    const src = img.currentSrc || img.src || img.getAttribute("data-src") || "";
+    if (!isGalleryThumbnail(img)) continue;
+    const src = img.getAttribute("src") || "";
     if (!src || !CDN_PATTERN.test(src)) continue;
-    if (img.naturalWidth > 0 && img.naturalWidth < MIN_SIZE_PX) continue;
     urls.add(src);
+  }
+
+  // Fallback: se a heurística acima não achar nada (a Shopee mudou o
+  // layout), pelo menos pega a imagem principal via og:image.
+  if (urls.size === 0) {
+    const og = document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.getAttribute("content");
+    if (og) urls.add(og);
   }
 
   return Array.from(urls);
