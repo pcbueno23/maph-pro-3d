@@ -214,13 +214,12 @@ ${SHARED}
   color: #e2e8f0;
   font-size: 13px;
 }
-/* Local preferido: logo abaixo do título do anúncio, no fluxo normal da
-   página (mesmo lugar onde concorrentes como o "3D Hunt" mostram o painel). */
+/* Local preferido: logo abaixo do título do anúncio (mesmo lugar onde
+   concorrentes como o "3D Hunt" mostram o painel) — a posição/largura vem
+   do host (ver content/shopeeProduct/index.tsx), então aqui só preenche. */
 .mp3d-card.mp3d-inline {
   position: relative;
   width: 100%;
-  max-width: 480px;
-  margin: 14px 0 18px;
 }
 /* Reserva: quando não achamos onde encaixar no fluxo da página (Shopee mudou
    a estrutura), volta a flutuar fixo no canto pra nunca ficar invisível. */
