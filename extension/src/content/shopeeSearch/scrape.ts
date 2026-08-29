@@ -23,13 +23,31 @@ export type EnrichedCard = ParsedItem & {
 
 const PRODUCT_LINK_SELECTOR = 'a[href*="-i."]';
 
+/**
+ * Sobe a partir do link até achar o container do "card" inteiro — não dá
+ * pra confiar em `<li>` ou na 1ª classe CSS encontrada porque a Shopee usa
+ * nomes de classe ofuscados/trocados sem aviso. Heurística: sobe até achar
+ * um nível cujo PAI tem vários filhos parecidos (>=5) — sinal forte de estar
+ * numa grade/lista junto de outros cards.
+ */
+function findCardContainer(a: HTMLAnchorElement): HTMLElement {
+  let el: HTMLElement = a;
+  for (let i = 0; i < 6; i++) {
+    const parent = el.parentElement;
+    if (!parent) break;
+    if (parent.children.length >= 5) return el;
+    el = parent;
+  }
+  return el;
+}
+
 export function scrapeCardElements(): CardElement[] {
   const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>(PRODUCT_LINK_SELECTOR));
   const seen = new Set<HTMLElement>();
   const cards: CardElement[] = [];
 
   for (const a of anchors) {
-    const card = (a.closest("li") ?? a.closest("[class]") ?? a) as HTMLElement;
+    const card = findCardContainer(a);
     if (seen.has(card)) continue;
     seen.add(card);
     const ids = parseItemUrl(a.href);
@@ -65,6 +83,11 @@ export type SearchDebugInfo = {
  * casados com os elementos DOM por itemId+shopId. Chama `onUpdate` a cada
  * nova captura, e `onDebug` sempre junto (mesmo quando não achou nada) —
  * pensado pra aparecer na tela do painel, não no console.
+ *
+ * O "casamento" com o DOM é refeito algumas vezes com atraso crescente após
+ * cada captura: a resposta de rede chega antes da Shopee terminar de
+ * renderizar os cards correspondentes na tela, então tentar casar no mesmo
+ * instante em que a captura acontece sempre dá `el: null` pra tudo.
  */
 export function watchSearchItems(
   onUpdate: (cards: EnrichedCard[]) => void,
@@ -72,6 +95,15 @@ export function watchSearchItems(
 ): () => void {
   const byId = new Map<string, ParsedItem>();
   let capturesReceived = 0;
+
+  const rematch = () => {
+    const elements = scrapeCardElements();
+    const elByKey = new Map(elements.map((c) => [`${c.shopId}:${c.itemId}`, c.el]));
+    const merged: EnrichedCard[] = Array.from(byId.values()).map((item) =>
+      toEnrichedCard(item, elByKey.get(`${item.shopId}:${item.itemId}`) ?? null),
+    );
+    onUpdate(merged);
+  };
 
   const stop = onCapture("searchItems", (capture) => {
     capturesReceived += 1;
@@ -88,13 +120,8 @@ export function watchSearchItems(
       byId.set(`${item.shopId}:${item.itemId}`, item);
     }
 
-    const elements = scrapeCardElements();
-    const elByKey = new Map(elements.map((c) => [`${c.shopId}:${c.itemId}`, c.el]));
-
-    const merged: EnrichedCard[] = Array.from(byId.values()).map((item) =>
-      toEnrichedCard(item, elByKey.get(`${item.shopId}:${item.itemId}`) ?? null),
-    );
-    onUpdate(merged);
+    rematch();
+    for (const delay of [300, 800, 1800]) window.setTimeout(rematch, delay);
   });
 
   return stop;
