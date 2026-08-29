@@ -209,21 +209,15 @@ export async function openImageCropModal(imageUrl: string, titleForFilename: str
         [MW_PENDING_KEY]: { dataUrl: canvas.toDataURL("image/png"), filename, ts: Date.now() },
       });
 
-      // Baixa o arquivo + copia pra área de transferência como reforço, caso
-      // o preenchimento automático não funcione (ex.: MakerWorld mudou a página).
-      const dlUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = dlUrl;
-      a.download = filename;
-      a.click();
-      window.setTimeout(() => URL.revokeObjectURL(dlUrl), 5000);
-
+      // Copia pra área de transferência como reforço, caso o preenchimento
+      // automático não funcione (ex.: MakerWorld mudar a página) — sem
+      // baixar arquivo nenhum, só o necessário pro Ctrl+V manual.
       try {
         if (navigator.clipboard && "write" in navigator.clipboard && typeof ClipboardItem !== "undefined") {
           await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
         }
       } catch {
-        /* segue sem copiar — o download e o preenchimento automático já cobrem */
+        /* segue sem copiar — o preenchimento automático já cobre a maioria dos casos */
       }
 
       window.open(MAKERWORLD_SEARCH_URL, "_blank", "noreferrer");
