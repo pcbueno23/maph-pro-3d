@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { sendToBackground } from "../lib/messaging";
 import type { AuthState, ShopeeContext } from "../lib/messaging";
-
-const APP_URL = (import.meta.env.VITE_APP_URL as string | undefined) ?? "http://localhost:3000";
+import { APP_URL } from "../lib/appUrl";
 
 export function Popup() {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
