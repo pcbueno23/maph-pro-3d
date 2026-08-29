@@ -29,25 +29,25 @@ function ensureMiniCardStyles() {
   border: 1px solid rgba(51,65,85,0.85);
   background: rgba(2,6,23,0.98);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 10.5px;
+  font-size: 12.5px;
   color: #e2e8f0;
   box-shadow: 0 6px 18px rgba(0,0,0,0.35);
   overflow: hidden;
 }
 .${MINI_CARD_CLASS}.champion { border-color: rgba(250,204,21,0.7); box-shadow: 0 0 0 1px rgba(250,204,21,0.3) inset, 0 6px 18px rgba(0,0,0,0.35); }
-.${MINI_CARD_CLASS}-actions { display: flex; gap: 3px; padding: 4px; border-bottom: 1px solid rgba(51,65,85,0.6); }
+.${MINI_CARD_CLASS}-actions { display: flex; gap: 4px; padding: 6px; border-bottom: 1px solid rgba(51,65,85,0.6); }
 .${MINI_CARD_CLASS}-actions button {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 19px;
-  border-radius: 5px;
+  height: 26px;
+  border-radius: 6px;
   border: 1px solid rgba(51,65,85,0.7);
   background: rgba(15,23,42,0.7);
   color: #94a3b8;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 13px;
   padding: 0;
 }
 .${MINI_CARD_CLASS}-actions button:hover { color: #67e8f9; border-color: rgba(34,211,238,0.4); }
@@ -55,41 +55,41 @@ function ensureMiniCardStyles() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 3px 6px;
+  padding: 7px 10px;
   border-bottom: 1px solid rgba(51,65,85,0.5);
-  font-size: 9.5px;
+  font-size: 11.5px;
   color: #94a3b8;
 }
-.${MINI_CARD_CLASS}-age { font-weight: 700; padding: 1px 5px; border-radius: 999px; font-size: 9px; }
+.${MINI_CARD_CLASS}-age { font-weight: 700; padding: 2px 7px; border-radius: 999px; font-size: 11px; }
 .${MINI_CARD_CLASS}-age.new { background: rgba(52,211,153,0.15); color: #34d399; }
 .${MINI_CARD_CLASS}-age.mid { background: rgba(251,191,36,0.15); color: #fbbf24; }
 .${MINI_CARD_CLASS}-age.old { background: rgba(251,113,133,0.15); color: #fb7185; }
-.${MINI_CARD_CLASS}-rows { padding: 1px 6px; }
-.${MINI_CARD_CLASS}-row { display: flex; align-items: center; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid rgba(51,65,85,0.3); }
+.${MINI_CARD_CLASS}-rows { padding: 3px 10px; }
+.${MINI_CARD_CLASS}-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(51,65,85,0.3); }
 .${MINI_CARD_CLASS}-row:last-child { border-bottom: none; }
-.${MINI_CARD_CLASS}-row-label { display: flex; align-items: center; gap: 4px; color: #94a3b8; }
+.${MINI_CARD_CLASS}-row-label { display: flex; align-items: center; gap: 6px; color: #94a3b8; }
 .${MINI_CARD_CLASS}-row-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
   background: rgba(99,102,241,0.15);
-  font-size: 8px;
+  font-size: 10.5px;
   flex-shrink: 0;
 }
-.${MINI_CARD_CLASS}-row-value { font-weight: 700; color: #f1f5f9; }
+.${MINI_CARD_CLASS}-row-value { font-weight: 700; color: #f1f5f9; font-size: 13.5px; }
 .${MINI_CARD_CLASS}-row-value.money { color: #34d399; }
 .${MINI_CARD_CLASS}-row-value.champ { color: #facc15; }
 .${MINI_CARD_CLASS}-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
+  gap: 6px;
+  padding: 8px 10px;
   border-top: 1px solid rgba(51,65,85,0.6);
-  font-size: 9px;
+  font-size: 11px;
   color: #94a3b8;
 }
 .${MINI_CARD_CLASS}-footer b { color: #cbd5e1; font-weight: 600; }
@@ -123,20 +123,20 @@ function ensureMiniCardStyles() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 5px;
   text-align: center;
-  padding: 4px;
+  padding: 6px;
   background: rgba(2,6,23,0.5);
 }
-.${MINI_CARD_CLASS}-lock span { font-size: 9.5px; color: #e2e8f0; font-weight: 600; }
+.${MINI_CARD_CLASS}-lock span { font-size: 11.5px; color: #e2e8f0; font-weight: 600; }
 .${MINI_CARD_CLASS}-lock button {
   background: linear-gradient(90deg, #06b6d4, #10b981);
   color: #04121a;
   border: none;
   border-radius: 999px;
-  padding: 3px 10px;
+  padding: 5px 14px;
   font-weight: 700;
-  font-size: 9.5px;
+  font-size: 11.5px;
   cursor: pointer;
 }
 `;
@@ -218,21 +218,6 @@ function makerWorldUrl(title: string | null) {
   return `https://makerworld.com/en/search/models?keyword=${encodeURIComponent(q)}`;
 }
 
-function summaryText(card: EnrichedCard): string {
-  const lines = [
-    card.name ?? "(sem título)",
-    card.price != null ? `Preço: ${fmtBRL(card.price)}` : null,
-    card.sold != null ? `Vendidos: ${card.sold}` : null,
-    card.salesPerDay != null ? `Vendas/dia: ${card.salesPerDay.toFixed(1)} (est.)` : null,
-    card.rating != null ? `Nota: ${card.rating}` : null,
-    card.reviewCount != null ? `Avaliações: ${card.reviewCount}` : null,
-    card.liked != null ? `Favoritos: ${card.liked}` : null,
-    card.createdDaysAgo != null ? `Criado há: ${card.createdDaysAgo} dias` : null,
-    card.sellerName ? `Vendedor: ${card.sellerName}${card.sellerLocation ? ` · ${card.sellerLocation}` : ""}` : null,
-  ];
-  return lines.filter(Boolean).join("\n");
-}
-
 function buildMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean): HTMLElement {
   const mini = document.createElement("div");
   mini.className = MINI_CARD_CLASS + (isChampion ? " champion" : "");
@@ -284,21 +269,7 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean)
     window.open(makerWorldUrl(card.name), "_blank", "noreferrer");
   };
 
-  const copyBtn = document.createElement("button");
-  copyBtn.type = "button";
-  copyBtn.title = "Copiar dados deste anúncio";
-  copyBtn.textContent = "📋";
-  copyBtn.onclick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigator.clipboard.writeText(summaryText(card)).then(() => {
-      const original = copyBtn.textContent;
-      copyBtn.textContent = "✓";
-      setTimeout(() => (copyBtn.textContent = original), 1200);
-    });
-  };
-
-  actions.append(downloadBtn, makerWorldBtn, copyBtn);
+  actions.append(downloadBtn, makerWorldBtn);
   body.appendChild(actions);
 
   const content = document.createElement("div");
