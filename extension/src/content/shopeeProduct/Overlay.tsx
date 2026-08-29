@@ -16,14 +16,10 @@ import {
   type ScrapedListing,
 } from "./scrape";
 import { downloadImagesAsZip, scrapeGalleryImageUrls } from "./downloadImages";
+import { showMakerWorldMenu } from "../makerWorldMenu";
 
 function fmtNum(n: number | null, opts?: Intl.NumberFormatOptions) {
   return n == null ? "—" : n.toLocaleString("pt-BR", opts);
-}
-
-function makerWorldUrl(title: string | null) {
-  const q = (title ?? "").split(/[-–|]/)[0].trim(); // corta sufixos tipo "- Envio imediato"
-  return `https://makerworld.com/en/search/models?keyword=${encodeURIComponent(q)}`;
 }
 
 function ageBucketClass(days: number | null): "new" | "mid" | "old" {
@@ -129,9 +125,15 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
         >
           {downloadState === "baixando" ? "⏳" : downloadState === "ok" ? "✓" : downloadState === "erro" ? "⚠" : "⬇"}
         </button>
-        <a href={makerWorldUrl(listing.title)} target="_blank" rel="noreferrer" title="Buscar modelo no MakerWorld">
+        <button
+          type="button"
+          title="Buscar modelo no MakerWorld"
+          onClick={(e) =>
+            showMakerWorldMenu(e.currentTarget, listing.title, scrapeGalleryImageUrls()[0] ?? null)
+          }
+        >
           🧊
-        </a>
+        </button>
       </div>
 
       <div className="mp3d-row">
@@ -225,9 +227,15 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
         </>
       )}
 
-      <a className="mp3d-btn mp3d-btn-secondary" href={makerWorldUrl(listing.title)} target="_blank" rel="noreferrer">
+      <button
+        type="button"
+        className="mp3d-btn mp3d-btn-secondary"
+        onClick={(e) =>
+          showMakerWorldMenu(e.currentTarget, listing.title, scrapeGalleryImageUrls()[0] ?? null)
+        }
+      >
         Buscar no MakerWorld
-      </a>
+      </button>
 
       <div className="mp3d-divider" />
 

@@ -15,6 +15,7 @@ import type { EnrichedCard } from "./scrape";
 import { OPEN_LOGIN_EVENT } from "../../lib/authGate";
 import { getTheme, onThemeChange, type Theme } from "../../lib/theme";
 import { MAPH_LOGO_DATA_URI } from "../logo";
+import { showMakerWorldMenu } from "../makerWorldMenu";
 
 const MINI_CARD_CLASS = "mp3d-mini";
 const STYLE_ID = "mp3d-mini-style";
@@ -284,11 +285,6 @@ function row(label: string, icon: string, value: string, cls?: string, stacked?:
   return el;
 }
 
-function makerWorldUrl(title: string | null) {
-  const q = (title ?? "").split(/[-–|]/)[0].trim();
-  return `https://makerworld.com/en/search/models?keyword=${encodeURIComponent(q)}`;
-}
-
 function buildMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean): HTMLElement {
   const mini = document.createElement("div");
   mini.className = MINI_CARD_CLASS + (isChampion ? " champion" : "");
@@ -347,7 +343,7 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean)
   makerWorldBtn.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    window.open(makerWorldUrl(card.name), "_blank", "noreferrer");
+    showMakerWorldMenu(makerWorldBtn, card.name, card.thumbnailUrl ?? null);
   };
 
   actions.append(downloadBtn, makerWorldBtn);
