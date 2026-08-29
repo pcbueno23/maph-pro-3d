@@ -147,6 +147,30 @@ ${BASE}
   color: #94a3b8;
   margin: 12px 0 6px;
 }
+.mp3d-filterable {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 0;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.mp3d-filterable:hover { border-color: rgba(34,211,238,0.4) !important; }
+.mp3d-filterable.active {
+  border-color: rgba(34,211,238,0.7) !important;
+  background: rgba(34,211,238,0.12) !important;
+  box-shadow: 0 0 0 1px rgba(34,211,238,0.3) inset;
+}
+.mp3d-filter-clear {
+  text-transform: none;
+  letter-spacing: normal;
+  color: #67e8f9;
+  cursor: pointer;
+  font-size: 10px;
+}
+.mp3d-filter-clear:hover { text-decoration: underline; }
 .mp3d-kw-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .mp3d-kw-chip {
   background: rgba(34,211,238,0.12);

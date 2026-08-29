@@ -2,19 +2,27 @@ import { createRoot, type Root } from "react-dom/client";
 import { Panel } from "./Panel";
 import { watchSearchItems, type EnrichedCard, type SearchDebugInfo } from "./scrape";
 import { extractKeywords } from "./keywordExtract";
-import { computePageStats, groupBySeller, pickChampions } from "./aggregate";
-import { upsertMiniCard, pruneMiniCards, repositionAllMiniCards } from "./miniCard";
+import { computePageStats, groupBySeller, pickChampions, matchesFilter, type FilterKey } from "./aggregate";
+import { upsertMiniCard, pruneMiniCards, repositionAllMiniCards, setCardVisible } from "./miniCard";
 import { onDiagnostic, type Diagnostic } from "../../lib/shopeeCapture";
 import { BADGE_STYLES } from "../styles";
 
 const HOST_ID = "mp3d-shopee-search-panel";
 
-function paintMiniCards(cards: EnrichedCard[]) {
+/**
+ * Mostra/esconde os cards REAIS da Shopee de acordo com o filtro ativo (só
+ * cria mini-card pros que ficam visíveis) e devolve a contagem de campeões
+ * pro painel.
+ */
+function paintMiniCards(cards: EnrichedCard[], filter: FilterKey | null) {
   const champions = pickChampions(cards);
   const activeEls = new Set<HTMLElement>();
 
   for (const c of cards) {
     if (!c.el) continue;
+    const visible = filter == null || matchesFilter(c, filter, champions);
+    setCardVisible(c.el, visible);
+    if (!visible) continue;
     activeEls.add(c.el);
     upsertMiniCard(c, champions.has(c.el));
   }
@@ -45,10 +53,16 @@ function start() {
   let latestCards: EnrichedCard[] = [];
   let latestDiagnostic: Diagnostic | null = null;
   let latestSearchDebug: SearchDebugInfo | null = null;
+  let activeFilter: FilterKey | null = null;
   let received = false;
 
   const render = (loading: boolean) => {
-    const championCount = paintMiniCards(latestCards);
+    const championCount = paintMiniCards(latestCards, activeFilter);
+    // Reposiciona de novo logo em seguida: esconder/mostrar cards muda a
+    // altura da página, então as posições lidas durante paintMiniCards já
+    // podem estar levemente desatualizadas pros cards processados depois.
+    window.setTimeout(repositionAllMiniCards, 60);
+
     const stats = computePageStats(latestCards);
     const sellers = groupBySeller(latestCards);
     const titles = latestCards.map((c) => c.name).filter((t): t is string => !!t);
@@ -63,6 +77,11 @@ function start() {
         keywords={keywords}
         diagnostic={latestDiagnostic}
         searchDebug={latestSearchDebug}
+        activeFilter={activeFilter}
+        onFilterChange={(next) => {
+          activeFilter = activeFilter === next ? null : next;
+          render(false);
+        }}
         onRescan={() => window.location.reload()}
       />,
     );

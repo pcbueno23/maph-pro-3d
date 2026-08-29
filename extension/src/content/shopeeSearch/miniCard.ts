@@ -129,6 +129,20 @@ const registry = new Map<HTMLElement, HTMLElement>();
 const collapsedState = new WeakMap<HTMLElement, boolean>();
 /** card.el -> margin-bottom original (pra restaurar quando o mini-card some). */
 const originalMargins = new WeakMap<HTMLElement, string>();
+/** card.el -> display original (pra restaurar quando um filtro escondia o card). */
+const originalDisplay = new WeakMap<HTMLElement, string>();
+
+/** Mostra/esconde o card REAL da Shopee (usado pelos filtros do painel) — sem margem reservada quando escondido. */
+export function setCardVisible(cardEl: HTMLElement, visible: boolean) {
+  if (!originalDisplay.has(cardEl)) originalDisplay.set(cardEl, cardEl.style.display || "");
+  if (visible) {
+    cardEl.style.display = originalDisplay.get(cardEl) ?? "";
+    return;
+  }
+  cardEl.style.display = "none";
+  if (!originalMargins.has(cardEl)) originalMargins.set(cardEl, cardEl.style.marginBottom || "");
+  cardEl.style.marginBottom = originalMargins.get(cardEl) ?? "";
+}
 
 /**
  * Empurra a linha seguinte da grade pra baixo, dando espaço pro mini-card

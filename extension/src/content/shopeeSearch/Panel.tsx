@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { KeywordHit } from "./keywordExtract";
-import type { PageStats, SellerGroup } from "./aggregate";
+import type { PageStats, SellerGroup, FilterKey } from "./aggregate";
 import type { Diagnostic } from "../../lib/shopeeCapture";
 import type { CapturePatternKey } from "../../lib/shopeeCapturePatterns";
 import type { SearchDebugInfo } from "./scrape";
@@ -83,6 +83,8 @@ export function Panel({
   keywords,
   diagnostic,
   searchDebug,
+  activeFilter,
+  onFilterChange,
   onRescan,
 }: {
   loading: boolean;
@@ -92,6 +94,8 @@ export function Panel({
   keywords: KeywordHit[];
   diagnostic: Diagnostic | null;
   searchDebug: SearchDebugInfo | null;
+  activeFilter: FilterKey | null;
+  onFilterChange: (filter: FilterKey) => void;
   onRescan: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -168,10 +172,15 @@ export function Panel({
               <span className="mp3d-stat-label">Vendas · 30 dias (est.)</span>
               <span className="mp3d-stat-value">{fmtNum(stats.sales30d)}</span>
             </div>
-            <div className="mp3d-stat">
+            <button
+              type="button"
+              className={`mp3d-stat mp3d-filterable${activeFilter === "champion" ? " active" : ""}`}
+              onClick={() => onFilterChange("champion")}
+              title="Clique pra mostrar só os campeões na página"
+            >
               <span className="mp3d-stat-label">Campeões 🏆 (vendas/dia)</span>
               <span className="mp3d-stat-value">{championCount}</span>
-            </div>
+            </button>
             <div className="mp3d-stat">
               <span className="mp3d-stat-label">Anúncios analisados</span>
               <span className="mp3d-stat-value">{stats.cardCount}</span>
@@ -192,24 +201,52 @@ export function Panel({
             </div>
           </div>
 
-          <p className="mp3d-section-label">Idade dos anúncios</p>
+          <p className="mp3d-section-label">
+            Idade dos anúncios
+            {activeFilter && (
+              <span className="mp3d-filter-clear" onClick={() => onFilterChange(activeFilter)}>
+                {" "}
+                · filtrando, clique de novo pra limpar
+              </span>
+            )}
+          </p>
           <div className="mp3d-age-grid">
-            <div className="mp3d-age-cell">
+            <button
+              type="button"
+              className={`mp3d-age-cell mp3d-filterable${activeFilter === "until90" ? " active" : ""}`}
+              onClick={() => onFilterChange("until90")}
+              title="Clique pra mostrar só esses na página"
+            >
               <span className="mp3d-age-dot new" />
               <span className="mp3d-age-cell-text"><b>{stats.ageBuckets.until90}</b><span>até 90 dias</span></span>
-            </div>
-            <div className="mp3d-age-cell">
+            </button>
+            <button
+              type="button"
+              className={`mp3d-age-cell mp3d-filterable${activeFilter === "until180" ? " active" : ""}`}
+              onClick={() => onFilterChange("until180")}
+              title="Clique pra mostrar só esses na página"
+            >
               <span className="mp3d-age-dot mid" />
               <span className="mp3d-age-cell-text"><b>{stats.ageBuckets.until180}</b><span>até 180 dias</span></span>
-            </div>
-            <div className="mp3d-age-cell">
+            </button>
+            <button
+              type="button"
+              className={`mp3d-age-cell mp3d-filterable${activeFilter === "until365" ? " active" : ""}`}
+              onClick={() => onFilterChange("until365")}
+              title="Clique pra mostrar só esses na página"
+            >
               <span className="mp3d-age-dot old" />
               <span className="mp3d-age-cell-text"><b>{stats.ageBuckets.until365}</b><span>até 365 dias</span></span>
-            </div>
-            <div className="mp3d-age-cell">
+            </button>
+            <button
+              type="button"
+              className={`mp3d-age-cell mp3d-filterable${activeFilter === "older" ? " active" : ""}`}
+              onClick={() => onFilterChange("older")}
+              title="Clique pra mostrar só esses na página"
+            >
               <span className="mp3d-age-dot older" />
               <span className="mp3d-age-cell-text"><b>{stats.ageBuckets.older}</b><span>+ de 365 dias</span></span>
-            </div>
+            </button>
           </div>
         </>
       )}

@@ -104,3 +104,16 @@ export function pickChampions(cards: EnrichedCard[]): Set<HTMLElement> {
   const els = withVelocity.slice(0, n).map((c) => c.el).filter((el): el is HTMLElement => el != null);
   return new Set(els);
 }
+
+export type FilterKey = "champion" | "until90" | "until180" | "until365" | "older";
+
+/** Um card "bate" com o filtro selecionado — usado pra decidir o que fica visível na tela. */
+export function matchesFilter(card: EnrichedCard, filter: FilterKey, champions: Set<HTMLElement>): boolean {
+  if (filter === "champion") return card.el != null && champions.has(card.el);
+  const days = card.createdDaysAgo;
+  if (days == null) return false;
+  if (filter === "until90") return days <= 90;
+  if (filter === "until180") return days > 90 && days <= 180;
+  if (filter === "until365") return days > 180 && days <= 365;
+  return days > 365; // "older"
+}
