@@ -40,6 +40,7 @@ export function Panel({
   onRescan,
   signedIn,
   isAdmin,
+  inline,
 }: {
   loading: boolean;
   championCount: number;
@@ -55,6 +56,8 @@ export function Panel({
   signedIn: boolean;
   /** Painel de diagnóstico (dados brutos, status do interceptor) é ferramenta interna — só pro e-mail admin. */
   isAdmin: boolean;
+  /** true = encaixado acima do cabeçalho "Filtros" da barra lateral; false = flutuando fixo no canto (não achou onde encaixar). */
+  inline: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [tab, setTab] = useState<Tab>("raiox");
@@ -79,7 +82,7 @@ export function Panel({
   }
 
   return (
-    <div className="mp3d-panel">
+    <div className={`mp3d-panel ${inline ? "mp3d-inline" : "mp3d-floating"}`}>
       <div className="mp3d-panel-head">
         <span className="mp3d-brand">Maph Pro 3D · Raio-X da página</span>
         <button className="mp3d-close" onClick={() => setCollapsed(true)} aria-label="Minimizar">
@@ -119,54 +122,58 @@ export function Panel({
       {tab === "raiox" && (
         <LockGate locked={!signedIn} label="Faça login no Maph Pro 3D pra ver o Raio-X desta busca">
           <div className="mp3d-hero">
-            <div className="mp3d-hero-label">Faturamento total da página</div>
+            <div className="mp3d-hero-label">💰 Faturamento total da página</div>
             <div className="mp3d-hero-value">{fmtBRLCompact(stats.totalRevenue)}</div>
           </div>
           <div className="mp3d-hero">
-            <div className="mp3d-hero-label">Estimado · últimos 30 dias</div>
+            <div className="mp3d-hero-label">📈 Estimado · últimos 30 dias</div>
             <div className="mp3d-hero-value">{fmtBRLCompact(stats.revenue30d)}</div>
           </div>
 
+          <button
+            type="button"
+            className={`mp3d-champion-badge mp3d-filterable${activeFilter === "champion" ? " active" : ""}`}
+            onClick={() => onFilterChange("champion")}
+            title="Clique pra mostrar só os campeões na página"
+          >
+            <span className="mp3d-champion-badge-icon">🏆</span>
+            <span className="mp3d-champion-badge-text">
+              <span className="mp3d-champion-badge-count">{championCount}</span>
+              <span className="mp3d-champion-badge-label">Produtos campeões (vendas/dia)</span>
+            </span>
+          </button>
+
           <div className="mp3d-stats-grid">
             <div className="mp3d-stat">
-              <span className="mp3d-stat-label">Vendas totais</span>
+              <span className="mp3d-stat-label">📦 Vendas totais</span>
               <span className="mp3d-stat-value">{fmtNum(stats.totalSales)}</span>
             </div>
             <div className="mp3d-stat">
-              <span className="mp3d-stat-label">Vendas · 30 dias (est.)</span>
+              <span className="mp3d-stat-label">⚡ Vendas · 30 dias (est.)</span>
               <span className="mp3d-stat-value">{fmtNum(stats.sales30d)}</span>
             </div>
-            <button
-              type="button"
-              className={`mp3d-stat mp3d-filterable${activeFilter === "champion" ? " active" : ""}`}
-              onClick={() => onFilterChange("champion")}
-              title="Clique pra mostrar só os campeões na página"
-            >
-              <span className="mp3d-stat-label">Campeões 🏆 (vendas/dia)</span>
-              <span className="mp3d-stat-value">{championCount}</span>
-            </button>
             <div className="mp3d-stat">
-              <span className="mp3d-stat-label">Anúncios analisados</span>
+              <span className="mp3d-stat-label">📋 Anúncios analisados</span>
               <span className="mp3d-stat-value">{stats.cardCount}</span>
             </div>
             <div className="mp3d-stat">
-              <span className="mp3d-stat-label">Menor preço</span>
-              <span className="mp3d-stat-value">{stats.minPrice != null ? fmtBRL(stats.minPrice) : "—"}</span>
-            </div>
-            <div className="mp3d-stat">
-              <span className="mp3d-stat-label">Maior preço</span>
-              <span className="mp3d-stat-value">{stats.maxPrice != null ? fmtBRL(stats.maxPrice) : "—"}</span>
-            </div>
-            <div className="mp3d-stat mp3d-stat-wide">
-              <span className="mp3d-stat-label">Nacionais × internacionais</span>
+              <span className="mp3d-stat-label">🌍 Nac. × internac.</span>
               <span className="mp3d-stat-value">
                 {stats.nationalCount} × {stats.internationalCount}
               </span>
             </div>
+            <div className="mp3d-stat">
+              <span className="mp3d-stat-label">⬇ Menor preço</span>
+              <span className="mp3d-stat-value">{stats.minPrice != null ? fmtBRL(stats.minPrice) : "—"}</span>
+            </div>
+            <div className="mp3d-stat">
+              <span className="mp3d-stat-label">⬆ Maior preço</span>
+              <span className="mp3d-stat-value">{stats.maxPrice != null ? fmtBRL(stats.maxPrice) : "—"}</span>
+            </div>
           </div>
 
           <p className="mp3d-section-label">
-            Idade dos anúncios
+            📅 Idade dos anúncios
             {activeFilter && (
               <span className="mp3d-filter-clear" onClick={() => onFilterChange(activeFilter)}>
                 {" "}

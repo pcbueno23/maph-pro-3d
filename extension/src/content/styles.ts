@@ -335,13 +335,6 @@ ${SHARED}
   pointer-events: none;
 }
 .mp3d-panel {
-  position: fixed;
-  left: 16px;
-  top: 16px;
-  z-index: 2147483000;
-  width: 300px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
   background: rgba(2, 6, 23, 0.97);
   border: 1px solid rgba(51, 65, 85, 0.9);
   border-radius: 16px;
@@ -349,6 +342,25 @@ ${SHARED}
   box-shadow: 0 8px 30px rgba(0,0,0,0.45);
   color: #e2e8f0;
   font-size: 13px;
+}
+/* Local preferido: logo acima do cabeçalho "Filtros" da barra lateral de
+   busca (mesmo lugar onde concorrentes como o "3D Hunt" mostram o painel)
+   — a posição/largura vem do host (ver content/shopeeSearch/index.tsx). */
+.mp3d-panel.mp3d-inline {
+  position: relative;
+  width: 100%;
+  max-height: none;
+}
+/* Reserva: quando não achamos o cabeçalho de filtros (a Shopee mudou a
+   estrutura), volta a flutuar fixo no canto pra nunca ficar invisível. */
+.mp3d-panel.mp3d-floating {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  z-index: 2147483000;
+  width: 300px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
 .mp3d-fab.topleft { left: 16px; top: 16px; right: auto; bottom: auto; }
 .mp3d-hero {
@@ -369,6 +381,26 @@ ${SHARED}
   color: transparent;
   line-height: 1.1;
 }
+.mp3d-champion-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(250,204,21,0.18), rgba(217,119,6,0.1));
+  border: 1px solid rgba(250,204,21,0.35);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.mp3d-champion-badge:hover { border-color: rgba(250,204,21,0.6); }
+.mp3d-champion-badge.active { border-color: rgba(250,204,21,0.8); box-shadow: 0 0 0 1px rgba(250,204,21,0.4) inset; }
+.mp3d-champion-badge-icon { font-size: 22px; line-height: 1; }
+.mp3d-champion-badge-text { display: flex; flex-direction: column; line-height: 1.25; }
+.mp3d-champion-badge-count { font-size: 19px; font-weight: 800; color: #fde68a; }
+.mp3d-champion-badge-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #eab308; }
 .mp3d-age-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .mp3d-age-cell {
   display: flex;

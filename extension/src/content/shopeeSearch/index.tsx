@@ -1,6 +1,7 @@
 import { createRoot, type Root } from "react-dom/client";
 import { Panel } from "./Panel";
 import { watchSearchItems, type EnrichedCard, type SearchDebugInfo } from "./scrape";
+import { findFilterAnchor } from "./anchor";
 import { extractKeywords } from "./keywordExtract";
 import { computePageStats, groupBySeller, pickChampions, matchesFilter, type FilterKey } from "./aggregate";
 import { upsertMiniCard, pruneMiniCards, repositionAllMiniCards, setCardVisible, clearAllMiniCards } from "./miniCard";
@@ -10,6 +11,21 @@ import { onAuthChange, isAdminEmail } from "../../lib/authGate";
 import { BADGE_STYLES } from "../styles";
 
 const HOST_ID = "mp3d-shopee-search-panel";
+const LAYER_ID = "mp3d-search-panel-layer";
+const MAX_WIDTH = 300;
+const GAP = 10;
+
+function getLayer(): HTMLElement {
+  let layer = document.getElementById(LAYER_ID);
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.id = LAYER_ID;
+    layer.style.cssText =
+      "position:absolute; top:0; left:0; width:0; height:0; pointer-events:none; z-index:2147483000;";
+    document.body.appendChild(layer);
+  }
+  return layer;
+}
 
 /**
  * Mostra/esconde os cards REAIS da Shopee de acordo com o filtro ativo (só
@@ -33,10 +49,74 @@ function paintMiniCards(cards: EnrichedCard[], filter: FilterKey | null, locked:
   return champions.size;
 }
 
-function mountPanel(): { root: Root; host: HTMLElement } {
+/** Monta o painel + os mini-cards da busca. Devolve uma função de limpeza (usada quando a Shopee navega pra outro tipo de página via SPA, sem recarregar). */
+export function mountSearchPanel(): () => void {
+  if (document.getElementById(HOST_ID)) return () => {};
+
+  let anchor = findFilterAnchor();
+  const inline = anchor != null;
+
   const host = document.createElement("div");
   host.id = HOST_ID;
-  document.body.appendChild(host);
+  host.style.pointerEvents = "auto";
+
+  let originalMargin = "";
+  let anchorPollTimer: number | undefined;
+  let anchorResizeObserver: ResizeObserver | null = null;
+
+  /**
+   * O painel fica ACIMA do cabeçalho "Filtros" — igual ao card do anúncio,
+   * mas empurrando a âncora pra BAIXO com `margin-top` (não `margin-
+   * bottom`) já que aqui é o conteúdo de baixo que precisa abrir espaço,
+   * não o de cima. Mesma lógica de auto-recuperação: se a Shopee trocar o
+   * nó do DOM (re-render deles), procura a âncora nova em vez de grudar
+   * numa referência órfã (que sempre mediria (0,0)).
+   */
+  const repositionPanel = () => {
+    if (!anchor) return;
+    if (!document.body.contains(anchor)) {
+      anchor = findFilterAnchor();
+      if (!anchor) {
+        host.style.display = "none";
+        return;
+      }
+      originalMargin = anchor.style.marginTop || "";
+    }
+    const rect = anchor.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+    const hostHeight = host.offsetHeight || 0;
+    host.style.display = "";
+    host.style.position = "absolute";
+    host.style.top = `${Math.max(8, rect.top + window.scrollY - hostHeight - GAP)}px`;
+    host.style.left = `${rect.left + window.scrollX}px`;
+    host.style.width = `${Math.min(rect.width || MAX_WIDTH, MAX_WIDTH)}px`;
+  };
+
+  const applyAnchorSpacing = () => {
+    if (!anchor || !document.body.contains(anchor)) return;
+    anchor.style.marginTop = `${host.offsetHeight + GAP}px`;
+  };
+
+  if (anchor) {
+    originalMargin = anchor.style.marginTop || "";
+    host.style.display = "none"; // some até a 1ª posição válida — evita piscar no canto
+    getLayer().appendChild(host);
+    anchorResizeObserver = new ResizeObserver(() => {
+      repositionPanel();
+      applyAnchorSpacing();
+    });
+    anchorResizeObserver.observe(host);
+    window.addEventListener("resize", repositionPanel);
+    let ticks = 0;
+    anchorPollTimer = window.setInterval(() => {
+      repositionPanel();
+      applyAnchorSpacing();
+      ticks += 1;
+      if (ticks >= 20) window.clearInterval(anchorPollTimer); // ~14s, tempo de sobra pra pagina assentar
+    }, 700);
+  } else {
+    document.body.appendChild(host);
+  }
 
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
@@ -45,13 +125,7 @@ function mountPanel(): { root: Root; host: HTMLElement } {
 
   const mountPoint = document.createElement("div");
   shadow.appendChild(mountPoint);
-  return { root: createRoot(mountPoint), host };
-}
-
-/** Monta o painel + os mini-cards da busca. Devolve uma função de limpeza (usada quando a Shopee navega pra outro tipo de página via SPA, sem recarregar). */
-export function mountSearchPanel(): () => void {
-  if (document.getElementById(HOST_ID)) return () => {};
-  const { root, host } = mountPanel();
+  const root: Root = createRoot(mountPoint);
 
   let latestCards: EnrichedCard[] = [];
   let latestDiagnostic: Diagnostic | null = null;
@@ -94,6 +168,7 @@ export function mountSearchPanel(): () => void {
         onRescan={() => window.location.reload()}
         signedIn={signedIn}
         isAdmin={isAdmin}
+        inline={inline}
       />,
     );
   };
@@ -144,8 +219,12 @@ export function mountSearchPanel(): () => void {
     stopDiagnostic();
     stopAuthWatch();
     window.removeEventListener("resize", repositionAllMiniCards);
+    window.removeEventListener("resize", repositionPanel);
+    window.clearInterval(anchorPollTimer);
+    anchorResizeObserver?.disconnect();
     warmupTimers.forEach((t) => window.clearTimeout(t));
     clearAllMiniCards();
+    if (anchor && document.body.contains(anchor)) anchor.style.marginTop = originalMargin;
     root.unmount();
     host.remove();
   };
