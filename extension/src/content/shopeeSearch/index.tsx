@@ -3,10 +3,18 @@ import { Panel } from "./Panel";
 import { watchSearchItems, type EnrichedCard, type SearchDebugInfo } from "./scrape";
 import { extractKeywords } from "./keywordExtract";
 import { computePageStats, groupBySeller, pickChampions, matchesFilter, type FilterKey } from "./aggregate";
-import { upsertMiniCard, pruneMiniCards, repositionAllMiniCards, setCardVisible, clearAllMiniCards } from "./miniCard";
+import {
+  upsertMiniCard,
+  pruneMiniCards,
+  repositionAllMiniCards,
+  setCardVisible,
+  clearAllMiniCards,
+  initMiniCardTheme,
+} from "./miniCard";
 import { onDiagnostic, type Diagnostic } from "../../lib/shopeeCapture";
 import { sendToBackground } from "../../lib/messaging";
 import { onAuthChange, isAdminEmail } from "../../lib/authGate";
+import { getTheme, onThemeChange } from "../../lib/theme";
 import { BADGE_STYLES } from "../styles";
 
 const HOST_ID = "mp3d-shopee-search-panel";
@@ -65,6 +73,10 @@ export function mountSearchPanel(): () => void {
   host.style.left = `${DEFAULT_POS.left}px`;
   document.body.appendChild(host);
 
+  getTheme().then((t) => host.setAttribute("data-theme", t));
+  const stopThemeWatch = onThemeChange((t) => host.setAttribute("data-theme", t));
+  const stopMiniCardTheme = initMiniCardTheme();
+
   loadPanelPos().then((pos) => {
     host.style.top = `${pos.top}px`;
     host.style.left = `${pos.left}px`;
@@ -111,7 +123,8 @@ export function mountSearchPanel(): () => void {
 
   const onPointerDown = (e: Event) => {
     const target = e.target as HTMLElement;
-    if (!target.closest(".mp3d-panel-head") || target.closest(".mp3d-close")) return;
+    if (!target.closest(".mp3d-panel-head")) return;
+    if (target.closest(".mp3d-close") || target.closest(".mp3d-theme-toggle")) return;
     const pe = e as PointerEvent;
     const rect = host.getBoundingClientRect();
     dragState = { startX: pe.clientX, startY: pe.clientY, startTop: rect.top, startLeft: rect.left };
@@ -221,6 +234,8 @@ export function mountSearchPanel(): () => void {
     stopWatch();
     stopDiagnostic();
     stopAuthWatch();
+    stopThemeWatch();
+    stopMiniCardTheme();
     window.removeEventListener("resize", repositionAllMiniCards);
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerup", onPointerUp);

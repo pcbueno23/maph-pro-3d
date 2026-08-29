@@ -4,6 +4,7 @@ import type { AuthState } from "../lib/messaging";
 import { useOtpAuth } from "../lib/useOtpAuth";
 import { OPEN_LOGIN_EVENT } from "../lib/authGate";
 import { APP_URL } from "../lib/appUrl";
+import { MAPH_LOGO_DATA_URI } from "./logo";
 
 /**
  * Login sem senha, mas como um modal flutuando POR CIMA da própria página da
@@ -43,7 +44,10 @@ export function AuthModal() {
     <div className="mp3d-modal-backdrop" onClick={() => setOpen(false)}>
       <div className="mp3d-modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="mp3d-card-head">
-          <span className="mp3d-brand">Maph Pro 3D</span>
+          <span className="mp3d-brand-row">
+            <img className="mp3d-brand-logo" src={MAPH_LOGO_DATA_URI} alt="" />
+            <span className="mp3d-brand">Maph Pro 3D</span>
+          </span>
           <button className="mp3d-close" onClick={() => setOpen(false)} aria-label="Fechar">
             ×
           </button>

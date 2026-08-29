@@ -3,6 +3,8 @@ import { sendToBackground } from "../lib/messaging";
 import type { AuthState, ShopeeContext } from "../lib/messaging";
 import { APP_URL } from "../lib/appUrl";
 import { useOtpAuth } from "../lib/useOtpAuth";
+import { getTheme, toggleTheme, onThemeChange } from "../lib/theme";
+import { MAPH_LOGO_DATA_URI } from "../content/logo";
 
 export function Popup() {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
@@ -14,6 +16,12 @@ export function Popup() {
 
   useEffect(() => {
     sendToBackground({ type: "GET_AUTH_STATE" }).then(setAuth);
+  }, []);
+
+  useEffect(() => {
+    const apply = (theme: "dark" | "light") => document.documentElement.setAttribute("data-theme", theme);
+    getTheme().then(apply);
+    return onThemeChange(apply);
   }, []);
 
   useEffect(() => {
@@ -31,7 +39,20 @@ export function Popup() {
 
   return (
     <div className="pop">
-      <div className="pop-brand">Maph Pro 3D</div>
+      <div className="pop-head">
+        <div className="pop-brand-row">
+          <img className="pop-brand-logo" src={MAPH_LOGO_DATA_URI} alt="" />
+          <span className="pop-brand">Maph Pro 3D</span>
+        </div>
+        <button
+          type="button"
+          className="pop-theme-toggle"
+          title="Alternar tema claro/escuro"
+          onClick={() => toggleTheme()}
+        >
+          🌓
+        </button>
+      </div>
       <div className="pop-sub">Inteligência de mercado direto na Shopee</div>
 
       {auth.status === "loading" && <p className="pop-muted">Carregando...</p>}

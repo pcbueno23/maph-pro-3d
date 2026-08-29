@@ -7,6 +7,7 @@ import type { SearchDebugInfo } from "./scrape";
 import { RawJsonBlock } from "../RawJsonBlock";
 import { LockGate } from "../LockGate";
 import { MAPH_LOGO_DATA_URI } from "../logo";
+import { toggleTheme } from "../../lib/theme";
 
 function fmtBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -81,10 +82,23 @@ export function Panel({
   return (
     <div className="mp3d-panel">
       <div className="mp3d-panel-head">
-        <span className="mp3d-brand">Maph Pro 3D · Raio-X da página</span>
-        <button className="mp3d-close" onClick={() => setCollapsed(true)} aria-label="Minimizar">
-          –
-        </button>
+        <span className="mp3d-brand-row">
+          <img className="mp3d-brand-logo" src={MAPH_LOGO_DATA_URI} alt="" />
+          <span className="mp3d-brand">Maph Pro 3D · Raio-X da página</span>
+        </span>
+        <span className="mp3d-panel-head-actions">
+          <button
+            type="button"
+            className="mp3d-theme-toggle"
+            title="Alternar tema claro/escuro"
+            onClick={() => toggleTheme()}
+          >
+            🌓
+          </button>
+          <button className="mp3d-close" onClick={() => setCollapsed(true)} aria-label="Minimizar">
+            –
+          </button>
+        </span>
       </div>
 
       <div className="mp3d-tabs">

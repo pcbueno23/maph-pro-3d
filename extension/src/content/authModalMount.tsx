@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { AuthModal } from "./AuthModal";
 import { CARD_STYLES } from "./styles";
+import { getTheme, onThemeChange } from "../lib/theme";
 
 const HOST_ID = "mp3d-auth-modal-host";
 
@@ -11,6 +12,8 @@ export function mountAuthModal(): () => void {
   const host = document.createElement("div");
   host.id = HOST_ID;
   document.body.appendChild(host);
+  getTheme().then((t) => host.setAttribute("data-theme", t));
+  const stopThemeWatch = onThemeChange((t) => host.setAttribute("data-theme", t));
 
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
@@ -24,6 +27,7 @@ export function mountAuthModal(): () => void {
   root.render(<AuthModal />);
 
   return () => {
+    stopThemeWatch();
     root.unmount();
     host.remove();
   };

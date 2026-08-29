@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { Overlay } from "./Overlay";
 import { scrapeListing, findInsertionAnchor, type ScrapedListing } from "./scrape";
 import { CARD_STYLES } from "../styles";
+import { getTheme, onThemeChange } from "../../lib/theme";
 
 const HOST_ID = "mp3d-shopee-product-overlay";
 const LAYER_ID = "mp3d-product-layer";
@@ -40,6 +41,8 @@ export function mountProductOverlay(): () => void {
   const host = document.createElement("div");
   host.id = HOST_ID;
   host.style.pointerEvents = "auto";
+  getTheme().then((t) => host.setAttribute("data-theme", t));
+  const stopThemeWatch = onThemeChange((t) => host.setAttribute("data-theme", t));
 
   let originalMargin = "";
   let pollTimer: number | undefined;
@@ -135,6 +138,7 @@ export function mountProductOverlay(): () => void {
     window.clearInterval(pollTimer);
     resizeObserver?.disconnect();
     window.removeEventListener("resize", reposition);
+    stopThemeWatch();
     if (anchor && document.body.contains(anchor)) anchor.style.marginBottom = originalMargin;
     root.unmount();
     host.remove();

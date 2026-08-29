@@ -13,10 +13,26 @@
  */
 import type { EnrichedCard } from "./scrape";
 import { OPEN_LOGIN_EVENT } from "../../lib/authGate";
+import { getTheme, onThemeChange, type Theme } from "../../lib/theme";
+import { MAPH_LOGO_DATA_URI } from "../logo";
 
 const MINI_CARD_CLASS = "mp3d-mini";
 const STYLE_ID = "mp3d-mini-style";
 const LAYER_ID = "mp3d-mini-layer";
+
+/** Tema atual — módulo inteiro compartilha (não dá pra passar como prop, isso aqui é DOM puro). Atualizado por `initMiniCardTheme()`, chamado uma vez pelo `shopeeSearch/index.tsx`. */
+let currentTheme: Theme = "dark";
+
+/** Busca o tema salvo e reage a mudanças (ex.: alternado no card do anúncio) — atualiza os mini-cards já na tela na hora, sem precisar recriar. Chamar uma vez ao montar o painel de busca. */
+export function initMiniCardTheme(): () => void {
+  getTheme().then((t) => applyThemeToAll(t));
+  return onThemeChange(applyThemeToAll);
+}
+
+function applyThemeToAll(theme: Theme) {
+  currentTheme = theme;
+  for (const mini of registry.values()) mini.dataset.theme = theme;
+}
 
 function ensureMiniCardStyles() {
   if (document.getElementById(STYLE_ID)) return;
@@ -24,18 +40,67 @@ function ensureMiniCardStyles() {
   style.id = STYLE_ID;
   style.textContent = `
 .${MINI_CARD_CLASS} {
+  --mp3d-bg: rgba(2, 6, 23, 0.98);
+  --mp3d-border: rgba(51, 65, 85, 0.85);
+  --mp3d-border-soft: rgba(51, 65, 85, 0.5);
+  --mp3d-text: #e2e8f0;
+  --mp3d-text-strong: #f1f5f9;
+  --mp3d-muted: #94a3b8;
+  --mp3d-surface: rgba(15, 23, 42, 0.7);
+  --mp3d-accent-text: #67e8f9;
+  --mp3d-accent-soft-border: rgba(34, 211, 238, 0.4);
+  --mp3d-on-accent: #04121a;
+  --mp3d-good: #34d399;
+  --mp3d-gold: #facc15;
+  --mp3d-icon-bg: rgba(99, 102, 241, 0.15);
+  --mp3d-shadow: rgba(0, 0, 0, 0.35);
+  --mp3d-backdrop: rgba(2, 6, 23, 0.5);
+
   position: absolute;
   border-radius: 10px;
-  border: 1px solid rgba(51,65,85,0.85);
-  background: rgba(2,6,23,0.98);
+  border: 1px solid var(--mp3d-border);
+  background: var(--mp3d-bg);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 12.5px;
-  color: #e2e8f0;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  color: var(--mp3d-text);
+  box-shadow: 0 6px 18px var(--mp3d-shadow);
   overflow: hidden;
 }
-.${MINI_CARD_CLASS}.champion { border-color: rgba(250,204,21,0.7); box-shadow: 0 0 0 1px rgba(250,204,21,0.3) inset, 0 6px 18px rgba(0,0,0,0.35); }
-.${MINI_CARD_CLASS}-actions { display: flex; gap: 4px; padding: 6px; border-bottom: 1px solid rgba(51,65,85,0.6); }
+.${MINI_CARD_CLASS}[data-theme="light"] {
+  --mp3d-bg: rgba(255, 255, 255, 0.98);
+  --mp3d-border: rgba(203, 213, 225, 0.9);
+  --mp3d-border-soft: rgba(203, 213, 225, 0.7);
+  --mp3d-text: #1e293b;
+  --mp3d-text-strong: #0f172a;
+  --mp3d-muted: #64748b;
+  --mp3d-surface: #f1f5f9;
+  --mp3d-accent-text: #0e7490;
+  --mp3d-accent-soft-border: rgba(8, 145, 178, 0.35);
+  --mp3d-good: #059669;
+  --mp3d-gold: #b45309;
+  --mp3d-icon-bg: rgba(79, 70, 229, 0.12);
+  --mp3d-shadow: rgba(15, 23, 42, 0.12);
+  --mp3d-backdrop: rgba(255, 255, 255, 0.75);
+}
+.${MINI_CARD_CLASS}.champion { border-color: rgba(250,204,21,0.7); box-shadow: 0 0 0 1px rgba(250,204,21,0.3) inset, 0 6px 18px var(--mp3d-shadow); }
+.${MINI_CARD_CLASS}-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--mp3d-border-soft);
+}
+.${MINI_CARD_CLASS}-brand { display: flex; align-items: center; gap: 5px; }
+.${MINI_CARD_CLASS}-brand img { width: 13px; height: 13px; border-radius: 3px; flex-shrink: 0; }
+.${MINI_CARD_CLASS}-brand span {
+  font-weight: 700;
+  font-size: 10px;
+  color: var(--mp3d-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.${MINI_CARD_CLASS}-actions { display: flex; gap: 4px; padding: 6px; border-bottom: 1px solid var(--mp3d-border-soft); }
 .${MINI_CARD_CLASS}-actions button {
   flex: 1;
   display: flex;
@@ -43,31 +108,31 @@ function ensureMiniCardStyles() {
   justify-content: center;
   height: 26px;
   border-radius: 6px;
-  border: 1px solid rgba(51,65,85,0.7);
-  background: rgba(15,23,42,0.7);
-  color: #94a3b8;
+  border: 1px solid var(--mp3d-border-soft);
+  background: var(--mp3d-surface);
+  color: var(--mp3d-muted);
   cursor: pointer;
   font-size: 13px;
   padding: 0;
 }
-.${MINI_CARD_CLASS}-actions button:hover { color: #67e8f9; border-color: rgba(34,211,238,0.4); }
+.${MINI_CARD_CLASS}-actions button:hover { color: var(--mp3d-accent-text); border-color: var(--mp3d-accent-soft-border); }
 .${MINI_CARD_CLASS}-created {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 7px 10px;
-  border-bottom: 1px solid rgba(51,65,85,0.5);
+  border-bottom: 1px solid var(--mp3d-border-soft);
   font-size: 11.5px;
-  color: #94a3b8;
+  color: var(--mp3d-muted);
 }
 .${MINI_CARD_CLASS}-age { font-weight: 700; padding: 2px 7px; border-radius: 999px; font-size: 11px; }
 .${MINI_CARD_CLASS}-age.new { background: rgba(52,211,153,0.15); color: #34d399; }
 .${MINI_CARD_CLASS}-age.mid { background: rgba(251,191,36,0.15); color: #fbbf24; }
 .${MINI_CARD_CLASS}-age.old { background: rgba(251,113,133,0.15); color: #fb7185; }
 .${MINI_CARD_CLASS}-rows { padding: 3px 10px; }
-.${MINI_CARD_CLASS}-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(51,65,85,0.3); }
+.${MINI_CARD_CLASS}-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--mp3d-border-soft); }
 .${MINI_CARD_CLASS}-row:last-child { border-bottom: none; }
-.${MINI_CARD_CLASS}-row-label { display: flex; align-items: center; gap: 6px; color: #94a3b8; }
+.${MINI_CARD_CLASS}-row-label { display: flex; align-items: center; gap: 6px; color: var(--mp3d-muted); }
 .${MINI_CARD_CLASS}-row-icon {
   display: inline-flex;
   align-items: center;
@@ -75,40 +140,39 @@ function ensureMiniCardStyles() {
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  background: rgba(99,102,241,0.15);
+  background: var(--mp3d-icon-bg);
   font-size: 10.5px;
   flex-shrink: 0;
 }
-.${MINI_CARD_CLASS}-row-value { font-weight: 700; color: #f1f5f9; font-size: 13.5px; }
-.${MINI_CARD_CLASS}-row-value.money { color: #34d399; }
-.${MINI_CARD_CLASS}-row-value.champ { color: #facc15; }
+.${MINI_CARD_CLASS}-row-value { font-weight: 700; color: var(--mp3d-text-strong); font-size: 13.5px; }
+.${MINI_CARD_CLASS}-row-value.money { color: var(--mp3d-good); }
+.${MINI_CARD_CLASS}-row-value.champ { color: var(--mp3d-gold); }
 .${MINI_CARD_CLASS}-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  border-top: 1px solid rgba(51,65,85,0.6);
+  border-top: 1px solid var(--mp3d-border-soft);
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--mp3d-muted);
 }
-.${MINI_CARD_CLASS}-footer b { color: #cbd5e1; font-weight: 600; }
+.${MINI_CARD_CLASS}-footer b { color: var(--mp3d-text-strong); font-weight: 600; }
 .${MINI_CARD_CLASS}-toggle {
-  position: absolute;
-  top: -9px;
-  right: 6px;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  border: 1px solid rgba(51,65,85,0.9);
-  background: #0f172a;
-  color: #94a3b8;
-  font-size: 10px;
+  background: none;
+  border: 1px solid var(--mp3d-border-soft);
+  color: var(--mp3d-muted);
+  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
+.${MINI_CARD_CLASS}-toggle:hover { color: var(--mp3d-text); }
 .${MINI_CARD_CLASS}-content { position: relative; }
 .${MINI_CARD_CLASS}-content.locked > *:not(.${MINI_CARD_CLASS}-lock) {
   filter: blur(4px);
@@ -126,12 +190,12 @@ function ensureMiniCardStyles() {
   gap: 5px;
   text-align: center;
   padding: 6px;
-  background: rgba(2,6,23,0.5);
+  background: var(--mp3d-backdrop);
 }
-.${MINI_CARD_CLASS}-lock span { font-size: 11.5px; color: #e2e8f0; font-weight: 600; }
+.${MINI_CARD_CLASS}-lock span { font-size: 11.5px; color: var(--mp3d-text); font-weight: 600; }
 .${MINI_CARD_CLASS}-lock button {
   background: linear-gradient(90deg, #06b6d4, #10b981);
-  color: #04121a;
+  color: var(--mp3d-on-accent);
   border: none;
   border-radius: 999px;
   padding: 5px 14px;
@@ -221,6 +285,15 @@ function makerWorldUrl(title: string | null) {
 function buildMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean): HTMLElement {
   const mini = document.createElement("div");
   mini.className = MINI_CARD_CLASS + (isChampion ? " champion" : "");
+  mini.dataset.theme = currentTheme;
+
+  const head = document.createElement("div");
+  head.className = `${MINI_CARD_CLASS}-head`;
+
+  const brand = document.createElement("div");
+  brand.className = `${MINI_CARD_CLASS}-brand`;
+  brand.innerHTML = `<img src="${MAPH_LOGO_DATA_URI}" alt="" /><span>Maph Pro 3D</span>`;
+  head.appendChild(brand);
 
   const toggle = document.createElement("button");
   toggle.type = "button";
@@ -236,7 +309,8 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean)
     toggle.textContent = collapsed ? "+" : "–";
     applySpacing(card.el!, mini);
   };
-  mini.appendChild(toggle);
+  head.appendChild(toggle);
+  mini.appendChild(head);
 
   const body = document.createElement("div");
 

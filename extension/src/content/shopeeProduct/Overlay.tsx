@@ -3,6 +3,7 @@ import { formatBRL } from "../../../../lib/engines/shopee/engine";
 import { sendToBackground } from "../../lib/messaging";
 import type { AuthState, ShopeeContext } from "../../lib/messaging";
 import { onAuthChange, isAdminEmail } from "../../lib/authGate";
+import { toggleTheme } from "../../lib/theme";
 import { openCalcWindow } from "../../lib/appUrl";
 import { RawJsonBlock } from "../RawJsonBlock";
 import { LockGate } from "../LockGate";
@@ -94,10 +95,23 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
   return (
     <div className={`mp3d-card ${inline ? "mp3d-inline" : "mp3d-floating"}`}>
       <div className="mp3d-card-head">
-        <span className="mp3d-brand">Maph Pro 3D</span>
-        <button className="mp3d-close" onClick={() => setCollapsed(true)} aria-label="Minimizar">
-          –
-        </button>
+        <span className="mp3d-brand-row">
+          <img className="mp3d-brand-logo" src={MAPH_LOGO_DATA_URI} alt="" />
+          <span className="mp3d-brand">Maph Pro 3D</span>
+        </span>
+        <span className="mp3d-card-head-actions">
+          <button
+            type="button"
+            className="mp3d-theme-toggle"
+            title="Alternar tema claro/escuro"
+            onClick={() => toggleTheme()}
+          >
+            🌓
+          </button>
+          <button className="mp3d-close" onClick={() => setCollapsed(true)} aria-label="Minimizar">
+            –
+          </button>
+        </span>
       </div>
 
       <div className="mp3d-toolbar">
