@@ -11,6 +11,8 @@
 
 import { CAPTURE_PATTERNS, type CapturePatternKey } from "../lib/shopeeCapturePatterns";
 
+console.debug("[Maph Pro 3D] interceptor carregado (MAIN world) em", location.href);
+
 type Capture = { url: string; json: unknown; capturedAt: number };
 
 const cache: Partial<Record<CapturePatternKey, Capture>> = {};
@@ -25,6 +27,7 @@ function matchedKey(url: string): CapturePatternKey | null {
 function record(url: string, json: unknown) {
   const key = matchedKey(url);
   if (!key) return;
+  console.debug(`[Maph Pro 3D] capturei "${key}":`, url);
   const capture: Capture = { url, json, capturedAt: Date.now() };
   cache[key] = capture;
   window.dispatchEvent(new CustomEvent("mp3d:shopee-api", { detail: { key, capture } }));

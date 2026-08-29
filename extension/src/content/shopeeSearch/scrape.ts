@@ -58,8 +58,20 @@ function toEnrichedCard(item: ParsedItem, el: HTMLElement | null): EnrichedCard 
  */
 export function watchSearchItems(onUpdate: (cards: EnrichedCard[]) => void): () => void {
   const byId = new Map<string, ParsedItem>();
+  let gotAny = false;
+
+  window.setTimeout(() => {
+    if (!gotAny) {
+      console.error(
+        "[Maph Pro 3D] não capturei nenhuma chamada de search_items em 7s — role a página " +
+          "(a Shopee só busca mais resultados no scroll) ou confira se o interceptor carregou " +
+          '(procure "[Maph Pro 3D] interceptor carregado" no console).',
+      );
+    }
+  }, 7000);
 
   const stop = onCapture("searchItems", (capture) => {
+    gotAny = true;
     const items = parseSearchItems(capture.json);
     for (const item of items) {
       if (!item.itemId) continue;
