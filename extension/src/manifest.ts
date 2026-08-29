@@ -41,18 +41,13 @@ export default defineManifest({
       run_at: "document_start",
     },
     {
-      matches: ["https://shopee.com.br/*-i.*", "https://*.shopee.com.br/*-i.*"],
-      js: ["src/content/shopeeProduct/index.tsx"],
-      run_at: "document_idle",
-    },
-    {
-      matches: [
-        "https://shopee.com.br/search*",
-        "https://shopee.com.br/*/search*",
-        "https://shopee.com.br/Todos-os-Produtos*",
-        "https://shopee.com.br/*-cat.*",
-      ],
-      js: ["src/content/shopeeSearch/index.tsx"],
+      // Um único script cobrindo o domínio inteiro: a Shopee é uma SPA, e
+      // content scripts só são (re)injetados em carregamentos de página de
+      // verdade — não em navegações internas do JS deles (ex.: clicar num
+      // anúncio a partir da busca). Este script detecta sozinho, via URL, se
+      // deve mostrar o card de anúncio ou o painel de busca (ver router.tsx).
+      matches: ["https://shopee.com.br/*", "https://*.shopee.com.br/*"],
+      js: ["src/content/router.tsx"],
       run_at: "document_idle",
     },
   ],

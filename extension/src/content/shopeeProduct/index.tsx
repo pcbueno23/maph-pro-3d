@@ -5,8 +5,9 @@ import { CARD_STYLES } from "../styles";
 
 const HOST_ID = "mp3d-shopee-product-overlay";
 
-function mount() {
-  if (document.getElementById(HOST_ID)) return;
+/** Monta o card flutuante do anúncio. Devolve uma função de limpeza (usada quando a Shopee navega pra outro tipo de página via SPA, sem recarregar). */
+export function mountProductOverlay(): () => void {
+  if (document.getElementById(HOST_ID)) return () => {};
 
   const host = document.createElement("div");
   host.id = HOST_ID;
@@ -40,17 +41,10 @@ function mount() {
       window.clearInterval(poll);
     }
   }, 1000);
+
+  return () => {
+    window.clearInterval(poll);
+    root.unmount();
+    host.remove();
+  };
 }
-
-// Navegação client-side dentro da Shopee (troca de anúncio sem reload) —
-// remonta o card pra reescanear a nova página.
-let lastUrl = location.href;
-new MutationObserver(() => {
-  if (location.href !== lastUrl) {
-    lastUrl = location.href;
-    document.getElementById(HOST_ID)?.remove();
-    window.setTimeout(mount, 500);
-  }
-}).observe(document.body, { childList: true, subtree: true });
-
-mount();

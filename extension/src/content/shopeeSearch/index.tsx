@@ -3,7 +3,7 @@ import { Panel } from "./Panel";
 import { watchSearchItems, type EnrichedCard, type SearchDebugInfo } from "./scrape";
 import { extractKeywords } from "./keywordExtract";
 import { computePageStats, groupBySeller, pickChampions, matchesFilter, type FilterKey } from "./aggregate";
-import { upsertMiniCard, pruneMiniCards, repositionAllMiniCards, setCardVisible } from "./miniCard";
+import { upsertMiniCard, pruneMiniCards, repositionAllMiniCards, setCardVisible, clearAllMiniCards } from "./miniCard";
 import { onDiagnostic, type Diagnostic } from "../../lib/shopeeCapture";
 import { BADGE_STYLES } from "../styles";
 
@@ -31,7 +31,7 @@ function paintMiniCards(cards: EnrichedCard[], filter: FilterKey | null) {
   return champions.size;
 }
 
-function mountPanel(): Root {
+function mountPanel(): { root: Root; host: HTMLElement } {
   const host = document.createElement("div");
   host.id = HOST_ID;
   document.body.appendChild(host);
@@ -43,25 +43,30 @@ function mountPanel(): Root {
 
   const mountPoint = document.createElement("div");
   shadow.appendChild(mountPoint);
-  return createRoot(mountPoint);
+  return { root: createRoot(mountPoint), host };
 }
 
-function start() {
-  if (document.getElementById(HOST_ID)) return;
-  const root = mountPanel();
+/** Monta o painel + os mini-cards da busca. Devolve uma função de limpeza (usada quando a Shopee navega pra outro tipo de página via SPA, sem recarregar). */
+export function mountSearchPanel(): () => void {
+  if (document.getElementById(HOST_ID)) return () => {};
+  const { root, host } = mountPanel();
 
   let latestCards: EnrichedCard[] = [];
   let latestDiagnostic: Diagnostic | null = null;
   let latestSearchDebug: SearchDebugInfo | null = null;
   let activeFilter: FilterKey | null = null;
   let received = false;
+  let stopped = false;
 
   const render = (loading: boolean) => {
+    if (stopped) return;
     const championCount = paintMiniCards(latestCards, activeFilter);
     // Reposiciona de novo logo em seguida: esconder/mostrar cards muda a
     // altura da página, então as posições lidas durante paintMiniCards já
     // podem estar levemente desatualizadas pros cards processados depois.
-    window.setTimeout(repositionAllMiniCards, 60);
+    window.setTimeout(() => {
+      if (!stopped) repositionAllMiniCards();
+    }, 60);
 
     const stats = computePageStats(latestCards);
     const sellers = groupBySeller(latestCards);
@@ -93,14 +98,18 @@ function start() {
   // precisa de reposicionamento — só resize e o próprio carregamento
   // preguiçoso das imagens da Shopee, que muda a altura dos cards depois.
   window.addEventListener("resize", repositionAllMiniCards);
-  for (const delay of [500, 1200, 2500, 4000]) window.setTimeout(repositionAllMiniCards, delay);
+  const warmupTimers = [500, 1200, 2500, 4000].map((delay) =>
+    window.setTimeout(() => {
+      if (!stopped) repositionAllMiniCards();
+    }, delay),
+  );
 
-  onDiagnostic((d) => {
+  const stopDiagnostic = onDiagnostic((d) => {
     latestDiagnostic = d;
     render(!received);
   });
 
-  watchSearchItems(
+  const stopWatch = watchSearchItems(
     (cards) => {
       received = true;
       latestCards = cards;
@@ -111,6 +120,15 @@ function start() {
       render(!received);
     },
   );
-}
 
-start();
+  return () => {
+    stopped = true;
+    stopWatch();
+    stopDiagnostic();
+    window.removeEventListener("resize", repositionAllMiniCards);
+    warmupTimers.forEach((t) => window.clearTimeout(t));
+    clearAllMiniCards();
+    root.unmount();
+    host.remove();
+  };
+}

@@ -131,9 +131,12 @@ const collapsedState = new WeakMap<HTMLElement, boolean>();
 const originalMargins = new WeakMap<HTMLElement, string>();
 /** card.el -> display original (pra restaurar quando um filtro escondia o card). */
 const originalDisplay = new WeakMap<HTMLElement, string>();
+/** Todo elemento já tocado por `setCardVisible` — WeakMaps não são iteráveis, então precisamos disso à parte pra conseguir desfazer tudo de uma vez em `clearAllMiniCards`. */
+const touchedCardEls = new Set<HTMLElement>();
 
 /** Mostra/esconde o card REAL da Shopee (usado pelos filtros do painel) — sem margem reservada quando escondido. */
 export function setCardVisible(cardEl: HTMLElement, visible: boolean) {
+  touchedCardEls.add(cardEl);
   if (!originalDisplay.has(cardEl)) originalDisplay.set(cardEl, cardEl.style.display || "");
   if (visible) {
     cardEl.style.display = originalDisplay.get(cardEl) ?? "";
@@ -365,4 +368,15 @@ export function repositionAllMiniCards() {
     if (!document.contains(el)) continue;
     if (positionMiniCard(mini, el)) applySpacing(el, mini);
   }
+}
+
+/** Desfaz tudo (mini-cards, margens reservadas, cards escondidos por filtro) — chamado quando o roteador sai da página de busca via navegação SPA. */
+export function clearAllMiniCards() {
+  for (const [, mini] of registry) mini.remove();
+  registry.clear();
+  for (const el of touchedCardEls) {
+    el.style.marginBottom = originalMargins.get(el) ?? "";
+    el.style.display = originalDisplay.get(el) ?? "";
+  }
+  touchedCardEls.clear();
 }
