@@ -25,7 +25,14 @@ export default defineManifest({
     type: "module",
   },
   permissions: ["storage", "activeTab", "contextMenus"],
-  host_permissions: ["https://*.shopee.com.br/*", "https://*.supabase.co/*"],
+  host_permissions: [
+    "https://*.shopee.com.br/*",
+    "https://*.supabase.co/*",
+    // CDN de imagens da Shopee — precisa da permissão de host pra baixar as
+    // imagens da galeria sem cair no bloqueio de CORS (baixar tudo num .zip).
+    "https://*.susercontent.com/*",
+    "https://*.shopeemobile.com/*",
+  ],
   content_scripts: [
     {
       // Roda no "MAIN world" (o mesmo contexto JS da própria página, não o

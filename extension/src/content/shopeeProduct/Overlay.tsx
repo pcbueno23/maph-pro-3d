@@ -14,6 +14,7 @@ import {
   type EnrichedListingResult,
   type ScrapedListing,
 } from "./scrape";
+import { downloadImagesAsZip, scrapeGalleryImageUrls } from "./downloadImages";
 
 function fmtNum(n: number | null, opts?: Intl.NumberFormatOptions) {
   return n == null ? "—" : n.toLocaleString("pt-BR", opts);
@@ -36,6 +37,7 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [enrichResult, setEnrichResult] = useState<EnrichedListingResult | "loading">("loading");
   const [collapsed, setCollapsed] = useState(false);
+  const [downloadState, setDownloadState] = useState<"idle" | "baixando" | "ok" | "erro">("idle");
 
   useEffect(() => {
     const refresh = () => {
@@ -101,48 +103,21 @@ export function Overlay({ listing, inline }: { listing: ScrapedListing; inline: 
       <div className="mp3d-toolbar">
         <button
           type="button"
-          title="Baixar imagem do anúncio"
-          onClick={() => {
-            const img = document.querySelector<HTMLImageElement>('meta[property="og:image"]');
-            const src = img?.getAttribute("content");
-            if (!src) return;
-            const a = document.createElement("a");
-            a.href = src;
-            a.download = "anuncio.jpg";
-            a.target = "_blank";
-            a.rel = "noreferrer";
-            a.click();
+          title="Baixar todas as imagens do anúncio (.zip)"
+          disabled={downloadState === "baixando"}
+          onClick={async () => {
+            setDownloadState("baixando");
+            const urls = scrapeGalleryImageUrls();
+            const result = await downloadImagesAsZip(urls, listing.title);
+            setDownloadState(result.ok > 0 ? "ok" : "erro");
+            window.setTimeout(() => setDownloadState("idle"), 2000);
           }}
         >
-          ⬇
+          {downloadState === "baixando" ? "⏳" : downloadState === "ok" ? "✓" : downloadState === "erro" ? "⚠" : "⬇"}
         </button>
         <a href={makerWorldUrl(listing.title)} target="_blank" rel="noreferrer" title="Buscar modelo no MakerWorld">
           🧊
         </a>
-        <button
-          type="button"
-          title="Copiar dados deste anúncio"
-          onClick={(e) => {
-            const btn = e.currentTarget;
-            const lines = [
-              listing.title ?? "",
-              listing.price != null ? `Preço: ${formatBRL(listing.price)}` : null,
-              enriched && enriched !== "loading" && enriched.soldTotal != null
-                ? `Vendidos: ${enriched.soldTotal}`
-                : null,
-              salesPerDay != null ? `Vendas/dia: ${salesPerDay.toFixed(1)} (est.)` : null,
-            ]
-              .filter(Boolean)
-              .join("\n");
-            navigator.clipboard.writeText(lines).then(() => {
-              const original = btn.textContent;
-              btn.textContent = "✓";
-              setTimeout(() => (btn.textContent = original), 1200);
-            });
-          }}
-        >
-          📋
-        </button>
       </div>
 
       <div className="mp3d-row">
