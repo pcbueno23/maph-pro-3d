@@ -106,7 +106,7 @@ export function Panel({
 
   if (collapsed) {
     return (
-      <button className="mp3d-fab" onClick={() => setCollapsed(false)} title="Abrir Maph Pro 3D">
+      <button className="mp3d-fab topleft" onClick={() => setCollapsed(false)} title="Abrir Maph Pro 3D">
         M
       </button>
     );
@@ -150,15 +150,16 @@ export function Panel({
 
       {tab === "raiox" && (
         <>
+          <div className="mp3d-hero">
+            <div className="mp3d-hero-label">Faturamento total da página</div>
+            <div className="mp3d-hero-value">{fmtBRLCompact(stats.totalRevenue)}</div>
+          </div>
+          <div className="mp3d-hero">
+            <div className="mp3d-hero-label">Estimado · últimos 30 dias</div>
+            <div className="mp3d-hero-value">{fmtBRLCompact(stats.revenue30d)}</div>
+          </div>
+
           <div className="mp3d-stats-grid">
-            <div className="mp3d-stat mp3d-stat-wide">
-              <span className="mp3d-stat-label">Faturamento total da página</span>
-              <span className="mp3d-stat-value">{fmtBRLCompact(stats.totalRevenue)}</span>
-            </div>
-            <div className="mp3d-stat mp3d-stat-wide">
-              <span className="mp3d-stat-label">Faturamento estimado · últimos 30 dias</span>
-              <span className="mp3d-stat-value">{fmtBRLCompact(stats.revenue30d)}</span>
-            </div>
             <div className="mp3d-stat">
               <span className="mp3d-stat-label">Vendas totais</span>
               <span className="mp3d-stat-value">{fmtNum(stats.totalSales)}</span>
@@ -168,6 +169,14 @@ export function Panel({
               <span className="mp3d-stat-value">{fmtNum(stats.sales30d)}</span>
             </div>
             <div className="mp3d-stat">
+              <span className="mp3d-stat-label">Campeões 🏆 (vendas/dia)</span>
+              <span className="mp3d-stat-value">{championCount}</span>
+            </div>
+            <div className="mp3d-stat">
+              <span className="mp3d-stat-label">Anúncios analisados</span>
+              <span className="mp3d-stat-value">{stats.cardCount}</span>
+            </div>
+            <div className="mp3d-stat">
               <span className="mp3d-stat-label">Menor preço</span>
               <span className="mp3d-stat-value">{stats.minPrice != null ? fmtBRL(stats.minPrice) : "—"}</span>
             </div>
@@ -175,11 +184,7 @@ export function Panel({
               <span className="mp3d-stat-label">Maior preço</span>
               <span className="mp3d-stat-value">{stats.maxPrice != null ? fmtBRL(stats.maxPrice) : "—"}</span>
             </div>
-            <div className="mp3d-stat">
-              <span className="mp3d-stat-label">Campeões 🏆 (vendas/dia)</span>
-              <span className="mp3d-stat-value">{championCount}</span>
-            </div>
-            <div className="mp3d-stat">
+            <div className="mp3d-stat mp3d-stat-wide">
               <span className="mp3d-stat-label">Nacionais × internacionais</span>
               <span className="mp3d-stat-value">
                 {stats.nationalCount} × {stats.internationalCount}
@@ -188,11 +193,23 @@ export function Panel({
           </div>
 
           <p className="mp3d-section-label">Idade dos anúncios</p>
-          <div className="mp3d-age-buckets">
-            <span>até 90d: <b>{stats.ageBuckets.until90}</b></span>
-            <span>até 180d: <b>{stats.ageBuckets.until180}</b></span>
-            <span>até 365d: <b>{stats.ageBuckets.until365}</b></span>
-            <span>+365d: <b>{stats.ageBuckets.older}</b></span>
+          <div className="mp3d-age-grid">
+            <div className="mp3d-age-cell">
+              <span className="mp3d-age-dot new" />
+              <span className="mp3d-age-cell-text"><b>{stats.ageBuckets.until90}</b><span>até 90 dias</span></span>
+            </div>
+            <div className="mp3d-age-cell">
+              <span className="mp3d-age-dot mid" />
+              <span className="mp3d-age-cell-text"><b>{stats.ageBuckets.until180}</b><span>até 180 dias</span></span>
+            </div>
+            <div className="mp3d-age-cell">
+              <span className="mp3d-age-dot old" />
+              <span className="mp3d-age-cell-text"><b>{stats.ageBuckets.until365}</b><span>até 365 dias</span></span>
+            </div>
+            <div className="mp3d-age-cell">
+              <span className="mp3d-age-dot older" />
+              <span className="mp3d-age-cell-text"><b>{stats.ageBuckets.older}</b><span>+ de 365 dias</span></span>
+            </div>
           </div>
         </>
       )}

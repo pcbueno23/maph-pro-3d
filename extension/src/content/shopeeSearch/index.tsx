@@ -3,29 +3,29 @@ import { Panel } from "./Panel";
 import { watchSearchItems, type EnrichedCard, type SearchDebugInfo } from "./scrape";
 import { extractKeywords } from "./keywordExtract";
 import { computePageStats, groupBySeller, pickChampions } from "./aggregate";
+import { renderMiniCard } from "./miniCard";
 import { onDiagnostic, type Diagnostic } from "../../lib/shopeeCapture";
 import { BADGE_STYLES } from "../styles";
 
 const HOST_ID = "mp3d-shopee-search-panel";
-const BADGE_CLASS = "mp3d-badge";
+const MINI_CARD_CLASS = "mp3d-mini";
 
-function clearBadges() {
-  document.querySelectorAll(`.${BADGE_CLASS}`).forEach((b) => b.remove());
-}
-
-function paintChampionBadges(cards: EnrichedCard[]) {
-  clearBadges();
+function paintMiniCards(cards: EnrichedCard[]) {
   const champions = pickChampions(cards);
+  const seenEls = new Set<HTMLElement>();
+
   for (const c of cards) {
-    if (!c.el || !champions.has(c.el)) continue;
-    const computed = window.getComputedStyle(c.el);
-    if (computed.position === "static") c.el.style.position = "relative";
-    const badge = document.createElement("div");
-    badge.className = BADGE_CLASS;
-    const perDay = c.salesPerDay != null ? c.salesPerDay.toFixed(1) : "?";
-    badge.textContent = `🏆 ${perDay}/dia`;
-    c.el.appendChild(badge);
+    if (!c.el) continue;
+    seenEls.add(c.el);
+    renderMiniCard(c, champions.has(c.el));
   }
+
+  // Limpa mini-cards de anúncios que saíram da lista (ex.: filtro/ordenação mudou).
+  document.querySelectorAll<HTMLElement>(`.${MINI_CARD_CLASS}`).forEach((el) => {
+    const parent = el.parentElement;
+    if (parent && !seenEls.has(parent)) el.remove();
+  });
+
   return champions.size;
 }
 
@@ -54,7 +54,7 @@ function start() {
   let received = false;
 
   const render = (loading: boolean) => {
-    const championCount = paintChampionBadges(latestCards);
+    const championCount = paintMiniCards(latestCards);
     const stats = computePageStats(latestCards);
     const sellers = groupBySeller(latestCards);
     const titles = latestCards.map((c) => c.name).filter((t): t is string => !!t);
