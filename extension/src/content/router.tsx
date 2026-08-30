@@ -23,8 +23,23 @@ mountAuthModal();
 
 type PageKind = "product" | "search" | null;
 
+/**
+ * Link de afiliado (ex.: encurtador s.shopee.com.br) redireciona pra um
+ * formato sem o "-i." do link canônico de produto — confirmado com um link
+ * real do usuário: `https://shopee.com.br/opaanlp/921138965/58250528502`.
+ * A Shopee não reescreve a URL sozinha pra o formato canônico depois de
+ * carregar, então precisa reconhecer esse formato também.
+ */
+function isAffiliateProductPath(href: string): boolean {
+  try {
+    return /^\/[^/]+\/\d+\/\d+\/?$/.test(new URL(href).pathname);
+  } catch {
+    return false;
+  }
+}
+
 function detectKind(href: string): PageKind {
-  if (/-i\.\d+\.\d+/.test(href)) return "product";
+  if (/-i\.\d+\.\d+/.test(href) || isAffiliateProductPath(href)) return "product";
   if (
     /\/search/.test(href) ||
     /\/Todos-os-Produtos/i.test(href) ||
