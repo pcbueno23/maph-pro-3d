@@ -1,15 +1,34 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { ExternalLink, Upload } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import {
   importPerformanceReport,
   importAdsReport,
   fetchLatestImport,
+  fetchPerformanceProductRows,
+  fetchAdsRows,
   type ShopeeImportSummary,
   type ShopeeReportType,
+  type PerformanceProductRow,
+  type AdsRowSummary,
 } from "@/lib/supabaseShopeeReports";
+
+function formatBRL(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatPct(value: number | null) {
+  return value == null ? "—" : `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
+}
+
+function roasTone(roas: number | null): string {
+  if (roas == null) return "text-slate-400";
+  if (roas < 1) return "text-rose-400";
+  if (roas < 1.5) return "text-amber-300";
+  return "text-emerald-400";
+}
 
 /** Só estes dois já têm modelo real confirmado pra montar o importador. */
 const IMPORTABLE_REPORT_TYPE: Record<string, ShopeeReportType> = {
@@ -142,10 +161,14 @@ export default function RelatoriosShopeePage() {
   const [summary, setSummary] = useState<ShopeeImportSummary | null>(null);
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [perfRows, setPerfRows] = useState<PerformanceProductRow[]>([]);
+  const [adsRows, setAdsRows] = useState<AdsRowSummary[]>([]);
 
   useEffect(() => {
     setImportMsg(null);
     setSummary(null);
+    setPerfRows([]);
+    setAdsRows([]);
     if (!reportType || !user) return;
     let cancelled = false;
     fetchLatestImport(user.id, reportType).then((s) => {
@@ -155,6 +178,45 @@ export default function RelatoriosShopeePage() {
       cancelled = true;
     };
   }, [reportType, user]);
+
+  useEffect(() => {
+    if (!summary) return;
+    let cancelled = false;
+    if (reportType === "performance_produto") {
+      fetchPerformanceProductRows(summary.id).then((rows) => {
+        if (!cancelled) setPerfRows(rows);
+      });
+    } else if (reportType === "shopee_ads") {
+      fetchAdsRows(summary.id).then((rows) => {
+        if (!cancelled) setAdsRows(rows);
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [summary, reportType]);
+
+  const perfTotals = useMemo(() => {
+    if (perfRows.length === 0) return null;
+    return {
+      salesPaid: perfRows.reduce((s, r) => s + (r.salesPaid ?? 0), 0),
+      unitsPaid: perfRows.reduce((s, r) => s + (r.unitsPaid ?? 0), 0),
+      ordersPaid: perfRows.reduce((s, r) => s + (r.ordersPaid ?? 0), 0),
+      withSales: perfRows.filter((r) => (r.salesPaid ?? 0) > 0).length,
+    };
+  }, [perfRows]);
+
+  const adsTotals = useMemo(() => {
+    if (adsRows.length === 0) return null;
+    const expenses = adsRows.reduce((s, r) => s + (r.expenses ?? 0), 0);
+    const gmv = adsRows.reduce((s, r) => s + (r.gmv ?? 0), 0);
+    return {
+      expenses,
+      gmv,
+      roas: expenses > 0 ? gmv / expenses : null,
+      losing: adsRows.filter((r) => r.roas != null && r.roas < 1 && (r.expenses ?? 0) > 0).length,
+    };
+  }, [adsRows]);
 
   async function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -290,6 +352,158 @@ export default function RelatoriosShopeePage() {
           )}
         </div>
       </div>
+
+      {reportType === "performance_produto" && perfTotals ? (
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6 shadow-[0_0_0_1px_rgba(6,182,212,0.08)]">
+          <p className="text-sm font-semibold text-slate-50">Como seus produtos performaram</p>
+          <p className="mt-1 text-xs text-slate-500">
+            A partir do arquivo importado — {summary?.periodStart && summary?.periodEnd ? `período ${summary.periodStart} a ${summary.periodEnd}` : "sem período identificado"}.
+          </p>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">Vendido</p>
+              <p className="mt-1 text-lg font-semibold text-emerald-400">{formatBRL(perfTotals.salesPaid)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">Unidades</p>
+              <p className="mt-1 text-lg font-semibold text-slate-50">{perfTotals.unitsPaid}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">Pedidos pagos</p>
+              <p className="mt-1 text-lg font-semibold text-slate-50">{perfTotals.ordersPaid}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">Venderam algo</p>
+              <p className="mt-1 text-lg font-semibold text-slate-50">
+                {perfTotals.withSales}/{perfRows.length}
+              </p>
+            </div>
+          </div>
+
+          {perfRows.length - perfTotals.withSales > 0 ? (
+            <p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              {perfRows.length - perfTotals.withSales} produto(s) tiveram 0 venda nesse período — candidatos a
+              revisar preço, foto ou parar de anunciar.
+            </p>
+          ) : null}
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[480px] text-left text-xs">
+              <thead>
+                <tr className="text-slate-500">
+                  <th className="pb-2 font-medium">Produto</th>
+                  <th className="pb-2 font-medium">SKU</th>
+                  <th className="pb-2 text-right font-medium">Vendido</th>
+                  <th className="pb-2 text-right font-medium">Unid.</th>
+                  <th className="pb-2 text-right font-medium">Conversão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {perfRows.map((r) => (
+                  <tr key={r.itemId ?? r.productName} className="border-t border-slate-800/60">
+                    <td className="max-w-[220px] truncate py-2 pr-2 text-slate-200" title={r.productName ?? ""}>
+                      {r.productName ?? "—"}
+                      {!r.matchedProductId ? (
+                        <span className="ml-1 rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] text-slate-500">
+                          sem SKU casado
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="py-2 pr-2 font-mono text-slate-400">{r.sku ?? "—"}</td>
+                    <td className="py-2 pr-2 text-right text-slate-200">
+                      {r.salesPaid != null ? formatBRL(r.salesPaid) : "—"}
+                    </td>
+                    <td className="py-2 pr-2 text-right text-slate-300">{r.unitsPaid ?? "—"}</td>
+                    <td className="py-2 text-right text-slate-300">{formatPct(r.conversionRatePaid)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
+      {reportType === "shopee_ads" && adsTotals ? (
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6 shadow-[0_0_0_1px_rgba(6,182,212,0.08)]">
+          <p className="text-sm font-semibold text-slate-50">Como seus anúncios performaram</p>
+          <p className="mt-1 text-xs text-slate-500">
+            A partir do arquivo importado — {summary?.periodStart && summary?.periodEnd ? `período ${summary.periodStart} a ${summary.periodEnd}` : "sem período identificado"}.
+          </p>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">Investido</p>
+              <p className="mt-1 text-lg font-semibold text-rose-400">{formatBRL(adsTotals.expenses)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">GMV gerado</p>
+              <p className="mt-1 text-lg font-semibold text-emerald-400">{formatBRL(adsTotals.gmv)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">ROAS geral</p>
+              <p className={`mt-1 text-lg font-semibold ${roasTone(adsTotals.roas)}`}>
+                {adsTotals.roas != null ? `${adsTotals.roas.toFixed(2)}x` : "—"}
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">No prejuízo</p>
+              <p className="mt-1 text-lg font-semibold text-slate-50">
+                {adsTotals.losing}/{adsRows.length}
+              </p>
+            </div>
+          </div>
+
+          {adsTotals.losing > 0 ? (
+            <p className="mt-3 rounded-lg border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+              {adsTotals.losing} anúncio(s) estão gastando mais em ads do que geram em venda (ROAS abaixo de 1x) —
+              esse custo precisa entrar na sua margem, ou vale pausar esses anúncios.
+            </p>
+          ) : (
+            <p className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+              Nenhum anúncio no prejuízo nesse período — todos geram mais venda do que custam.
+            </p>
+          )}
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[480px] text-left text-xs">
+              <thead>
+                <tr className="text-slate-500">
+                  <th className="pb-2 font-medium">Anúncio</th>
+                  <th className="pb-2 text-right font-medium">Investido</th>
+                  <th className="pb-2 text-right font-medium">GMV</th>
+                  <th className="pb-2 text-right font-medium">ROAS</th>
+                  <th className="pb-2 text-right font-medium">ACOS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adsRows.map((r, i) => (
+                  <tr key={`${r.itemId ?? r.adName}-${i}`} className="border-t border-slate-800/60">
+                    <td className="max-w-[220px] truncate py-2 pr-2 text-slate-200" title={r.adName ?? ""}>
+                      {r.adName ?? "—"}
+                      {!r.matchedProductId ? (
+                        <span className="ml-1 rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] text-slate-500">
+                          sem produto casado
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="py-2 pr-2 text-right text-slate-200">
+                      {r.expenses != null ? formatBRL(r.expenses) : "—"}
+                    </td>
+                    <td className="py-2 pr-2 text-right text-slate-300">
+                      {r.gmv != null ? formatBRL(r.gmv) : "—"}
+                    </td>
+                    <td className={`py-2 pr-2 text-right font-medium ${roasTone(r.roas)}`}>
+                      {r.roas != null ? `${r.roas.toFixed(2)}x` : "—"}
+                    </td>
+                    <td className="py-2 text-right text-slate-300">{formatPct(r.acos)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <p className="text-center text-xs text-slate-500">
         Caminhos e nomes de botão são da estrutura do Central do Vendedor Shopee em 08/2026 — a

@@ -17,6 +17,33 @@ export type ImportOutcome =
   | { ok: true; summary: ShopeeImportSummary }
   | { ok: false; message: string };
 
+export type PerformanceProductRow = {
+  itemId: string | null;
+  productName: string | null;
+  sku: string | null;
+  matchedProductId: string | null;
+  salesPaid: number | null;
+  salesOrdered: number | null;
+  unitsPaid: number | null;
+  ordersPaid: number | null;
+  conversionRatePaid: number | null;
+  ctr: number | null;
+};
+
+export type AdsRowSummary = {
+  adName: string | null;
+  itemId: string | null;
+  matchedProductId: string | null;
+  status: string | null;
+  expenses: number | null;
+  gmv: number | null;
+  roas: number | null;
+  acos: number | null;
+  itemsSold: number | null;
+  clicks: number | null;
+  impressions: number | null;
+};
+
 type ProductLookup = { id: string; sku: string | null; shopeeItemId: string | null };
 
 async function fetchProductLookup(userId: string): Promise<ProductLookup[]> {
@@ -265,6 +292,60 @@ export async function fetchLatestImport(
     matchedCount,
     importedAt: data.imported_at,
   };
+}
+
+/**
+ * Uma linha por produto (ignora as linhas de variação — elas já somam no total do
+ * produto-pai) — é o que alimenta o painel didático dentro da aba, ordenado do que
+ * mais vendeu pro que menos vendeu.
+ */
+export async function fetchPerformanceProductRows(importId: string): Promise<PerformanceProductRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("shopee_product_performance")
+    .select(
+      "item_id, product_name, sku, matched_product_id, sales_paid, sales_ordered, units_paid, orders_paid, conversion_rate_paid, ctr",
+    )
+    .eq("import_id", importId)
+    .is("variation_id", null)
+    .order("sales_paid", { ascending: false, nullsFirst: false });
+  if (error || !data) return [];
+  return data.map((r) => ({
+    itemId: r.item_id,
+    productName: r.product_name,
+    sku: r.sku,
+    matchedProductId: r.matched_product_id,
+    salesPaid: r.sales_paid != null ? Number(r.sales_paid) : null,
+    salesOrdered: r.sales_ordered != null ? Number(r.sales_ordered) : null,
+    unitsPaid: r.units_paid,
+    ordersPaid: r.orders_paid,
+    conversionRatePaid: r.conversion_rate_paid != null ? Number(r.conversion_rate_paid) : null,
+    ctr: r.ctr != null ? Number(r.ctr) : null,
+  }));
+}
+
+/** Uma linha por anúncio/produto, ordenada do que mais gastou pro que menos gastou. */
+export async function fetchAdsRows(importId: string): Promise<AdsRowSummary[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("shopee_ads_performance")
+    .select("ad_name, item_id, matched_product_id, status, expenses, gmv, roas, acos, items_sold, clicks, impressions")
+    .eq("import_id", importId)
+    .order("expenses", { ascending: false, nullsFirst: false });
+  if (error || !data) return [];
+  return data.map((r) => ({
+    adName: r.ad_name,
+    itemId: r.item_id,
+    matchedProductId: r.matched_product_id,
+    status: r.status,
+    expenses: r.expenses != null ? Number(r.expenses) : null,
+    gmv: r.gmv != null ? Number(r.gmv) : null,
+    roas: r.roas != null ? Number(r.roas) : null,
+    acos: r.acos != null ? Number(r.acos) : null,
+    itemsSold: r.items_sold,
+    clicks: r.clicks,
+    impressions: r.impressions,
+  }));
 }
 
 /** Despesa total com Ads no período mais recente importado — usado no dashboard. */
