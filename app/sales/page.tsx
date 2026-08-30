@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useInventoryStore } from "@/store/inventoryStore";
 import { useSalesStore, type SalesChannel } from "@/store/salesStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useProductsStore } from "@/store/productsStore";
+import type { Product, ProductMarketplaceChannel } from "@/types";
 import { getEffectiveMarketplaceFeePercent } from "@/lib/marketplaceFees";
 
 function formatChannelHistory(ch: SalesChannel) {
@@ -11,8 +13,14 @@ function formatChannelHistory(ch: SalesChannel) {
   return ch;
 }
 
+function channelToMarketplace(channel: SalesChannel): ProductMarketplaceChannel {
+  if (channel === "ML") return "Mercado Livre";
+  if (channel === "Direto") return "Venda Direta";
+  return "Shopee";
+}
+
 export default function SalesPage() {
-  const { items, hydrateFromStorage: hydrateInventory, updateItem } = useInventoryStore();
+  const { items, hydrateFromStorage: hydrateInventory, updateItem, upsertFromProduct } = useInventoryStore();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const {
     registerSale,
@@ -22,11 +30,101 @@ export default function SalesPage() {
     clearSales,
   } = useSalesStore();
   const { settings } = useSettingsStore();
+  const addProduct = useProductsStore((s) => s.addProduct);
 
   useEffect(() => {
     hydrateInventory();
     hydrateSales();
   }, [hydrateInventory, hydrateSales]);
+
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickName, setQuickName] = useState("");
+  const [quickSku, setQuickSku] = useState("");
+  const [quickChannel, setQuickChannel] = useState<SalesChannel>("Shopee");
+  const [quickCost, setQuickCost] = useState("");
+  const [quickPrice, setQuickPrice] = useState("");
+  const [quickQty, setQuickQty] = useState("1");
+  const [quickError, setQuickError] = useState<string | null>(null);
+
+  function marketplaceFeeFor(channel: SalesChannel, unitPrice: number, revenue: number): number {
+    if (channel === "Shopee") {
+      const feePercent = getEffectiveMarketplaceFeePercent("Shopee", "CPF", unitPrice, {
+        freeShipping: settings.defaults.shopeeFreeShippingDefault ?? false,
+      });
+      return (revenue * feePercent) / 100;
+    }
+    if (channel === "ML") {
+      const feePercent = getEffectiveMarketplaceFeePercent("Mercado Livre", "CPF", unitPrice, {
+        classicML: settings.defaults.mlClassic ?? false,
+      });
+      return (revenue * feePercent) / 100;
+    }
+    const cardFee = settings.defaults.cardFeePercent ?? 0;
+    return (revenue * cardFee) / 100;
+  }
+
+  function handleQuickRegister(e: FormEvent) {
+    e.preventDefault();
+    setQuickError(null);
+
+    const name = quickName.trim();
+    const sku = quickSku.trim();
+    const cost = Number(quickCost.replace(",", "."));
+    const price = Number(quickPrice.replace(",", "."));
+    const qty = Number(quickQty);
+
+    if (!name) return setQuickError("Nome do produto é obrigatório.");
+    if (!Number.isFinite(cost) || cost < 0) return setQuickError("Custo aproximado inválido.");
+    if (!Number.isFinite(price) || price <= 0) return setQuickError("Preço de venda inválido.");
+    if (!Number.isFinite(qty) || qty <= 0) return setQuickError("Quantidade inválida.");
+
+    const now = new Date().toISOString();
+    const product: Product = {
+      id: crypto.randomUUID(),
+      name,
+      weight: 0,
+      price,
+      margin: 0,
+      marketplace: channelToMarketplace(quickChannel),
+      currency: "BRL",
+      totalCost: cost,
+      sku: sku || null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    addProduct(product);
+    // Cria o item de estoque com quantidade 0 — já foi vendido, não sobrou saldo pra rastrear.
+    upsertFromProduct(product, 0, sku || undefined);
+    const createdItem = useInventoryStore.getState().items.find((i) => i.productId === product.id);
+    if (!createdItem) return setQuickError("Falha ao cadastrar o produto.");
+
+    const revenue = price * qty;
+    const grossProfit = (price - cost) * qty;
+    const marketplaceFeeAmount = marketplaceFeeFor(quickChannel, price, revenue);
+    const netProfit = grossProfit - marketplaceFeeAmount;
+
+    registerSale({
+      itemId: createdItem.id,
+      productName: name,
+      sku,
+      channel: quickChannel,
+      quantity: qty,
+      unitPrice: price,
+      revenue,
+      unitProductionCost: cost,
+      grossProfit,
+      marketplaceFeeAmount,
+      taxAmount: 0,
+      netProfit,
+    });
+
+    setQuickName("");
+    setQuickSku("");
+    setQuickCost("");
+    setQuickPrice("");
+    setQuickQty("1");
+    setQuickOpen(false);
+  }
 
   const handleSell = (itemId: string, channel: SalesChannel) => {
     const item = items.find((i) => i.id === itemId);
@@ -82,31 +180,7 @@ export default function SalesPage() {
     const unitCost = item.productionCost ?? 0;
     const revenue = unitPrice * qty;
     const grossProfit = (unitPrice - unitCost) * qty;
-
-    // Taxa do marketplace sobre a receita total
-    let marketplaceFeeAmount = 0;
-    if (channel === "Shopee") {
-      const feePercent = getEffectiveMarketplaceFeePercent(
-        "Shopee",
-        "CPF", // personType não é global; CPF é o mais comum entre makers
-        unitPrice,
-        { freeShipping: settings.defaults.shopeeFreeShippingDefault ?? false },
-      );
-      marketplaceFeeAmount = (revenue * feePercent) / 100;
-    } else if (channel === "ML") {
-      const feePercent = getEffectiveMarketplaceFeePercent(
-        "Mercado Livre",
-        "CPF",
-        unitPrice,
-        { classicML: settings.defaults.mlClassic ?? false },
-      );
-      marketplaceFeeAmount = (revenue * feePercent) / 100;
-    } else if (channel === "Direto") {
-      // Venda direta com cartão usa taxa configurada; PIX = 0
-      // Usamos cardFeePercent como aproximação conservadora
-      const cardFee = settings.defaults.cardFeePercent ?? 0;
-      marketplaceFeeAmount = (revenue * cardFee) / 100;
-    }
+    const marketplaceFeeAmount = marketplaceFeeFor(channel, unitPrice, revenue);
 
     // Imposto: não armazenado globalmente por produto — registrado como 0
     // (pode ser expandido quando taxPercent for adicionado ao InventoryItem)
@@ -137,6 +211,103 @@ export default function SalesPage() {
       <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">
         Vendas
       </h1>
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Vendeu algo que ainda não está cadastrado?
+          </p>
+          <button
+            type="button"
+            onClick={() => setQuickOpen((o) => !o)}
+            className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-200 hover:bg-cyan-500/20"
+          >
+            {quickOpen ? "Cancelar" : "+ Cadastro expresso"}
+          </button>
+        </div>
+
+        {quickOpen && (
+          <form onSubmit={handleQuickRegister} className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Nome do produto
+              <input
+                type="text"
+                value={quickName}
+                onChange={(e) => setQuickName(e.target.value)}
+                className="rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-1.5 text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              SKU (opcional)
+              <input
+                type="text"
+                value={quickSku}
+                onChange={(e) => setQuickSku(e.target.value)}
+                className="rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-1.5 text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Canal
+              <select
+                value={quickChannel}
+                onChange={(e) => setQuickChannel(e.target.value as SalesChannel)}
+                className="rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-1.5 text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+              >
+                <option value="Shopee">Shopee</option>
+                <option value="ML">Mercado Livre</option>
+                <option value="Direto">Venda direta</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Custo aproximado (R$)
+              <input
+                type="text"
+                inputMode="decimal"
+                value={quickCost}
+                onChange={(e) => setQuickCost(e.target.value)}
+                className="rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-1.5 text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Preço de venda (R$)
+              <input
+                type="text"
+                inputMode="decimal"
+                value={quickPrice}
+                onChange={(e) => setQuickPrice(e.target.value)}
+                className="rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-1.5 text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Quantidade
+              <input
+                type="number"
+                min={1}
+                value={quickQty}
+                onChange={(e) => setQuickQty(e.target.value)}
+                className="rounded-lg border border-slate-800 bg-slate-900/80 px-2 py-1.5 text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                required
+              />
+            </label>
+            <div className="sm:col-span-2 lg:col-span-3">
+              {quickError && <p className="mb-2 text-xs text-rose-400">{quickError}</p>}
+              <button
+                type="submit"
+                className="rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:from-cyan-400 hover:to-emerald-400"
+              >
+                Cadastrar produto e registrar venda
+              </button>
+              <p className="mt-2 text-[10px] text-slate-500">
+                Cria um produto mínimo (nome + custo aproximado) e já registra a venda — depois você
+                pode completar a ficha técnica dele em Produtos.
+              </p>
+            </div>
+          </form>
+        )}
+      </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm">
         {itemsWithStock.length === 0 ? (

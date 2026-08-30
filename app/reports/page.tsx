@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { useSalesStore, type Sale } from "@/store/salesStore";
 import type { SupplyCategory, SupplyItem } from "@/types";
 import type { InventoryItem } from "@/store/inventoryStore";
 import { listSupplies } from "@/lib/supabaseProduction";
@@ -20,6 +21,81 @@ const SUPPLY_CATEGORY_LABEL: Record<SupplyCategory, string> = {
   other: "Outro",
 };
 
+const HEATMAP_DAYS = 91;
+
+/** Converte um ISO (UTC) pro dia de calendário local — evita virar um dia por causa do fuso. */
+function localDayKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+type HeatmapCell = { key: string; value: number; label: string; weekday: number };
+
+function buildHeatmapWeeks(sales: Sale[]): (HeatmapCell | null)[][] {
+  const byDay = new Map<string, number>();
+  for (const s of sales) {
+    const key = localDayKey(s.date);
+    byDay.set(key, (byDay.get(key) ?? 0) + s.revenue);
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const days: HeatmapCell[] = [];
+  for (let i = HEATMAP_DAYS - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    days.push({ key, value: byDay.get(key) ?? 0, label: d.toLocaleDateString("pt-BR"), weekday: d.getDay() });
+  }
+
+  // Alinha a primeira semana à segunda-feira, preenchendo com células vazias.
+  const mondayOffset = (days[0].weekday + 6) % 7;
+  const padded: (HeatmapCell | null)[] = [...Array.from({ length: mondayOffset }, () => null), ...days];
+  const weeks: (HeatmapCell | null)[][] = [];
+  for (let i = 0; i < padded.length; i += 7) weeks.push(padded.slice(i, i + 7));
+  return weeks;
+}
+
+function heatTone(value: number, max: number): string {
+  if (value <= 0) return "bg-slate-900/70";
+  const ratio = max > 0 ? value / max : 0;
+  if (ratio > 0.75) return "bg-emerald-500";
+  if (ratio > 0.5) return "bg-emerald-600/80";
+  if (ratio > 0.25) return "bg-emerald-700/70";
+  return "bg-emerald-800/60";
+}
+
+type AbcPeriod = "30d" | "90d" | "all";
+type AbcRow = { key: string; productName: string; sku: string; revenue: number; pctOfTotal: number; cumPct: number; cls: "A" | "B" | "C" };
+
+function buildAbc(sales: Sale[]): AbcRow[] {
+  const byProduct = new Map<string, { productName: string; sku: string; revenue: number }>();
+  for (const s of sales) {
+    const key = s.itemId || s.sku || s.productName;
+    const existing = byProduct.get(key);
+    if (existing) existing.revenue += s.revenue;
+    else byProduct.set(key, { productName: s.productName, sku: s.sku, revenue: s.revenue });
+  }
+  const total = Array.from(byProduct.values()).reduce((sum, p) => sum + p.revenue, 0);
+  const sorted = Array.from(byProduct.entries())
+    .map(([key, p]) => ({ key, ...p }))
+    .sort((a, b) => b.revenue - a.revenue);
+  let cum = 0;
+  return sorted.map((p) => {
+    const pct = total > 0 ? (p.revenue / total) * 100 : 0;
+    cum += pct;
+    const cls: AbcRow["cls"] = cum <= 80 ? "A" : cum <= 95 ? "B" : "C";
+    return { ...p, pctOfTotal: pct, cumPct: cum, cls };
+  });
+}
+
+const ABC_CLASS_TONE: Record<AbcRow["cls"], string> = {
+  A: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
+  B: "bg-amber-500/15 text-amber-300 border-amber-500/40",
+  C: "bg-slate-500/15 text-slate-400 border-slate-600/40",
+};
+
 export default function ReportsPage() {
   const user = useAuthStore((s) => s.user);
   const [supplies, setSupplies] = useState<SupplyItem[]>([]);
@@ -28,6 +104,37 @@ export default function ReportsPage() {
   const [productUnitCosts, setProductUnitCosts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const sales = useSalesStore((s) => s.sales);
+  const hydrateSales = useSalesStore((s) => s.hydrateFromStorage);
+  const [abcPeriod, setAbcPeriod] = useState<AbcPeriod>("30d");
+
+  useEffect(() => {
+    hydrateSales();
+  }, [hydrateSales]);
+
+  const heatmapWeeks = useMemo(() => buildHeatmapWeeks(sales), [sales]);
+  const heatmapMax = useMemo(
+    () => Math.max(...heatmapWeeks.flat().map((c) => c?.value ?? 0), 1),
+    [heatmapWeeks],
+  );
+
+  const abcSales = useMemo(() => {
+    if (abcPeriod === "all") return sales;
+    const days = abcPeriod === "30d" ? 30 : 90;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return sales.filter((s) => new Date(s.date) >= cutoff);
+  }, [sales, abcPeriod]);
+  const abcRows = useMemo(() => buildAbc(abcSales), [abcSales]);
+  const abcCounts = useMemo(
+    () => ({
+      A: abcRows.filter((r) => r.cls === "A").length,
+      B: abcRows.filter((r) => r.cls === "B").length,
+      C: abcRows.filter((r) => r.cls === "C").length,
+    }),
+    [abcRows],
+  );
 
   useEffect(() => {
     if (!user?.id) {
@@ -237,6 +344,111 @@ export default function ReportsPage() {
       {loading && (
         <p className="text-sm text-slate-400">Carregando insumos e peças produzidas...</p>
       )}
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          Curva de vendas — últimos {HEATMAP_DAYS} dias
+        </p>
+        {sales.length === 0 ? (
+          <p className="mt-3 text-slate-400">Nenhuma venda registrada ainda.</p>
+        ) : (
+          <>
+            <div className="mt-3 flex gap-1 overflow-x-auto pb-1">
+              {heatmapWeeks.map((week, wi) => (
+                <div key={wi} className="flex flex-col gap-1">
+                  {week.map((cell, di) =>
+                    cell ? (
+                      <div
+                        key={cell.key}
+                        title={`${cell.label}: ${formatBRL(cell.value)}`}
+                        className={`h-3 w-3 rounded-sm ${heatTone(cell.value, heatmapMax)}`}
+                      />
+                    ) : (
+                      <div key={di} className="h-3 w-3" />
+                    ),
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-500">
+              <span>Menos</span>
+              <div className="h-3 w-3 rounded-sm bg-slate-900/70" />
+              <div className="h-3 w-3 rounded-sm bg-emerald-800/60" />
+              <div className="h-3 w-3 rounded-sm bg-emerald-700/70" />
+              <div className="h-3 w-3 rounded-sm bg-emerald-600/80" />
+              <div className="h-3 w-3 rounded-sm bg-emerald-500" />
+              <span>Mais</span>
+              <span className="ml-2">Intensidade por faturamento do dia.</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Análise ABC — produtos por faturamento
+          </p>
+          <div className="flex gap-1">
+            {(["30d", "90d", "all"] as AbcPeriod[]).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setAbcPeriod(p)}
+                className={`rounded-lg px-2.5 py-1 text-[11px] font-medium ${
+                  abcPeriod === p
+                    ? "bg-cyan-500/15 text-cyan-200"
+                    : "text-slate-400 hover:bg-slate-900/60"
+                }`}
+              >
+                {p === "30d" ? "30 dias" : p === "90d" ? "90 dias" : "Tudo"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {abcRows.length === 0 ? (
+          <p className="mt-3 text-slate-400">Nenhuma venda nesse período.</p>
+        ) : (
+          <>
+            <p className="mt-2 text-[11px] text-slate-500">
+              <span className="text-emerald-300">A</span> = até 80% do faturamento acumulado (
+              {abcCounts.A} produto{abcCounts.A === 1 ? "" : "s"}) · <span className="text-amber-300">B</span> = até 95%
+              ({abcCounts.B}) · <span className="text-slate-400">C</span> = resto ({abcCounts.C}).
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                  <tr>
+                    <th className="px-2 py-2">Produto</th>
+                    <th className="px-2 py-2">SKU</th>
+                    <th className="px-2 py-2">Faturamento</th>
+                    <th className="px-2 py-2">% do total</th>
+                    <th className="px-2 py-2">% acumulado</th>
+                    <th className="px-2 py-2">Classe</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {abcRows.map((r) => (
+                    <tr key={r.key} className="hover:bg-slate-900/60">
+                      <td className="px-2 py-2 text-slate-100">{r.productName}</td>
+                      <td className="px-2 py-2 text-slate-300">{r.sku || "-"}</td>
+                      <td className="px-2 py-2 text-slate-200">{formatBRL(r.revenue)}</td>
+                      <td className="px-2 py-2 text-slate-300">{r.pctOfTotal.toFixed(1)}%</td>
+                      <td className="px-2 py-2 text-slate-300">{r.cumPct.toFixed(1)}%</td>
+                      <td className="px-2 py-2">
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${ABC_CLASS_TONE[r.cls]}`}>
+                          {r.cls}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm">

@@ -3,7 +3,11 @@
 import { useEffect, useMemo } from "react";
 import { useInventoryStore } from "@/store/inventoryStore";
 import { useAuthStore } from "@/store/authStore";
+import { useSalesStore } from "@/store/salesStore";
 import { fetchUserProducts } from "@/lib/supabaseProducts";
+
+/** Velocidade de venda calculada sobre esta janela — período curto o bastante pra refletir demanda recente. */
+const COVERAGE_WINDOW_DAYS = 30;
 
 export default function InventoryPage() {
   const { user } = useAuthStore();
@@ -13,6 +17,32 @@ export default function InventoryPage() {
     updateItem,
     removeItem,
   } = useInventoryStore();
+  const sales = useSalesStore((s) => s.sales);
+  const hydrateSales = useSalesStore((s) => s.hydrateFromStorage);
+
+  useEffect(() => {
+    hydrateSales();
+  }, [hydrateSales]);
+
+  /** itemId -> unidades vendidas nos últimos COVERAGE_WINDOW_DAYS dias. */
+  const unitsSoldByItem = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - COVERAGE_WINDOW_DAYS);
+    const map = new Map<string, number>();
+    for (const s of sales) {
+      if (new Date(s.date) < cutoff) continue;
+      map.set(s.itemId, (map.get(s.itemId) ?? 0) + s.quantity);
+    }
+    return map;
+  }, [sales]);
+
+  /** Dias restantes de estoque no ritmo de venda atual — null quando não há histórico pra estimar. */
+  function coverageDays(itemId: string, quantity: number): number | null {
+    const units = unitsSoldByItem.get(itemId) ?? 0;
+    if (units <= 0) return null;
+    const velocityPerDay = units / COVERAGE_WINDOW_DAYS;
+    return quantity / velocityPerDay;
+  }
 
   /** Só reexecuta quando mudam linhas ou custo salvo (evita loop com o array inteiro). */
   const inventoryCostKey = useMemo(
@@ -84,6 +114,7 @@ export default function InventoryPage() {
                   <th className="px-2 py-2">Nome</th>
                   <th className="px-2 py-2">SKU</th>
                   <th className="px-2 py-2">Qtd</th>
+                  <th className="px-2 py-2">Cobertura</th>
                   <th className="px-2 py-2">Preço Shopee</th>
                   <th className="px-2 py-2">Preço ML</th>
                   <th className="px-2 py-2">Preço venda direta</th>
@@ -124,6 +155,23 @@ export default function InventoryPage() {
                           })
                         }
                       />
+                    </td>
+                    <td className="px-2 py-2">
+                      {(() => {
+                        if (i.quantity <= 0) {
+                          return <span className="text-rose-400">Esgotado</span>;
+                        }
+                        const days = coverageDays(i.id, i.quantity);
+                        if (days == null) {
+                          return <span className="text-slate-500">— sem histórico</span>;
+                        }
+                        const rounded = Math.round(days);
+                        return (
+                          <span className={rounded < 7 ? "text-amber-300" : "text-slate-200"}>
+                            {rounded} dia{rounded === 1 ? "" : "s"}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-2 py-2 text-slate-100">
                       {(i.suggestedPriceShopee ?? i.price).toLocaleString("pt-BR", {
