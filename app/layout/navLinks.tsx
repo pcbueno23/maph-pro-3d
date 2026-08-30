@@ -18,6 +18,7 @@ import {
   GraduationCap,
   MessageCircle,
   Puzzle,
+  FileSpreadsheet,
 } from "lucide-react";
 
 export type NavLinkItem = {
@@ -51,6 +52,7 @@ export const navGroups: NavGroup[] = [
       { href: "/calculadoras/tiktok", label: "TikTok Shop", icon: Calculator },
       { href: "/calculadoras/venda-direta", label: "Venda direta", icon: Calculator },
       { href: "/orcamentos", label: "Orçamentos", icon: FileText },
+      { href: "/relatorios-shopee", label: "Relatórios Shopee", icon: FileSpreadsheet },
     ],
   },
   {

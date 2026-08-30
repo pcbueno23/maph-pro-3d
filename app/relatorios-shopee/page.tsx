@@ -1,0 +1,205 @@
+"use client";
+
+import { useState } from "react";
+import { ExternalLink } from "lucide-react";
+
+type Tier = 1 | 2 | 3;
+
+type Report = {
+  id: string;
+  tier: Tier;
+  title: string;
+  crumbs: string;
+  urls: { label: string; href: string }[];
+  traz: string;
+  uso: string;
+  note?: string;
+};
+
+const TIER_LABEL: Record<Tier, string> = {
+  1: "Essenciais",
+  2: "Ajuste fino",
+  3: "Contexto",
+};
+
+const REPORTS: Report[] = [
+  {
+    id: "renda",
+    tier: 1,
+    title: "Minha Renda",
+    crumbs: "Finanças → Minha Renda",
+    urls: [{ label: "Abrir Minha Renda", href: "https://seller.shopee.com.br/portal/finance/income" }],
+    traz: "Extrato pedido a pedido com todas as taxas descontadas pela Shopee: comissão por categoria, taxa de transação/pagamento, taxa de serviço, e o valor líquido efetivamente repassado.",
+    uso: "É a única fonte com o preço líquido real por venda — sem ele, o simulador de margem trabalha com a comissão \"de tabela\" e erra sempre que a loja está em algum programa promocional que altera a taxa.",
+    note: "A Shopee pode pedir sua senha de login de novo pra abrir essa tela — é a verificação normal deles pra dados financeiros, não é nada errado.",
+  },
+  {
+    id: "performance-produto",
+    tier: 1,
+    title: "Performance do Produto",
+    crumbs: 'Dados → Informações Gerenciais → Produto → Performance do Produto → botão "Exportar dados"',
+    urls: [{ label: "Abrir Performance do Produto", href: "https://seller.shopee.com.br/datacenter/product/performance" }],
+    traz: "Por SKU, num período escolhido: vendas em R$, impressões, cliques, CTR, taxa de conversão de pedidos, número de pedidos e unidades vendidas.",
+    uso: "Insumo de volume × conversão por preço praticado — dá pra testar elasticidade, comparando produtos com preços parecidos e vendo qual conversão sustenta um preço maior sem perder venda.",
+  },
+  {
+    id: "ads",
+    tier: 1,
+    title: "Shopee Ads",
+    crumbs: 'Central de Marketing → Shopee Ads → tabela "Desempenho de Anúncios de Produtos" → botão "Exportar dados"',
+    urls: [{ label: "Abrir Shopee Ads", href: "https://seller.shopee.com.br/portal/marketing/pas/index" }],
+    traz: "Impressões, cliques, CTR, pedidos, itens vendidos, vendas, investimento em R$ e ROAS — por anúncio/produto.",
+    uso: "O custo de aquisição por produto é o item mais esquecido em calculadora de preço. Sem somar o investimento em ads ao custo, a margem calculada fica inflada nos produtos que dependem de anúncio pra vender.",
+  },
+  {
+    id: "pedidos",
+    tier: 2,
+    title: "Meus Pedidos",
+    crumbs: 'Pedido → Meus Pedidos → aba "Todos" → botão "Exportar" (topo direito, com seletor de período)',
+    urls: [{ label: "Abrir Meus Pedidos", href: "https://seller.shopee.com.br/portal/sale/order" }],
+    traz: "ID do pedido, preço pago pelo comprador, produto/variação, canal de envio e status, por pedido individual.",
+    uso: "Reconcilia o preço de vitrine com o preço efetivamente pago depois de cupom e desconto no checkout — os dois nem sempre coincidem, e é esse valor pago que deveria alimentar a margem real.",
+  },
+  {
+    id: "retornos",
+    tier: 2,
+    title: "Retornos e Pedidos Cancelados",
+    crumbs: 'Pedido → Retornos e Pedidos cancelados → abas Devolução e reembolso / Cancelamentos / Falhas de entrega → botão "Exportar" em cada aba',
+    urls: [{ label: "Abrir Retornos e Cancelados", href: "https://seller.shopee.com.br/portal/sale/returnrefundcancel" }],
+    traz: "Motivo da devolução ou cancelamento, valor reembolsado e status da solicitação.",
+    uso: "Taxa de devolução por produto corrói margem de um jeito que não aparece na venda bruta — vira um fator de correção: produtos com devolução alta precisam de preço com folga extra.",
+  },
+  {
+    id: "vendas",
+    tier: 2,
+    title: "Visão Geral das Vendas",
+    crumbs: 'Dados → Informações Gerenciais → Vendas → botão "Exportar dados"',
+    urls: [{ label: "Abrir Visão de Vendas", href: "https://seller.shopee.com.br/datacenter/sales/overview" }],
+    traz: "Vendas, visitantes, compradores e taxas de conversão ao longo do tempo — agregado da loja, não por SKU.",
+    uso: "Contexto de tendência e sazonalidade pra ajustar o preço-alvo por período (datas comemorativas, campanhas Shopee); não é granular o bastante pra decidir preço de um produto específico.",
+  },
+  {
+    id: "trafego",
+    tier: 3,
+    title: "Tráfego da loja",
+    crumbs: 'Dados → Informações Gerenciais → Tráfego → botão "Exportar dados"',
+    urls: [{ label: "Abrir Tráfego da loja", href: "https://seller.shopee.com.br/datacenter/traffic/overview" }],
+    traz: "Origem dos acessos — busca, feed, anúncio pago, afiliados — e visitantes/visualizações por origem.",
+    uso: "Sinaliza se um produto depende de tráfego pago pra vender, o que aumenta o custo real além do que a Shopee Ads sozinha já mostra por campanha.",
+  },
+  {
+    id: "marketing",
+    tier: 3,
+    title: "Marketing",
+    crumbs: 'Dados → Informações Gerenciais → Marketing → sub-abas Desconto / Oferta Relâmpago / Cupom / Live → botão "Exportar dados"',
+    urls: [{ label: "Abrir Marketing", href: "https://seller.shopee.com.br/datacenter/marketing/discount" }],
+    traz: "Desempenho de cada mecanismo promocional: alcance, vendas geradas e desconto concedido.",
+    uso: 'Mede o efeito de desconto pontual na margem — útil pra simular "quanto posso descontar numa campanha sem furar o piso de preço".',
+  },
+  {
+    id: "diagnostico",
+    tier: 3,
+    title: "Diagnóstico do Produto",
+    crumbs: "Dados → Informações Gerenciais → Produto → Tráfego do Produto / Diagnóstico do Produto → botão \"Exportar dados\"",
+    urls: [
+      { label: "Abrir Tráfego do Produto", href: "https://seller.shopee.com.br/datacenter/product/traffic" },
+      { label: "Abrir Diagnóstico do Produto", href: "https://seller.shopee.com.br/datacenter/product/diagnosis" },
+    ],
+    traz: "Sinais qualitativos por produto: taxa de rejeição, itens visitados, alertas de listagem (GTIN, elegibilidade a programas).",
+    uso: "Mais útil pra copy e imagem do anúncio do que pra decidir preço — vale como aba secundária de diagnóstico.",
+  },
+  {
+    id: "conta",
+    tier: 3,
+    title: "Saúde da Conta",
+    crumbs: "Dados → Desempenho da Conta — não exporta arquivo, é um painel de leitura",
+    urls: [{ label: "Abrir Desempenho da Conta", href: "https://seller.shopee.com.br/portal/accounthealth" }],
+    traz: "Métricas de saúde da loja: taxa de não cumprimento, atraso no envio, penalidades e pontos de melhoria.",
+    uso: "Não alimenta preço diretamente, mas cancelamento ou atraso alto costuma forçar desconto defensivo pra recuperar posição no algoritmo — vale como alerta cruzado, não como dado de entrada.",
+  },
+];
+
+export default function RelatoriosShopeePage() {
+  const [activeId, setActiveId] = useState(REPORTS[0].id);
+  const active = REPORTS.find((r) => r.id === activeId) ?? REPORTS[0];
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">
+          Relatórios Shopee
+        </h1>
+        <p className="mt-1 text-sm text-slate-400">
+          Acesso rápido aos relatórios do Central do Vendedor que alimentam sua margem real —
+          escolha uma aba e abra a tela de exportação direto na Shopee.
+        </p>
+      </div>
+
+      {([1, 2, 3] as Tier[]).map((tier) => (
+        <div key={tier}>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+            {TIER_LABEL[tier]}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {REPORTS.filter((r) => r.tier === tier).map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => setActiveId(r.id)}
+                className={
+                  r.id === activeId
+                    ? "rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-3 py-2 text-sm font-medium text-cyan-200"
+                    : "rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-400 transition hover:border-slate-600 hover:text-slate-200"
+                }
+              >
+                {r.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6 shadow-[0_0_0_1px_rgba(6,182,212,0.08)]">
+        <p className="text-sm font-semibold text-slate-50">{active.title}</p>
+        <p className="mt-1 font-mono text-xs text-slate-500">{active.crumbs}</p>
+
+        <div className="mt-4 space-y-3 text-sm">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Traz</p>
+            <p className="mt-1 text-slate-300">{active.traz}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Uso no seu preço</p>
+            <p className="mt-1 text-slate-300">{active.uso}</p>
+          </div>
+        </div>
+
+        {active.note ? (
+          <p className="mt-4 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            {active.note}
+          </p>
+        ) : null}
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {active.urls.map((u) => (
+            <a
+              key={u.href}
+              href={u.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400"
+            >
+              <ExternalLink className="h-4 w-4" />
+              {u.label}
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <p className="text-center text-xs text-slate-500">
+        Caminhos e nomes de botão são da estrutura do Central do Vendedor Shopee em 08/2026 — a
+        Shopee pode mudar isso a qualquer momento.
+      </p>
+    </div>
+  );
+}
