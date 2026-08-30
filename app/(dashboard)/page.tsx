@@ -26,6 +26,7 @@ import type {
 } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { useSalesStore } from "@/store/salesStore";
+import { fetchLatestAdsSpendTotal } from "@/lib/supabaseShopeeReports";
 import type { Sale } from "@/store/salesStore";
 import type { InventoryItem } from "@/store/inventoryStore";
 import {
@@ -131,10 +132,22 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [adsSpend, setAdsSpend] = useState<{ total: number; periodStart: string | null; periodEnd: string | null } | null>(null);
 
   useEffect(() => {
     hydrateFromStorage();
   }, [hydrateFromStorage]);
+
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    fetchLatestAdsSpendTotal(user.id).then((r) => {
+      if (alive) setAdsSpend(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -795,6 +808,27 @@ export default function DashboardPage() {
                 Orçamentos →
               </Link>
             </div>
+          </div>
+
+          {/* Vinculado às importações reais em /relatorios-shopee */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Investimento em Ads (Shopee)
+              </p>
+              <FileSpreadsheet className="h-5 w-5 text-cyan-400" />
+            </div>
+            <p className="mt-2 text-lg font-semibold text-slate-50">
+              {adsSpend ? formatBRL(adsSpend.total) : "—"}
+            </p>
+            <p className="mt-1 text-[11px] text-slate-400">
+              {adsSpend
+                ? `Período do último relatório importado: ${adsSpend.periodStart ?? "?"} a ${adsSpend.periodEnd ?? "?"}`
+                : "Nenhum relatório de Shopee Ads importado ainda"}
+            </p>
+            <Link href="/relatorios-shopee" className="mt-1 inline-block text-[10px] text-cyan-400 hover:underline">
+              Importar relatórios da Shopee →
+            </Link>
           </div>
 
           {/* Impressoras + estoque + custo período */}

@@ -1,7 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { useEffect, useState, type ChangeEvent } from "react";
+import { ExternalLink, Upload } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import {
+  importPerformanceReport,
+  importAdsReport,
+  fetchLatestImport,
+  type ShopeeImportSummary,
+  type ShopeeReportType,
+} from "@/lib/supabaseShopeeReports";
+
+/** Só estes dois já têm modelo real confirmado pra montar o importador. */
+const IMPORTABLE_REPORT_TYPE: Record<string, ShopeeReportType> = {
+  "performance-produto": "performance_produto",
+  ads: "shopee_ads",
+};
 
 type Tier = 1 | 2 | 3;
 
@@ -122,6 +136,44 @@ const REPORTS: Report[] = [
 export default function RelatoriosShopeePage() {
   const [activeId, setActiveId] = useState(REPORTS[0].id);
   const active = REPORTS.find((r) => r.id === activeId) ?? REPORTS[0];
+  const user = useAuthStore((s) => s.user);
+  const reportType = IMPORTABLE_REPORT_TYPE[activeId];
+
+  const [summary, setSummary] = useState<ShopeeImportSummary | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setImportMsg(null);
+    setSummary(null);
+    if (!reportType || !user) return;
+    let cancelled = false;
+    fetchLatestImport(user.id, reportType).then((s) => {
+      if (!cancelled) setSummary(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [reportType, user]);
+
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user || !reportType) return;
+    setImporting(true);
+    setImportMsg(null);
+    const importFn = reportType === "shopee_ads" ? importAdsReport : importPerformanceReport;
+    const result = await importFn(user.id, file);
+    setImporting(false);
+    if (!result.ok) {
+      setImportMsg(result.message);
+      return;
+    }
+    setSummary(result.summary);
+    setImportMsg(
+      `Importado: ${result.summary.rowCount} linha(s), ${result.summary.matchedCount} casada(s) com produtos cadastrados.`,
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -193,6 +245,49 @@ export default function RelatoriosShopeePage() {
               {u.label}
             </a>
           ))}
+        </div>
+
+        <div className="mt-6 border-t border-slate-800 pt-5">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            Importar dados desse relatório
+          </p>
+
+          {reportType ? (
+            <>
+              {summary ? (
+                <p className="mt-2 text-sm text-slate-300">
+                  Última importação:{" "}
+                  <span className="font-mono text-xs text-slate-400">{summary.fileName}</span> —{" "}
+                  {summary.rowCount} linha(s), {summary.matchedCount} casada(s) com produtos
+                  {summary.periodStart && summary.periodEnd
+                    ? ` (período ${summary.periodStart} a ${summary.periodEnd})`
+                    : ""}
+                  .
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-slate-500">Nenhum arquivo importado ainda.</p>
+              )}
+
+              <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 transition hover:border-cyan-500/40 hover:text-cyan-200">
+                <Upload className="h-4 w-4" />
+                {importing ? "Importando..." : "Escolher arquivo (.xlsx ou .csv)"}
+                <input
+                  type="file"
+                  accept=".xlsx,.csv"
+                  className="hidden"
+                  disabled={importing}
+                  onChange={(e) => void handleFile(e)}
+                />
+              </label>
+
+              {importMsg ? <p className="mt-2 text-xs text-cyan-300">{importMsg}</p> : null}
+            </>
+          ) : (
+            <p className="mt-2 text-xs text-slate-500">
+              Ainda não temos um modelo real desse relatório pra montar a importação — assim que
+              você conseguir exportar um, manda que eu adiciono aqui também.
+            </p>
+          )}
         </div>
       </div>
 

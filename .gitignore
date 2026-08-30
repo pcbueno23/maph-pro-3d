@@ -11,3 +11,10 @@ node_modules/
 supabase/.temp/
 .vercel
 .gstack/
+
+# Arquivos-modelo de relatórios reais da Shopee (dados de vendas do usuário) —
+# usados só como referência local pra construir os parsers, nunca commitar.
+parentskudetail*.xlsx
+sales_overview*.xlsx
+sales_composition*.xlsx
+Dados+Gerais+de+Anúncios*.csv
