@@ -47,3 +47,5 @@ Checklist de deploy na Vercel (variáveis `APP_TRIAL_DAYS`, Stripe, etc.): **`do
 - `lib/` – engine de cálculo e utilitários
 - `types/` – tipos e schemas Zod
 
+
+<!-- deploy check -->
