@@ -409,16 +409,29 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
   // Os dois cenários de preço que o cliente pode ver: com o desconto normal (fora
   // do período de oferta relâmpago) ou com a oferta relâmpago (durante a campanha) —
   // cupom (com teto) acumula nos dois. Um deles é sempre igual ao precoFinalSugerido (o ativo).
-  const precoComDescontoECupom = aplicarCupom(
+  let precoComDescontoECupom = aplicarCupom(
     precoCadastroSugerido * (1 - (promocaoPercent || 0) / 100),
     cupomPercent,
     cupomMaxRS,
   ).precoFinal;
-  const precoComOfertaECupom =
+  let precoComOfertaECupom =
     ofertaRelampagoPercent > 0
       ? aplicarCupom(precoCadastroSugerido * (1 - ofertaRelampagoPercent / 100), cupomPercent, cupomMaxRS)
           .precoFinal
       : null;
+
+  // No modo margem, o desconto/cupom "ativo agora" é o que já foi usado pra
+  // travar o preço final na meta — usa o mesmo número aqui em vez de recalcular
+  // pra frente a partir do preço de cadastro (já arredondado), senão os dois
+  // arredondamentos independentes divergem em centavos e o Detalhamento de
+  // Custos passa a não bater com o preço mostrado como "ativo agora".
+  if (modo === "margem") {
+    if (ofertaRelampagoPercent > 0) {
+      precoComOfertaECupom = precoFinalSugerido;
+    } else {
+      precoComDescontoECupom = precoFinalSugerido;
+    }
+  }
 
   const custos = derivar(precoFinalSugerido, inputs, valorCupomRS);
   const {

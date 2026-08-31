@@ -476,10 +476,13 @@ Geração feita via MAPH PRO SHOPEE.
       >
         <Row label="Custo do produto + envio" value={formatBRL(custoBase)} />
         <Row
-          label={`Comissão Shopee (${formatPct(pctComissao * 100)} + fixo)`}
-          value={formatBRL(valorComissao)}
+          label={`Comissão Shopee (${formatPct(pctComissao * 100)})`}
+          value={formatBRL(precoFinalSugerido * pctComissao)}
           danger
         />
+        {fixoComissao > 0 && (
+          <Row label="Taxa fixa por item" value={formatBRL(fixoComissao)} danger />
+        )}
         {custoTaxaTransacao > 0 && (
           <Row label="Taxa de transação (2%)" value={formatBRL(custoTaxaTransacao)} danger />
         )}
