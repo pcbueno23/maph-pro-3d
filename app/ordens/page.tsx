@@ -16,6 +16,7 @@ import {
   consumeSuppliesForOrder,
   listSupplies,
   listProductMaterials,
+  upsertProductMaterial,
 } from "@/lib/supabaseProduction";
 import { fetchUserProducts } from "@/lib/supabaseProducts";
 import { computeOrderTotalCost, computeProductUnitCost } from "@/lib/productionCost";
@@ -203,16 +204,15 @@ export default function OrdersPage() {
     return getPrinterOccupiedInfo(pid, printersById, orders, productsById, draft.id);
   }, [modalOpen, draft, productsById, printersById, orders]);
 
-  // Produto elegível para ordens: tem tempo estimado, impressora padrão e pelo menos 1 material.
+  /** Produto selecionado no modal ainda não tem ficha técnica de material — escolher o filamento vira obrigatório. */
+  const draftNeedsFilament = Boolean(draft && !productsWithBom.has(draft.productId));
+
+  // Produto elegível pra abrir o modal de ordem: tem tempo estimado e impressora padrão.
+  // Material (BOM) não bloqueia mais aqui — se faltar, o modal pede pra escolher o
+  // filamento na hora e cria a ficha técnica sozinho ao salvar (ver saveDraft).
   const eligibleProducts = useMemo(
-    () =>
-      products.filter(
-        (p) =>
-          !!p.printTimeMinutes &&
-          !!p.defaultPrinterId &&
-          productsWithBom.has(p.id),
-      ),
-    [products, productsWithBom],
+    () => products.filter((p) => !!p.printTimeMinutes && !!p.defaultPrinterId),
+    [products],
   );
 
   const isEligibleProductId = useMemo(() => {
@@ -254,7 +254,7 @@ export default function OrdersPage() {
     setModalOpen(true);
     if (!isEligibleProductId.has(prod.id)) {
       setError(
-        "Esse produto ainda não está pronto para ordens. Preencha ficha técnica (tempo + impressora padrão) e materiais (BOM) e tente novamente.",
+        "Esse produto ainda não está pronto para ordens — preencha tempo estimado e impressora padrão na ficha técnica e tente novamente.",
       );
     }
     handledPrefillRef.current = true;
@@ -292,7 +292,7 @@ export default function OrdersPage() {
   function openCreate() {
     if (!eligibleProducts.length) {
       window.alert(
-        "Antes de criar ordens, preencha a ficha técnica (tempo e impressora padrão) e os materiais do produto.",
+        "Antes de criar ordens, preencha a ficha técnica (tempo estimado e impressora padrão) de pelo menos um produto.",
       );
       return;
     }
@@ -334,10 +334,14 @@ export default function OrdersPage() {
 
     const prod = productsById.get(draft.productId);
     const hasBom = productsWithBom.has(draft.productId);
-    if (!prod || !prod.printTimeMinutes || !prod.defaultPrinterId || !hasBom) {
+    if (!prod || !prod.printTimeMinutes || !prod.defaultPrinterId) {
       setError(
-        "Para criar ordens, o produto precisa ter tempo estimado, impressora padrão e pelo menos um material na ficha técnica.",
+        "Para criar ordens, o produto precisa ter tempo estimado e impressora padrão na ficha técnica.",
       );
+      return;
+    }
+    if (!hasBom && !draft.filamentSupplyId) {
+      setError("Esse produto ainda não tem material cadastrado — escolha o filamento usado antes de salvar.");
       return;
     }
     setLoading(true);
@@ -381,6 +385,24 @@ export default function OrdersPage() {
             available,
             unit: supply.unit,
           });
+        }
+      }
+
+      // Produto sem BOM ainda: o filamento escolhido no modal vai virar a ficha técnica
+      // dele (qty = peso da peça), então checa o estoque com base nesse peso.
+      if (!hasBom && draft.filamentSupplyId) {
+        const chosen = suppliesById.get(draft.filamentSupplyId);
+        if (chosen) {
+          const required = (prod.weight ?? 0) * draft.quantity;
+          const available = chosen.stockQty ?? 0;
+          if (required > available) {
+            filamentDeficits.push({
+              supplyName: chosen.name,
+              required,
+              available,
+              unit: chosen.unit,
+            });
+          }
         }
       }
 
@@ -449,6 +471,25 @@ export default function OrdersPage() {
         return [saved, ...prev];
       });
 
+      // Produto ainda sem ficha técnica de material: o filamento escolhido agora vira
+      // o BOM dele de verdade (qty = peso da peça), pra não precisar escolher de novo
+      // na próxima ordem.
+      if (!hasBom && draft.filamentSupplyId) {
+        try {
+          await upsertProductMaterial(user.id, {
+            productId: draft.productId,
+            supplyId: draft.filamentSupplyId,
+            qty: prod.weight ?? 0,
+            unit: "g",
+            createdAt: now,
+            updatedAt: now,
+          });
+          setProductsWithBom((prev) => new Set(prev).add(draft.productId));
+        } catch {
+          // a ordem já foi salva; só não conseguiu deixar o BOM pronto pra próxima vez
+        }
+      }
+
       // Baixa automática: consumir insumos quando entrar em "Impressão"
       const cameFromPrinting = previous?.status === "printing";
       const goesToPrinting = saved.status === "printing";
@@ -508,9 +549,14 @@ export default function OrdersPage() {
         }> = [];
 
         for (const m of mats) {
-          const supply = suppliesById.get(m.supplyId);
-          if (!supply) continue;
-          if (supply.category !== "filament") continue;
+          const bomSupply = suppliesById.get(m.supplyId);
+          if (!bomSupply) continue;
+          if (bomSupply.category !== "filament") continue;
+
+          // Ordem com filamento escolhido diferente do padrão: checa o estoque dele.
+          const supply = order.filamentSupplyId
+            ? (suppliesById.get(order.filamentSupplyId) ?? bomSupply)
+            : bomSupply;
 
           const required = (m.qty ?? 0) * (order.quantity ?? 1);
           const available = supply.stockQty ?? 0;
@@ -867,10 +913,11 @@ export default function OrdersPage() {
                 >
                   {products.map((p) => {
                     const ok = isEligibleProductId.has(p.id);
+                    const needsFilament = ok && !productsWithBom.has(p.id);
                     return (
                       <option key={p.id} value={p.id} disabled={!ok}>
                         {p.name}
-                        {!ok ? " (incompleto)" : ""}
+                        {!ok ? " (incompleto)" : needsFilament ? " (escolher filamento)" : ""}
                       </option>
                     );
                   })}
@@ -920,10 +967,12 @@ export default function OrdersPage() {
 
               <div>
                 <label className="mb-1 block text-xs text-slate-300">
-                  Filamento (opcional)
+                  Filamento{draftNeedsFilament ? " *" : " (opcional)"}
                 </label>
                 <select
-                  className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                  className={`w-full rounded-lg border bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 ${
+                    draftNeedsFilament && !draft.filamentSupplyId ? "border-amber-500/50" : "border-slate-800"
+                  }`}
                   value={draft.filamentSupplyId ?? ""}
                   onChange={(e) =>
                     setDraft((d) =>
@@ -937,7 +986,7 @@ export default function OrdersPage() {
                   }
                   disabled={loading}
                 >
-                  <option value="">Usar o da ficha técnica</option>
+                  <option value="">{draftNeedsFilament ? "Selecione..." : "Usar o da ficha técnica"}</option>
                   {filamentSupplies.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} ({s.stockQty?.toLocaleString("pt-BR") ?? 0} {s.unit} em estoque)
@@ -945,8 +994,9 @@ export default function OrdersPage() {
                   ))}
                 </select>
                 <p className="mt-1 text-[11px] text-slate-500">
-                  Pra quando essa peça sai com um rolo diferente do que está cadastrado na ficha
-                  técnica — afeta o custo estimado e a baixa de estoque desta ordem.
+                  {draftNeedsFilament
+                    ? "Esse produto ainda não tem ficha técnica de material — escolha o filamento usado que a gente cadastra ela sozinho, usando o peso da peça já salvo."
+                    : "Pra quando essa peça sai com um rolo diferente do que está cadastrado na ficha técnica — afeta o custo estimado e a baixa de estoque desta ordem."}
                 </p>
               </div>
 
