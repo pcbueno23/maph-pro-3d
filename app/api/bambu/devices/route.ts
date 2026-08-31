@@ -45,5 +45,25 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ ok: true, devices: result.devices });
+  // Junta com o último status gravado pelo cron (progresso/temperatura), quando houver.
+  const { data: statusRows } = await admin
+    .from("bambu_device_status")
+    .select("dev_id, print_status, progress_percent, remaining_minutes, nozzle_temper, bed_temper, updated_at")
+    .eq("user_id", auth.user.id);
+  const statusByDevId = new Map((statusRows ?? []).map((s) => [s.dev_id, s] as const));
+
+  const devices = result.devices.map((d) => {
+    const s = statusByDevId.get(d.devId);
+    return {
+      ...d,
+      printStatus: s?.print_status ?? null,
+      progressPercent: s?.progress_percent ?? null,
+      remainingMinutes: s?.remaining_minutes ?? null,
+      nozzleTemper: s?.nozzle_temper ?? null,
+      bedTemper: s?.bed_temper ?? null,
+      statusUpdatedAt: s?.updated_at ?? null,
+    };
+  });
+
+  return NextResponse.json({ ok: true, devices });
 }

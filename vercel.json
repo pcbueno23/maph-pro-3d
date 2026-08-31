@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/trial-expiry",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/bambu-status",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

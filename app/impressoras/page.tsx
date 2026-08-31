@@ -75,7 +75,18 @@ function toDraft(p?: Printer | null): DraftPrinter {
   };
 }
 
-type BambuDeviceUI = { devId: string; name: string; online: boolean; model: string | null };
+type BambuDeviceUI = {
+  devId: string;
+  name: string;
+  online: boolean;
+  model: string | null;
+  printStatus?: string | null;
+  progressPercent?: number | null;
+  remainingMinutes?: number | null;
+  nozzleTemper?: number | null;
+  bedTemper?: number | null;
+  statusUpdatedAt?: string | null;
+};
 
 export default function ImpressorasPage() {
   const user = useAuthStore((s) => s.user);
@@ -124,6 +135,11 @@ export default function ImpressorasPage() {
   useEffect(() => {
     if (!user) return;
     void refreshBambuDevices();
+    // O cron do Vercel atualiza a cada ~5min — repolir aqui só refaz a leitura
+    // do banco (rápido) e da lista de impressoras, pra pegar a atualização
+    // sem precisar dar F5.
+    const interval = window.setInterval(() => void refreshBambuDevices(), 45_000);
+    return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
@@ -488,6 +504,36 @@ export default function ImpressorasPage() {
                     </span>
                   </div>
                   {d.model ? <p className="mt-1 text-[11px] text-slate-500">{d.model}</p> : null}
+                  {d.progressPercent != null ? (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>{d.printStatus ?? "Imprimindo"}</span>
+                        <span className="font-semibold text-slate-200">{d.progressPercent}%</span>
+                      </div>
+                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500"
+                          style={{ width: `${Math.max(0, Math.min(100, d.progressPercent))}%` }}
+                        />
+                      </div>
+                      {d.remainingMinutes != null ? (
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          {d.remainingMinutes} min restante(s)
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {d.nozzleTemper != null || d.bedTemper != null ? (
+                    <p className="mt-2 text-[11px] text-slate-400">
+                      🔥 Bico {d.nozzleTemper != null ? `${d.nozzleTemper.toFixed(0)}°C` : "—"} · Mesa{" "}
+                      {d.bedTemper != null ? `${d.bedTemper.toFixed(0)}°C` : "—"}
+                    </p>
+                  ) : null}
+                  {d.statusUpdatedAt ? (
+                    <p className="mt-1 text-[10px] text-slate-600">
+                      Atualizado {new Date(d.statusUpdatedAt).toLocaleTimeString("pt-BR")}
+                    </p>
+                  ) : null}
                 </div>
               ))}
             </div>
