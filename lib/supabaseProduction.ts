@@ -533,6 +533,7 @@ export async function upsertProductionOrder(
     status: input.status,
     notes: input.notes ?? null,
     printing_started_at: input.printingStartedAt ?? null,
+    filament_supply_id: input.filamentSupplyId ?? null,
     created_at: input.createdAt,
     updated_at: new Date().toISOString(),
   };
@@ -565,6 +566,7 @@ function mapProductionOrderRow(row: any): ProductionOrder {
     status: row.status,
     notes: row.notes,
     printingStartedAt: row.printing_started_at ?? null,
+    filamentSupplyId: row.filament_supply_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -595,7 +597,11 @@ export async function consumeSuppliesForOrder(
   const suppliesById = new Map(supplies.map((s) => [s.id, s] as const));
 
   for (const m of materials) {
-    const supply = suppliesById.get(m.supplyId);
+    // Se a ordem escolheu um filamento diferente do que está na ficha técnica, a baixa
+    // sai do rolo escolhido (mesma quantidade do BOM), não do filamento padrão do produto.
+    const isFilamentLine = suppliesById.get(m.supplyId)?.category === "filament";
+    const effectiveSupplyId = isFilamentLine && order.filamentSupplyId ? order.filamentSupplyId : m.supplyId;
+    const supply = suppliesById.get(effectiveSupplyId);
     if (!supply) continue;
 
     const totalQty = (m.qty ?? 0) * (order.quantity ?? 1);

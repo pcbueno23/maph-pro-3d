@@ -7,6 +7,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { supabase } from "@/lib/supabaseClient";
 import { useInventoryStore } from "@/store/inventoryStore";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { SupplyItem } from "@/types";
 import {
   listProductionOrders,
   upsertProductionOrder,
@@ -34,6 +35,7 @@ type DraftOrder = {
   dueDate?: string | null;
   status: ProductionOrder["status"];
   notes?: string | null;
+  filamentSupplyId?: string | null;
 };
 
 /** Impressora efetiva: escolha explícita ou padrão do produto (igual ao que a ordem representa na prática). */
@@ -137,6 +139,8 @@ export default function OrdersPage() {
 
   // Produtos que têm pelo menos 1 material cadastrado no BOM
   const [productsWithBom, setProductsWithBom] = useState<Set<string>>(new Set());
+  const [supplies, setSupplies] = useState<SupplyItem[]>([]);
+  const filamentSupplies = useMemo(() => supplies.filter((s) => s.category === "filament"), [supplies]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState<DraftOrder | null>(null);
@@ -151,17 +155,19 @@ export default function OrdersPage() {
       listProductionOrders(user.id),
       fetchUserProducts(user.id),
       listPrinters(user.id),
+      listSupplies(user.id),
       supabase
         ?.from("product_materials")
         .select("product_id")
         .eq("user_id", user.id)
         .then((res) => res.data ?? []),
     ])
-      .then(([ord, prods, prts, bomRows]) => {
+      .then(([ord, prods, prts, sups, bomRows]) => {
         if (!alive) return;
         setOrders(ord);
         setProducts(prods);
         setPrinters(prts);
+        setSupplies(sups);
         const ids = new Set<string>();
         for (const row of bomRows as any[]) {
           if (row?.product_id) ids.add(row.product_id as string);
@@ -312,6 +318,7 @@ export default function OrdersPage() {
       dueDate: order.dueDate ?? null,
       status: order.status,
       notes: order.notes ?? null,
+      filamentSupplyId: order.filamentSupplyId ?? null,
     });
     setModalOpen(true);
   }
@@ -356,9 +363,14 @@ export default function OrdersPage() {
       }> = [];
 
       for (const m of mats) {
-        const supply = suppliesById.get(m.supplyId);
-        if (!supply) continue;
-        if (supply.category !== "filament") continue;
+        const bomSupply = suppliesById.get(m.supplyId);
+        if (!bomSupply) continue;
+        if (bomSupply.category !== "filament") continue;
+
+        // Se a ordem escolheu outro filamento, checa o estoque DELE, não o padrão da ficha técnica.
+        const supply = draft.filamentSupplyId
+          ? (suppliesById.get(draft.filamentSupplyId) ?? bomSupply)
+          : bomSupply;
 
         const required = (m.qty ?? 0) * draft.quantity;
         const available = supply.stockQty ?? 0;
@@ -416,6 +428,7 @@ export default function OrdersPage() {
         dueDate: draft.dueDate ?? null,
         status: draft.status,
         notes: draft.notes ?? null,
+        filamentSupplyId: draft.filamentSupplyId ?? null,
         printingStartedAt: computePrintingStartedAtForSave(previous, draft.status),
         // Para ordens existentes, preservamos createdAt anterior; para novas, usamos agora.
         createdAt: previous?.createdAt ?? now,
@@ -903,6 +916,38 @@ export default function OrdersPage() {
                     </p>
                   </div>
                 ) : null}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-slate-300">
+                  Filamento (opcional)
+                </label>
+                <select
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                  value={draft.filamentSupplyId ?? ""}
+                  onChange={(e) =>
+                    setDraft((d) =>
+                      d
+                        ? {
+                            ...d,
+                            filamentSupplyId: e.target.value || null,
+                          }
+                        : d,
+                    )
+                  }
+                  disabled={loading}
+                >
+                  <option value="">Usar o da ficha técnica</option>
+                  {filamentSupplies.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.stockQty?.toLocaleString("pt-BR") ?? 0} {s.unit} em estoque)
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Pra quando essa peça sai com um rolo diferente do que está cadastrado na ficha
+                  técnica — afeta o custo estimado e a baixa de estoque desta ordem.
+                </p>
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">

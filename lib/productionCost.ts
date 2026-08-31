@@ -7,7 +7,14 @@ import { supabase } from "@/lib/supabaseClient";
 
 // Calcula custo unitário completo (material + energia + depreciação + embalagem)
 // para um produto, usando impressora padrão e tempo estimado quando disponíveis.
-export async function computeProductUnitCost(userId: string, product: Product): Promise<{
+// `filamentOverrideSupplyId`: usado por ordens de produção que escolheram um filamento
+// diferente do que está na ficha técnica — substitui só a(s) linha(s) do BOM com
+// category="filament" pelo custo do insumo escolhido, mantendo a mesma quantidade.
+export async function computeProductUnitCost(
+  userId: string,
+  product: Product,
+  filamentOverrideSupplyId?: string | null,
+): Promise<{
   totalCost: number;
   materialCost: number;
   energyCost: number;
@@ -34,6 +41,7 @@ export async function computeProductUnitCost(userId: string, product: Product): 
       `
       qty,
       supply:supplies (
+        category,
         unit_cost
       )
     `,
@@ -41,9 +49,25 @@ export async function computeProductUnitCost(userId: string, product: Product): 
     .eq("user_id", userId)
     .eq("product_id", product.id);
 
+  let filamentOverrideUnitCost: number | null = null;
+  if (filamentOverrideSupplyId) {
+    const { data: overrideSupply } = await supabase
+      .from("supplies")
+      .select("unit_cost")
+      .eq("user_id", userId)
+      .eq("id", filamentOverrideSupplyId)
+      .maybeSingle();
+    filamentOverrideUnitCost = overrideSupply ? Number(overrideSupply.unit_cost ?? 0) : null;
+  }
+
   const materialCost =
     bomRows?.reduce((acc: number, row: any) => {
-      const unitCost = Number(row.supply?.unit_cost ?? 0);
+      const supply = Array.isArray(row.supply) ? row.supply[0] : row.supply;
+      const isFilamentLine = supply?.category === "filament";
+      const unitCost =
+        isFilamentLine && filamentOverrideUnitCost != null
+          ? filamentOverrideUnitCost
+          : Number(supply?.unit_cost ?? 0);
       return acc + Number(row.qty ?? 0) * unitCost;
     }, 0) ?? 0;
 
@@ -178,7 +202,7 @@ export async function computeOrderTotalCost(
   order: ProductionOrder,
   product: Product,
 ): Promise<number> {
-  const unit = await computeProductUnitCost(userId, product);
+  const unit = await computeProductUnitCost(userId, product, order.filamentSupplyId);
   return unit.totalCost * order.quantity;
 }
 

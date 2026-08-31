@@ -760,6 +760,8 @@ export interface ProductionOrder {
   notes?: string | null;
   /** ISO: preenchido ao entrar em `printing` (base do cronômetro de impressão). */
   printingStartedAt?: string | null;
+  /** Filamento usado nesta ordem específica, se diferente do que está na ficha técnica (BOM) do produto. */
+  filamentSupplyId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
