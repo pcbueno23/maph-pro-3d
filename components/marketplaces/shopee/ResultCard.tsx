@@ -249,6 +249,7 @@ export default function ResultCard({
     valorTributacao,
     custoCampanhas,
     custoAcelera,
+    custoTaxaTransacao,
     roasMinimo,
     roasAlvo,
     faixaLabel,
@@ -287,6 +288,7 @@ export default function ResultCard({
 
 📊 Custos Produto: ${formatBRL(custoBase)}
 💸 Comissão Shopee: ${formatBRL(valorComissao)} (${formatPct(pctComissao * 100)} + R$${fixoComissao.toFixed(2)})
+💳 Taxa de transação: ${formatBRL(custoTaxaTransacao)}
 🚀 Marketing e Ads: ${formatBRL(custoAds + custoCampanhas + custoAcelera)}
 
 📌 *Preço final*: ${formatBRL(precoFinalSugerido)}
@@ -478,6 +480,9 @@ Geração feita via MAPH PRO SHOPEE.
           value={formatBRL(valorComissao)}
           danger
         />
+        {custoTaxaTransacao > 0 && (
+          <Row label="Taxa de transação (2%)" value={formatBRL(custoTaxaTransacao)} danger />
+        )}
         {valorTributacao > 0 && <Row label="Tributação" value={formatBRL(valorTributacao)} danger />}
         {(custoCampanhas + custoAcelera) > 0 && (
           <Row label="Marketing extra" value={formatBRL(custoCampanhas + custoAcelera)} danger />

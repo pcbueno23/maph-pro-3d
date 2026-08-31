@@ -417,6 +417,10 @@ export default function ShopeeCalculatorPage() {
               <div className="text-right font-semibold">
                 {result ? brl(result.valorComissao) : "—"}
               </div>
+              <div className="text-slate-600">Taxa de transação (2%)</div>
+              <div className="text-right font-semibold">
+                {result ? brl(result.custoTaxaTransacao) : "—"}
+              </div>
               <div className="text-slate-600">Ads (estimado)</div>
               <div className="text-right font-semibold">{result ? brl(result.custoAds) : "—"}</div>
             </div>
