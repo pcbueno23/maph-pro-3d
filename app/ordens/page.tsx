@@ -18,7 +18,7 @@ import {
   listProductMaterials,
   upsertProductMaterial,
 } from "@/lib/supabaseProduction";
-import { fetchUserProducts } from "@/lib/supabaseProducts";
+import { fetchUserProducts, upsertProductsForUser } from "@/lib/supabaseProducts";
 import { computeOrderTotalCost, computeProductUnitCost } from "@/lib/productionCost";
 import {
   PRODUCTION_ORDER_PIPELINE,
@@ -207,11 +207,12 @@ export default function OrdersPage() {
   /** Produto selecionado no modal ainda não tem ficha técnica de material — escolher o filamento vira obrigatório. */
   const draftNeedsFilament = Boolean(draft && !productsWithBom.has(draft.productId));
 
-  // Produto elegível pra abrir o modal de ordem: tem tempo estimado e impressora padrão.
-  // Material (BOM) não bloqueia mais aqui — se faltar, o modal pede pra escolher o
-  // filamento na hora e cria a ficha técnica sozinho ao salvar (ver saveDraft).
+  // Produto elegível pra abrir o modal de ordem: só precisa ter tempo estimado (isso sim
+  // não tem onde escolher na hora). Impressora e material não bloqueiam mais aqui — o
+  // modal já deixa escolher os dois na hora e completa a ficha técnica sozinho ao salvar
+  // (ver saveDraft), já que esses dois campos existem no próprio formulário da ordem.
   const eligibleProducts = useMemo(
-    () => products.filter((p) => !!p.printTimeMinutes && !!p.defaultPrinterId),
+    () => products.filter((p) => !!p.printTimeMinutes),
     [products],
   );
 
@@ -254,7 +255,7 @@ export default function OrdersPage() {
     setModalOpen(true);
     if (!isEligibleProductId.has(prod.id)) {
       setError(
-        "Esse produto ainda não está pronto para ordens — preencha tempo estimado e impressora padrão na ficha técnica e tente novamente.",
+        "Esse produto ainda não está pronto para ordens — preencha o tempo estimado na ficha técnica e tente novamente.",
       );
     }
     handledPrefillRef.current = true;
@@ -334,14 +335,16 @@ export default function OrdersPage() {
 
     const prod = productsById.get(draft.productId);
     const hasBom = productsWithBom.has(draft.productId);
-    if (!prod || !prod.printTimeMinutes || !prod.defaultPrinterId) {
-      setError(
-        "Para criar ordens, o produto precisa ter tempo estimado e impressora padrão na ficha técnica.",
-      );
+    if (!prod || !prod.printTimeMinutes) {
+      setError("Para criar ordens, o produto precisa ter tempo estimado na ficha técnica.");
       return;
     }
     if (!hasBom && !draft.filamentSupplyId) {
       setError("Esse produto ainda não tem material cadastrado — escolha o filamento usado antes de salvar.");
+      return;
+    }
+    if (!prod.defaultPrinterId && !draft.printerId) {
+      setError("Escolha a impressora usada nessa ordem antes de salvar.");
       return;
     }
     setLoading(true);
@@ -487,6 +490,18 @@ export default function OrdersPage() {
           setProductsWithBom((prev) => new Set(prev).add(draft.productId));
         } catch {
           // a ordem já foi salva; só não conseguiu deixar o BOM pronto pra próxima vez
+        }
+      }
+
+      // Produto ainda sem impressora padrão: a escolhida agora nessa ordem vira o padrão
+      // dele também, pra não precisar escolher de novo na próxima.
+      if (!prod.defaultPrinterId && draft.printerId) {
+        try {
+          const updatedProd: Product = { ...prod, defaultPrinterId: draft.printerId, updatedAt: now };
+          await upsertProductsForUser(user.id, [updatedProd]);
+          setProducts((prev) => prev.map((p) => (p.id === updatedProd.id ? updatedProd : p)));
+        } catch {
+          // a ordem já foi salva; só não conseguiu deixar o produto com impressora padrão
         }
       }
 
@@ -914,18 +929,17 @@ export default function OrdersPage() {
                   {products.map((p) => {
                     const ok = isEligibleProductId.has(p.id);
                     const needsFilament = ok && !productsWithBom.has(p.id);
-                    const missing: string[] = [];
-                    if (!ok) {
-                      if (!p.printTimeMinutes) missing.push("tempo");
-                      if (!p.defaultPrinterId) missing.push("impressora");
-                    }
+                    const needsPrinter = ok && !p.defaultPrinterId;
+                    const hints = [needsFilament && "filamento", needsPrinter && "impressora"].filter(
+                      Boolean,
+                    ) as string[];
                     return (
                       <option key={p.id} value={p.id} disabled={!ok}>
                         {p.name}
                         {!ok
-                          ? ` (falta ${missing.join(" e ")})`
-                          : needsFilament
-                            ? " (escolher filamento)"
+                          ? " (falta tempo estimado)"
+                          : hints.length > 0
+                            ? ` (escolher ${hints.join(" e ")} na hora)`
                             : ""}
                       </option>
                     );
