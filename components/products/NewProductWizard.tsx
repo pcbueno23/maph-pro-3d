@@ -141,6 +141,13 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
   const [materials, setMaterials] = useState<BomLine[]>([]);
   /** Supply IDs que o usuário removeu explicitamente — o auto-fill não deve re-adicionar. */
   const userRemovedAutoSupplyIds = useRef<Set<string>>(new Set());
+  /**
+   * Só fica true depois que o BOM real (product_materials) carregou com sucesso pra
+   * edição. Se o loop de sincronização em handleCreate rodasse com isso em false, ele
+   * apagaria o BOM inteiro achando que o produto não tem nenhum material — proteção
+   * contra perda de dado quando o carregamento falha (rede, id legado não-UUID, etc.).
+   */
+  const bomLoadOkRef = useRef(false);
   const [addSupplyId, setAddSupplyId] = useState("");
   const [addQty, setAddQty] = useState<number | "">("");
   const [mainImage, setMainImage] = useState<File | null>(null);
@@ -275,6 +282,7 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
     let alive = true;
     setLoadingInitial(true);
     setError(null);
+    bomLoadOkRef.current = false;
 
     void (async () => {
       try {
@@ -314,6 +322,7 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
           };
         });
         setMaterials(bom);
+        bomLoadOkRef.current = true;
 
         const firstMat = mats[0];
         const firstSupply = firstMat ? supMap.get(firstMat.supplyId) : null;
@@ -845,7 +854,14 @@ export function NewProductWizard({ open, onClose, initialProduct = null }: NewPr
           typeof autoBomSupplyId === "string" &&
           autoBomQty > 0;
 
-        if (initialProduct) {
+        if (initialProduct && !bomLoadOkRef.current) {
+          // O BOM real não foi confirmado (carregamento falhou/nunca terminou) — não mexe
+          // em product_materials por segurança. O resto do produto (preço, nome etc.) salva
+          // normal; os materiais ficam como estavam no banco.
+          setError(
+            "Não consegui confirmar os materiais atuais deste produto, então a ficha técnica (BOM) não foi alterada — o restante foi salvo. Abra a tela de Materiais/BOM separadamente pra conferir.",
+          );
+        } else if (initialProduct) {
           const existing = await listProductMaterials(user.id, productId);
           for (const ex of existing) {
             if (!materials.some((m) => m.materialRowId === ex.id)) {
