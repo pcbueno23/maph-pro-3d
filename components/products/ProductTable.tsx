@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -28,6 +29,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useProductKits } from "@/hooks/useProductKits";
 import { deleteProduct, upsertProductsForUser } from "@/lib/supabaseProducts";
+import { fetchStaleCostProductIds } from "@/lib/staleProductCost";
 import { useInventoryStore } from "@/store/inventoryStore";
 import { useSuppliesStore } from "@/store/suppliesStore";
 import type { ProductMaterial, SupplyItem } from "@/types";
@@ -203,16 +205,30 @@ function MetricsCells({
   printTimeMinutes,
   metrics,
   best,
+  stale,
 }: {
   totalCost: number;
   weight: number | null | undefined;
   printTimeMinutes: number | null | undefined;
   metrics: ChannelMetrics;
   best: ReturnType<typeof bestChannel>;
+  stale?: boolean;
 }) {
   return (
     <>
-      <td className="px-2 py-2 text-right tabular-nums text-slate-300">{formatBRL(totalCost)}</td>
+      <td className="px-2 py-2 text-right tabular-nums text-slate-300">
+        <span className="inline-flex items-center justify-end gap-1">
+          {stale ? (
+            <span
+              title="Um insumo dessa ficha técnica mudou de preço depois do último cálculo salvo — reabra a ficha técnica pra atualizar."
+              className="inline-flex"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-label="Custo desatualizado" />
+            </span>
+          ) : null}
+          {formatBRL(totalCost)}
+        </span>
+      </td>
       <td className="px-2 py-2 text-right tabular-nums text-slate-300">{formatWeight(weight)}</td>
       <td className="px-2 py-2 text-right tabular-nums text-slate-300">{formatDuration(printTimeMinutes)}</td>
       <td className="px-2 py-2 text-right">
@@ -415,6 +431,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
   const [techDefaultPrinterId, setTechDefaultPrinterId] = useState<string>("");
 
   const [productThumbById, setProductThumbById] = useState<Record<string, string>>({});
+  const [staleCostIds, setStaleCostIds] = useState<Set<string>>(new Set());
 
   const [sort, setSort] = useState<SortState | null>({ key: "best", dir: "desc" });
 
@@ -548,6 +565,21 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
     }
 
     loadThumbs();
+    return () => {
+      alive = false;
+    };
+  }, [products, user?.id]);
+
+  useEffect(() => {
+    const userId = user?.id as string | undefined;
+    if (!userId || products.length === 0) {
+      setStaleCostIds(new Set());
+      return;
+    }
+    let alive = true;
+    fetchStaleCostProductIds(userId, products).then((ids) => {
+      if (alive) setStaleCostIds(ids);
+    });
     return () => {
       alive = false;
     };
@@ -1049,6 +1081,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                               printTimeMinutes={product.printTimeMinutes != null ? product.printTimeMinutes * qty : null}
                               metrics={metricsRow}
                               best={bestRow}
+                              stale={staleCostIds.has(product.id)}
                             />
                             <ActionsCell
                               onOpen={() => {
@@ -1152,6 +1185,7 @@ export function ProductTable({ products, onOpenProductWizard }: Props) {
                       printTimeMinutes={product.printTimeMinutes}
                       metrics={metrics}
                       best={best}
+                      stale={staleCostIds.has(product.id)}
                     />
                     <ActionsCell
                       onOpen={() => {

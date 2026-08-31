@@ -285,6 +285,8 @@ export interface Product {
   suggestedPriceDirect?: number;
   /** Custo unitário de produção (ex.: custo real ajustado na calculadora). Não varia com o canal de venda. */
   totalCost?: number;
+  /** Quando totalCost realmente mudou de valor pela última vez (trigger no banco) — não confundir com updatedAt, que é tocado por qualquer save. */
+  totalCostUpdatedAt?: string;
   /** Campos de ficha técnica (opcionais; não afetam a calculadora atual) */
   sku?: string | null;
   description?: string | null;
@@ -659,8 +661,22 @@ export interface Printer {
   purchaseValue?: number | null;
   usefulLifeHours?: number | null;
   annualMaintenance?: number | null;
+  /** Horas acumuladas de impressão desde a última manutenção pra disparar o alerta na tela. */
+  maintenanceAlertHours?: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Um registro de manutenção feita numa impressora — data, tipo, custo (opcional). */
+export interface PrinterMaintenanceLog {
+  id: string;
+  userId: string;
+  printerId: string;
+  performedAt: string;
+  type: string;
+  cost?: number | null;
+  notes?: string | null;
+  createdAt: string;
 }
 
 // Compat: nome antigo (não usar em código novo)

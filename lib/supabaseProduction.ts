@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabaseClient";
 import type {
   Printer,
+  PrinterMaintenanceLog,
   SupplyItem,
   SupplyMovement,
   ProductMaterial,
@@ -54,6 +55,7 @@ export async function upsertPrinter(
     status: input.status,
     purchase_value: input.purchaseValue ?? null,
     useful_life_hours: input.usefulLifeHours ?? null,
+    maintenance_alert_hours: input.maintenanceAlertHours ?? null,
     created_at: input.createdAt,
     updated_at: new Date().toISOString(),
   };
@@ -104,9 +106,86 @@ function mapPrinterRow(row: any): Printer {
     purchaseValue: row.purchase_value == null ? null : Number(row.purchase_value),
     usefulLifeHours: row.useful_life_hours == null ? null : Number(row.useful_life_hours),
     annualMaintenance: row.annual_maintenance == null ? null : Number(row.annual_maintenance),
+    maintenanceAlertHours:
+      row.maintenance_alert_hours == null ? null : Number(row.maintenance_alert_hours),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// =========================
+// Manutenção de impressora
+// =========================
+
+function mapMaintenanceLogRow(row: any): PrinterMaintenanceLog {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    printerId: row.printer_id,
+    performedAt: row.performed_at,
+    type: row.type,
+    cost: row.cost == null ? null : Number(row.cost),
+    notes: row.notes,
+    createdAt: row.created_at,
+  };
+}
+
+/** Todas as manutenções do usuário, de todas as impressoras — usado pra computar "desde quando" na lista. */
+export async function listAllMaintenanceLogs(userId: string): Promise<PrinterMaintenanceLog[]> {
+  const client = mustHaveClient();
+  const { data, error } = await client
+    .from("printer_maintenance_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .order("performed_at", { ascending: false });
+  if (error || !data) throw error ?? new Error("Falha ao listar manutenções");
+  return data.map(mapMaintenanceLogRow);
+}
+
+export async function listMaintenanceLogs(
+  userId: string,
+  printerId: string,
+): Promise<PrinterMaintenanceLog[]> {
+  const client = mustHaveClient();
+  const { data, error } = await client
+    .from("printer_maintenance_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("printer_id", printerId)
+    .order("performed_at", { ascending: false });
+  if (error || !data) throw error ?? new Error("Falha ao listar manutenções");
+  return data.map(mapMaintenanceLogRow);
+}
+
+export async function addMaintenanceLog(
+  userId: string,
+  input: { printerId: string; performedAt: string; type: string; cost?: number | null; notes?: string | null },
+): Promise<PrinterMaintenanceLog> {
+  const client = mustHaveClient();
+  const { data, error } = await client
+    .from("printer_maintenance_logs")
+    .insert({
+      user_id: userId,
+      printer_id: input.printerId,
+      performed_at: input.performedAt,
+      type: input.type,
+      cost: input.cost ?? null,
+      notes: input.notes ?? null,
+    })
+    .select("*")
+    .single();
+  if (error || !data) throw error ?? new Error("Falha ao registrar manutenção");
+  return mapMaintenanceLogRow(data);
+}
+
+export async function deleteMaintenanceLog(userId: string, id: string): Promise<void> {
+  const client = mustHaveClient();
+  const { error } = await client
+    .from("printer_maintenance_logs")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", id);
+  if (error) throw error;
 }
 
 // Compat: exports antigos (não usar em código novo)

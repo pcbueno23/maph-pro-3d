@@ -20,6 +20,7 @@ export async function fetchUserProducts(userId: string): Promise<Product[]> {
         marketplace,
         currency,
         total_cost,
+        total_cost_updated_at,
         suggested_price_shopee,
         suggested_price_ml,
         suggested_price_direct,
@@ -57,6 +58,7 @@ export async function fetchUserProducts(userId: string): Promise<Product[]> {
     marketplace: row.marketplace,
     currency: row.currency,
     totalCost: row.total_cost != null ? Number(row.total_cost) : undefined,
+    totalCostUpdatedAt: row.total_cost_updated_at ?? undefined,
     suggestedPriceShopee:
       row.suggested_price_shopee != null ? Number(row.suggested_price_shopee) : undefined,
     suggestedPriceML:
