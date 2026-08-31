@@ -914,10 +914,19 @@ export default function OrdersPage() {
                   {products.map((p) => {
                     const ok = isEligibleProductId.has(p.id);
                     const needsFilament = ok && !productsWithBom.has(p.id);
+                    const missing: string[] = [];
+                    if (!ok) {
+                      if (!p.printTimeMinutes) missing.push("tempo");
+                      if (!p.defaultPrinterId) missing.push("impressora");
+                    }
                     return (
                       <option key={p.id} value={p.id} disabled={!ok}>
                         {p.name}
-                        {!ok ? " (incompleto)" : needsFilament ? " (escolher filamento)" : ""}
+                        {!ok
+                          ? ` (falta ${missing.join(" e ")})`
+                          : needsFilament
+                            ? " (escolher filamento)"
+                            : ""}
                       </option>
                     );
                   })}
