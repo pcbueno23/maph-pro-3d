@@ -17,9 +17,16 @@ function baseUrl(region: string): string {
 }
 
 export type BambuLoginResult =
-  | { ok: true; accessToken: string; refreshToken: string | null; expiresAt: string | null }
+  | { ok: true; accessToken: string; refreshToken: string | null; expiresAt: string | null; uid: string | null }
   | { ok: true; needsVerification: true }
   | { ok: false; status: number; body: string };
+
+/** O uid aparece em formatos diferentes conforme a versão da API — tenta os mais prováveis. */
+function extractUid(json: any): string | null {
+  const raw =
+    json?.uid ?? json?.user?.uid ?? json?.userId ?? json?.user_id ?? json?.user?.id ?? null;
+  return raw != null ? String(raw) : null;
+}
 
 async function postJson(url: string, body: unknown, token?: string) {
   const res = await fetch(url, {
@@ -61,6 +68,7 @@ export async function bambuLogin(
       accessToken: res.json.accessToken,
       refreshToken: res.json.refreshToken ?? null,
       expiresAt: null,
+      uid: extractUid(res.json),
     };
   }
 
@@ -92,6 +100,7 @@ export async function bambuLoginWithCode(
       accessToken: res.json.accessToken,
       refreshToken: res.json.refreshToken ?? null,
       expiresAt: null,
+      uid: extractUid(res.json),
     };
   }
   return { ok: false, status: 200, body: res.text.slice(0, 500) };

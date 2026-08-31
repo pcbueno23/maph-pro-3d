@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
       access_token: result.accessToken,
       refresh_token: result.refreshToken,
       token_expires_at: result.expiresAt,
+      uid: result.uid,
       region,
       updated_at: new Date().toISOString(),
     },

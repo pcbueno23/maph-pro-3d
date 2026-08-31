@@ -1,0 +1,21 @@
+{
+  "name": "bambu-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Servico separado (fora do Vercel) que mantem conexao MQTT com a nuvem Bambu Lab pra cada conta conectada no Maph Pro 3D, e grava o status ao vivo (progresso, temperatura) no Supabase.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "mqtt": "^5.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}
