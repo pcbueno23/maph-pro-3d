@@ -19,7 +19,40 @@
  * = 1 / margem bruta) — usados aqui só como referência de ordem de grandeza, não como
  * regra rígida, já que a Shopee não publica benchmark oficial por categoria.
  */
-import type { AdsRowSummary } from "./supabaseShopeeReports";
+import type { AdsRowSummary, GmvMaxRowSummary } from "./supabaseShopeeReports";
+
+/** Adapta uma linha do GMV Max detalhado (por produto) pro mesmo formato que analyzeAd()
+ * já sabe ler — o funil (impressão/clique/conversão/ROAS) é o mesmo, só faltam os campos
+ * "diretos" e de carrinho que esse relatório não traz. */
+export function gmvMaxRowToAdsRow(row: GmvMaxRowSummary): AdsRowSummary {
+  return {
+    adName: row.productName,
+    itemId: row.itemId,
+    matchedProductId: row.matchedProductId,
+    matchedProductCost: row.matchedProductCost,
+    status: null,
+    adType: "GMV Max",
+    placement: null,
+    impressions: row.impressions,
+    clicks: row.clicks,
+    ctr: row.ctr,
+    addToCart: null,
+    conversions: row.conversions,
+    directConversions: null,
+    conversionRate: row.conversionRate,
+    directConversionRate: null,
+    costPerConversion: row.costPerConversion,
+    itemsSold: row.itemsSold,
+    itemsSoldDirect: null,
+    gmv: row.gmv,
+    directRevenue: null,
+    expenses: row.expenses,
+    roas: row.roas,
+    directRoas: null,
+    acos: row.acos,
+    directAcos: null,
+  };
+}
 
 export type MetricStatus = "boa" | "atencao" | "ruim" | "neutro";
 

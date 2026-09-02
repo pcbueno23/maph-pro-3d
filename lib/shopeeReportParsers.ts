@@ -302,13 +302,13 @@ export type AdsParseResult = {
 };
 
 /**
- * CSV real confirmado: 6 linhas de metadado (usuário/loja/período), 1 linha em branco,
- * depois o cabeçalho de verdade começando em "#,Nome do Anúncio,...".
+ * Todos os exports de "Central de Marketing → Anúncios → Exportar dados" seguem o
+ * mesmo formato: 6 linhas de metadado (usuário/loja/período), 1 linha em branco,
+ * depois o cabeçalho de verdade começando em "#,<nome da 2ª coluna>,...". A 2ª coluna
+ * muda por tipo de relatório (ex.: "Nome do Anúncio" no geral, "Nome do Produto" no
+ * GMV Max) — usada aqui pra achar a linha certa sem depender de posição fixa.
  */
-export async function parseAdsFile(file: File): Promise<AdsParseResult> {
-  const text = await file.text();
-  const table = parseCsv(text);
-
+function findReportHeader(table: string[][], secondColumnName: string) {
   let periodStart: string | null = null;
   let periodEnd: string | null = null;
   let headerRowIdx = -1;
@@ -319,11 +319,23 @@ export async function parseAdsFile(file: File): Promise<AdsParseResult> {
       periodStart = parseBRDate(start);
       periodEnd = parseBRDate(end);
     }
-    if (r[0]?.trim() === "#" && r[1]?.trim() === "Nome do Anúncio") {
+    if (r[0]?.trim() === "#" && r[1]?.trim() === secondColumnName) {
       headerRowIdx = i;
       break;
     }
   }
+  return { headerRowIdx, periodStart, periodEnd };
+}
+
+/**
+ * CSV real confirmado: 6 linhas de metadado (usuário/loja/período), 1 linha em branco,
+ * depois o cabeçalho de verdade começando em "#,Nome do Anúncio,...".
+ */
+export async function parseAdsFile(file: File): Promise<AdsParseResult> {
+  const text = await file.text();
+  const table = parseCsv(text);
+
+  const { headerRowIdx, periodStart, periodEnd } = findReportHeader(table, "Nome do Anúncio");
   if (headerRowIdx === -1) return { rows: [], periodStart, periodEnd };
 
   const header = table[headerRowIdx];
@@ -386,6 +398,322 @@ export async function parseAdsFile(file: File): Promise<AdsParseResult> {
     directRoas: parseUSNumber(r[idx.directRoas]),
     acos: parseUSNumber(r[idx.acos]),
     directAcos: parseUSNumber(r[idx.directAcos]),
+  }));
+
+  return { rows, periodStart, periodEnd };
+}
+
+export type KeywordRow = {
+  adName: string | null;
+  status: string | null;
+  adType: string | null;
+  itemId: string | null;
+  bidMethod: string | null;
+  placement: string | null;
+  keywordOrLocation: string | null;
+  matchType: string | null;
+  /** true quando a Shopee escolhe a segmentação sozinha (GMV Max) — não é uma palavra-chave otimizável. */
+  isAutomatic: boolean;
+  impressions: number | null;
+  clicks: number | null;
+  ctr: number | null;
+  conversions: number | null;
+  directConversions: number | null;
+  conversionRate: number | null;
+  directConversionRate: number | null;
+  costPerConversion: number | null;
+  costPerConversionDirect: number | null;
+  itemsSold: number | null;
+  itemsSoldDirect: number | null;
+  gmv: number | null;
+  directRevenue: number | null;
+  expenses: number | null;
+  roas: number | null;
+  directRoas: number | null;
+  acos: number | null;
+  directAcos: number | null;
+  productImpressions: number | null;
+  productClicks: number | null;
+  productCtr: number | null;
+};
+
+export type KeywordParseResult = { rows: KeywordRow[]; periodStart: string | null; periodEnd: string | null };
+
+/** Export "Dados em nível de palavra-chave e performance". Em contas que usam só GMV Max
+ * (lance automático), a Shopee escolhe a segmentação sozinha e essa coluna vem "-" ou
+ * "Selecionado Automaticamente" em todo mundo — não há palavra-chave manual pra otimizar. */
+export async function parseKeywordFile(file: File): Promise<KeywordParseResult> {
+  const text = await file.text();
+  const table = parseCsv(text);
+  const { headerRowIdx, periodStart, periodEnd } = findReportHeader(table, "Nome do Anúncio");
+  if (headerRowIdx === -1) return { rows: [], periodStart, periodEnd };
+
+  const header = table[headerRowIdx];
+  const body = table.slice(headerRowIdx + 1).filter((r) => r.some((c) => c != null && c !== ""));
+  const col = (name: string) => headerIndex(header, name);
+  const idx = {
+    adName: col("Nome do Anúncio"),
+    status: col("Status"),
+    adType: col("Tipos de Anúncios"),
+    itemId: col("ID do produto"),
+    bidMethod: col("Método de Lance"),
+    placement: col("Posicionamento"),
+    keywordOrLocation: col("Palavra-chave/Localização"),
+    matchType: col("Tipo de combinação"),
+    impressions: col("Impressões"),
+    clicks: col("Cliques"),
+    ctr: col("CTR"),
+    conversions: col("Conversões"),
+    directConversions: col("Conversões Diretas"),
+    conversionRate: col("Taxa de Conversão"),
+    directConversionRate: col("Taxa de Conversão Direta"),
+    costPerConversion: col("Custo por Conversão"),
+    costPerConversionDirect: col("Custo por Conversão Direta"),
+    itemsSold: col("Itens Vendidos"),
+    itemsSoldDirect: col("Itens Vendidos Diretos"),
+    gmv: col("GMV"),
+    directRevenue: col("Receita direta"),
+    expenses: col("Despesas"),
+    roas: col("ROAS"),
+    directRoas: col("ROAS Direto"),
+    acos: col("ACOS"),
+    directAcos: col("ACOS Direto"),
+    productImpressions: col("Impressões do Produto"),
+    productClicks: col("Cliques de Produtos"),
+    productCtr: col("CTR do Produto"),
+  };
+
+  const rows: KeywordRow[] = body.map((r) => {
+    const keywordOrLocation = nonEmpty(r[idx.keywordOrLocation]);
+    return {
+      adName: nonEmpty(r[idx.adName]),
+      status: nonEmpty(r[idx.status]),
+      adType: nonEmpty(r[idx.adType]),
+      itemId: nonEmpty(r[idx.itemId]),
+      bidMethod: nonEmpty(r[idx.bidMethod]),
+      placement: nonEmpty(r[idx.placement]),
+      keywordOrLocation,
+      matchType: nonEmpty(r[idx.matchType]),
+      isAutomatic: keywordOrLocation == null || keywordOrLocation === "Selecionado Automaticamente",
+      impressions: parseIntOrNull(r[idx.impressions]),
+      clicks: parseIntOrNull(r[idx.clicks]),
+      ctr: parseUSNumber(r[idx.ctr]),
+      conversions: parseIntOrNull(r[idx.conversions]),
+      directConversions: parseIntOrNull(r[idx.directConversions]),
+      conversionRate: parseUSNumber(r[idx.conversionRate]),
+      directConversionRate: parseUSNumber(r[idx.directConversionRate]),
+      costPerConversion: parseUSNumber(r[idx.costPerConversion]),
+      costPerConversionDirect: parseUSNumber(r[idx.costPerConversionDirect]),
+      itemsSold: parseIntOrNull(r[idx.itemsSold]),
+      itemsSoldDirect: parseIntOrNull(r[idx.itemsSoldDirect]),
+      gmv: parseUSNumber(r[idx.gmv]),
+      directRevenue: parseUSNumber(r[idx.directRevenue]),
+      expenses: parseUSNumber(r[idx.expenses]),
+      roas: parseUSNumber(r[idx.roas]),
+      directRoas: parseUSNumber(r[idx.directRoas]),
+      acos: parseUSNumber(r[idx.acos]),
+      directAcos: parseUSNumber(r[idx.directAcos]),
+      productImpressions: parseIntOrNull(r[idx.productImpressions]),
+      productClicks: parseIntOrNull(r[idx.productClicks]),
+      productCtr: parseUSNumber(r[idx.productCtr]),
+    };
+  });
+
+  return { rows, periodStart, periodEnd };
+}
+
+export type GmvMaxRow = {
+  productName: string | null;
+  itemId: string | null;
+  /** true na linha-resumo "GMV Max da Loja" (item_id "-") — não é um produto real. */
+  isStoreTotal: boolean;
+  impressions: number | null;
+  clicks: number | null;
+  ctr: number | null;
+  conversions: number | null;
+  directConversions: number | null;
+  conversionRate: number | null;
+  directConversionRate: number | null;
+  costPerConversion: number | null;
+  costPerConversionDirect: number | null;
+  itemsSold: number | null;
+  itemsSoldDirect: number | null;
+  gmv: number | null;
+  directRevenue: number | null;
+  expenses: number | null;
+  roas: number | null;
+  directRoas: number | null;
+  acos: number | null;
+  directAcos: number | null;
+  voucherAmount: number | null;
+  voucheredSales: number | null;
+};
+
+export type GmvMaxParseResult = { rows: GmvMaxRow[]; periodStart: string | null; periodEnd: string | null };
+
+/** Export "Dados Detalhados do GMV Max da Loja" — quebra a linha única "GMV Max da Loja"
+ * do relatório geral em cada produto individual dentro dessa campanha automática. */
+export async function parseGmvMaxFile(file: File): Promise<GmvMaxParseResult> {
+  const text = await file.text();
+  const table = parseCsv(text);
+  const { headerRowIdx, periodStart, periodEnd } = findReportHeader(table, "Nome do Produto");
+  if (headerRowIdx === -1) return { rows: [], periodStart, periodEnd };
+
+  const header = table[headerRowIdx];
+  const body = table.slice(headerRowIdx + 1).filter((r) => r.some((c) => c != null && c !== ""));
+  const col = (name: string) => headerIndex(header, name);
+  const idx = {
+    productName: col("Nome do Produto"),
+    itemId: col("ID do produto"),
+    impressions: col("Impressões"),
+    clicks: col("Cliques"),
+    ctr: col("CTR"),
+    conversions: col("Conversões"),
+    directConversions: col("Conversões Diretas"),
+    conversionRate: col("Taxa de Conversão"),
+    directConversionRate: col("Taxa de Conversão Direta"),
+    costPerConversion: col("Custo por Conversão"),
+    costPerConversionDirect: col("Custo por Conversão Direta"),
+    itemsSold: col("Itens Vendidos"),
+    itemsSoldDirect: col("Itens Vendidos Diretos"),
+    gmv: col("GMV"),
+    directRevenue: col("Receita direta"),
+    expenses: col("Despesas"),
+    roas: col("ROAS"),
+    directRoas: col("ROAS Direto"),
+    acos: col("ACOS"),
+    directAcos: col("ACOS Direto"),
+    voucherAmount: col("Voucher Amount"),
+    voucheredSales: col("Vouchered Sales"),
+  };
+
+  const rows: GmvMaxRow[] = body.map((r) => {
+    const itemId = nonEmpty(r[idx.itemId]);
+    return {
+      productName: nonEmpty(r[idx.productName]),
+      itemId,
+      isStoreTotal: itemId == null,
+      impressions: parseIntOrNull(r[idx.impressions]),
+      clicks: parseIntOrNull(r[idx.clicks]),
+      ctr: parseUSNumber(r[idx.ctr]),
+      conversions: parseIntOrNull(r[idx.conversions]),
+      directConversions: parseIntOrNull(r[idx.directConversions]),
+      conversionRate: parseUSNumber(r[idx.conversionRate]),
+      directConversionRate: parseUSNumber(r[idx.directConversionRate]),
+      costPerConversion: parseUSNumber(r[idx.costPerConversion]),
+      costPerConversionDirect: parseUSNumber(r[idx.costPerConversionDirect]),
+      itemsSold: parseIntOrNull(r[idx.itemsSold]),
+      itemsSoldDirect: parseIntOrNull(r[idx.itemsSoldDirect]),
+      gmv: parseUSNumber(r[idx.gmv]),
+      directRevenue: parseUSNumber(r[idx.directRevenue]),
+      expenses: parseUSNumber(r[idx.expenses]),
+      roas: parseUSNumber(r[idx.roas]),
+      directRoas: parseUSNumber(r[idx.directRoas]),
+      acos: parseUSNumber(r[idx.acos]),
+      directAcos: parseUSNumber(r[idx.directAcos]),
+      voucherAmount: parseUSNumber(r[idx.voucherAmount]),
+      voucheredSales: parseUSNumber(r[idx.voucheredSales]),
+    };
+  });
+
+  return { rows, periodStart, periodEnd };
+}
+
+export type AdGroupRow = {
+  adName: string | null;
+  status: string | null;
+  adType: string | null;
+  itemId: string | null;
+  bidMethod: string | null;
+  impressions: number | null;
+  clicks: number | null;
+  ctr: number | null;
+  conversions: number | null;
+  directConversions: number | null;
+  conversionRate: number | null;
+  directConversionRate: number | null;
+  costPerConversion: number | null;
+  costPerConversionDirect: number | null;
+  itemsSold: number | null;
+  itemsSoldDirect: number | null;
+  gmv: number | null;
+  directRevenue: number | null;
+  expenses: number | null;
+  roas: number | null;
+  directRoas: number | null;
+  acos: number | null;
+  directAcos: number | null;
+  voucherAmount: number | null;
+  voucheredSales: number | null;
+};
+
+export type AdGroupParseResult = { rows: AdGroupRow[]; periodStart: string | null; periodEnd: string | null };
+
+/** Export "Dados de Todos os Grupos de Anúncios". Contas que só usam GMV Max (sem
+ * campanhas manuais agrupadas) vêm com esse arquivo vazio — é esperado, não é erro. */
+export async function parseAdGroupFile(file: File): Promise<AdGroupParseResult> {
+  const text = await file.text();
+  const table = parseCsv(text);
+  const { headerRowIdx, periodStart, periodEnd } = findReportHeader(table, "Anúncio / Nome do Produto");
+  if (headerRowIdx === -1) return { rows: [], periodStart, periodEnd };
+
+  const header = table[headerRowIdx];
+  const body = table.slice(headerRowIdx + 1).filter((r) => r.some((c) => c != null && c !== ""));
+  const col = (name: string) => headerIndex(header, name);
+  const idx = {
+    adName: col("Anúncio / Nome do Produto"),
+    status: col("Status"),
+    adType: col("Tipos de Anúncios"),
+    itemId: col("ID do produto"),
+    bidMethod: col("Método de Lance"),
+    impressions: col("Impressões"),
+    clicks: col("Cliques"),
+    ctr: col("CTR"),
+    conversions: col("Conversões"),
+    directConversions: col("Conversões Diretas"),
+    conversionRate: col("Taxa de Conversão"),
+    directConversionRate: col("Taxa de Conversão Direta"),
+    costPerConversion: col("Custo por Conversão"),
+    costPerConversionDirect: col("Custo por Conversão Direta"),
+    itemsSold: col("Itens Vendidos"),
+    itemsSoldDirect: col("Itens Vendidos Diretos"),
+    gmv: col("GMV"),
+    directRevenue: col("Receita direta"),
+    expenses: col("Despesas"),
+    roas: col("ROAS"),
+    directRoas: col("ROAS Direto"),
+    acos: col("ACOS"),
+    directAcos: col("ACOS Direto"),
+    voucherAmount: col("Voucher Amount"),
+    voucheredSales: col("Vouchered Sales"),
+  };
+
+  const rows: AdGroupRow[] = body.map((r) => ({
+    adName: nonEmpty(r[idx.adName]),
+    status: nonEmpty(r[idx.status]),
+    adType: nonEmpty(r[idx.adType]),
+    itemId: nonEmpty(r[idx.itemId]),
+    bidMethod: nonEmpty(r[idx.bidMethod]),
+    impressions: parseIntOrNull(r[idx.impressions]),
+    clicks: parseIntOrNull(r[idx.clicks]),
+    ctr: parseUSNumber(r[idx.ctr]),
+    conversions: parseIntOrNull(r[idx.conversions]),
+    directConversions: parseIntOrNull(r[idx.directConversions]),
+    conversionRate: parseUSNumber(r[idx.conversionRate]),
+    directConversionRate: parseUSNumber(r[idx.directConversionRate]),
+    costPerConversion: parseUSNumber(r[idx.costPerConversion]),
+    costPerConversionDirect: parseUSNumber(r[idx.costPerConversionDirect]),
+    itemsSold: parseIntOrNull(r[idx.itemsSold]),
+    itemsSoldDirect: parseIntOrNull(r[idx.itemsSoldDirect]),
+    gmv: parseUSNumber(r[idx.gmv]),
+    directRevenue: parseUSNumber(r[idx.directRevenue]),
+    expenses: parseUSNumber(r[idx.expenses]),
+    roas: parseUSNumber(r[idx.roas]),
+    directRoas: parseUSNumber(r[idx.directRoas]),
+    acos: parseUSNumber(r[idx.acos]),
+    directAcos: parseUSNumber(r[idx.directAcos]),
+    voucherAmount: parseUSNumber(r[idx.voucherAmount]),
+    voucheredSales: parseUSNumber(r[idx.voucheredSales]),
   }));
 
   return { rows, periodStart, periodEnd };

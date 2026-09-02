@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, CheckCircle2, AlertTriangle, XCircle, HelpCircle } from "lucide-react";
-import type { AdsRowSummary } from "@/lib/supabaseShopeeReports";
+import type { AdsRowSummary, KeywordRowSummary } from "@/lib/supabaseShopeeReports";
 import { analyzeAd, type MetricStatus } from "@/lib/shopeeAdsAnalysis";
 
 function formatBRL(value: number | null) {
@@ -23,7 +23,7 @@ const STATUS_LABEL: Record<MetricStatus, string> = {
   neutro: "Sem dados",
 };
 
-export function ShopeeAdDiagnosisCard({ row }: { row: AdsRowSummary }) {
+export function ShopeeAdDiagnosisCard({ row, keywords }: { row: AdsRowSummary; keywords?: KeywordRowSummary[] }) {
   const [open, setOpen] = useState(false);
   const diagnosis = analyzeAd(row);
   const s = STATUS_STYLE[diagnosis.overallStatus];
@@ -95,6 +95,40 @@ export function ShopeeAdDiagnosisCard({ row }: { row: AdsRowSummary }) {
               );
             })}
           </div>
+
+          {keywords && keywords.length > 0 && (
+            <div className="mt-3 border-t border-slate-800/70 pt-3">
+              {(() => {
+                const real = keywords.filter((k) => !k.isAutomatic && k.keywordOrLocation);
+                if (real.length === 0) {
+                  return (
+                    <p className="text-[11px] text-slate-500">
+                      Segmentação automática (GMV Max) — a Shopee escolhe a palavra-chave/local sozinha aqui, não dá
+                      pra otimizar palavra por palavra nesse anúncio.
+                    </p>
+                  );
+                }
+                return (
+                  <>
+                    <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                      Palavras-chave / locações
+                    </p>
+                    <div className="space-y-1.5">
+                      {real.map((k, i) => (
+                        <div key={`${k.keywordOrLocation}-${i}`} className="flex items-center justify-between gap-2 text-[11px]">
+                          <span className="truncate text-slate-300">{k.keywordOrLocation}</span>
+                          <span className="shrink-0 text-slate-500">
+                            {k.clicks ?? 0} cliques · {k.conversions ?? 0} vendas ·{" "}
+                            {k.roas != null ? `${k.roas.toFixed(2)}x` : "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
     </div>

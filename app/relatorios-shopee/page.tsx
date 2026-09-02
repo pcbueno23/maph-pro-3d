@@ -6,15 +6,22 @@ import { useAuthStore } from "@/store/authStore";
 import {
   importPerformanceReport,
   importAdsReport,
+  importKeywordReport,
+  importGmvMaxReport,
+  importAdGroupReport,
   fetchLatestImport,
   fetchPerformanceProductRows,
   fetchAdsRows,
+  fetchKeywordRows,
+  fetchGmvMaxRows,
   type ShopeeImportSummary,
   type ShopeeReportType,
   type PerformanceProductRow,
   type AdsRowSummary,
+  type KeywordRowSummary,
+  type GmvMaxRowSummary,
 } from "@/lib/supabaseShopeeReports";
-import { analyzeAd } from "@/lib/shopeeAdsAnalysis";
+import { analyzeAd, gmvMaxRowToAdsRow } from "@/lib/shopeeAdsAnalysis";
 import { ShopeeAdDiagnosisCard } from "@/components/reports/ShopeeAdDiagnosisCard";
 
 function formatBRL(value: number) {
@@ -166,16 +173,44 @@ export default function RelatoriosShopeePage() {
   const [perfRows, setPerfRows] = useState<PerformanceProductRow[]>([]);
   const [adsRows, setAdsRows] = useState<AdsRowSummary[]>([]);
 
+  // Os outros 3 exports de Shopee Ads (opcionais, melhoram o diagnóstico quando presentes).
+  const [keywordSummary, setKeywordSummary] = useState<ShopeeImportSummary | null>(null);
+  const [keywordRows, setKeywordRows] = useState<KeywordRowSummary[]>([]);
+  const [keywordImporting, setKeywordImporting] = useState(false);
+  const [gmvMaxSummary, setGmvMaxSummary] = useState<ShopeeImportSummary | null>(null);
+  const [gmvMaxRows, setGmvMaxRows] = useState<GmvMaxRowSummary[]>([]);
+  const [gmvMaxImporting, setGmvMaxImporting] = useState(false);
+  const [adGroupSummary, setAdGroupSummary] = useState<ShopeeImportSummary | null>(null);
+  const [adGroupImporting, setAdGroupImporting] = useState(false);
+  const [analysisStarted, setAnalysisStarted] = useState(false);
+
   useEffect(() => {
     setImportMsg(null);
     setSummary(null);
     setPerfRows([]);
     setAdsRows([]);
+    setKeywordSummary(null);
+    setKeywordRows([]);
+    setGmvMaxSummary(null);
+    setGmvMaxRows([]);
+    setAdGroupSummary(null);
+    setAnalysisStarted(false);
     if (!reportType || !user) return;
     let cancelled = false;
     fetchLatestImport(user.id, reportType).then((s) => {
       if (!cancelled) setSummary(s);
     });
+    if (reportType === "shopee_ads") {
+      fetchLatestImport(user.id, "shopee_ads_keyword").then((s) => {
+        if (!cancelled) setKeywordSummary(s);
+      });
+      fetchLatestImport(user.id, "shopee_ads_gmvmax").then((s) => {
+        if (!cancelled) setGmvMaxSummary(s);
+      });
+      fetchLatestImport(user.id, "shopee_ads_group").then((s) => {
+        if (!cancelled) setAdGroupSummary(s);
+      });
+    }
     return () => {
       cancelled = true;
     };
@@ -198,6 +233,80 @@ export default function RelatoriosShopeePage() {
     };
   }, [summary, reportType]);
 
+  useEffect(() => {
+    if (!keywordSummary) return;
+    let cancelled = false;
+    fetchKeywordRows(keywordSummary.id).then((rows) => {
+      if (!cancelled) setKeywordRows(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [keywordSummary]);
+
+  useEffect(() => {
+    if (!gmvMaxSummary) return;
+    let cancelled = false;
+    fetchGmvMaxRows(gmvMaxSummary.id).then((rows) => {
+      if (!cancelled) setGmvMaxRows(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [gmvMaxSummary]);
+
+  async function handleKeywordFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+    setKeywordImporting(true);
+    const result = await importKeywordReport(user.id, file);
+    setKeywordImporting(false);
+    if (result.ok) setKeywordSummary(result.summary);
+    else setImportMsg(result.message);
+  }
+
+  async function handleGmvMaxFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+    setGmvMaxImporting(true);
+    const result = await importGmvMaxReport(user.id, file);
+    setGmvMaxImporting(false);
+    if (result.ok) setGmvMaxSummary(result.summary);
+    else setImportMsg(result.message);
+  }
+
+  async function handleAdGroupFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+    setAdGroupImporting(true);
+    const result = await importAdGroupReport(user.id, file);
+    setAdGroupImporting(false);
+    if (result.ok) setAdGroupSummary(result.summary);
+    else setImportMsg(result.message);
+  }
+
+  const keywordsByItemId = useMemo(() => {
+    const map = new Map<string, KeywordRowSummary[]>();
+    for (const k of keywordRows) {
+      if (!k.itemId) continue;
+      const arr = map.get(k.itemId) ?? [];
+      arr.push(k);
+      map.set(k.itemId, arr);
+    }
+    return map;
+  }, [keywordRows]);
+
+  const combinedAdsRows = useMemo(() => {
+    if (gmvMaxRows.length === 0) return adsRows;
+    // A linha única "GMV Max da Loja" do relatório geral vira N cartões (um por produto
+    // real dentro da campanha automática), usando o relatório detalhado do GMV Max.
+    const withoutStoreTotal = adsRows.filter((r) => r.adName !== "GMV Max da Loja");
+    return [...withoutStoreTotal, ...gmvMaxRows.map(gmvMaxRowToAdsRow)];
+  }, [adsRows, gmvMaxRows]);
+
   const perfTotals = useMemo(() => {
     if (perfRows.length === 0) return null;
     return {
@@ -208,12 +317,15 @@ export default function RelatoriosShopeePage() {
     };
   }, [perfRows]);
 
-  const adsDiagnoses = useMemo(() => adsRows.map((r) => ({ row: r, diagnosis: analyzeAd(r) })), [adsRows]);
+  const adsDiagnoses = useMemo(
+    () => combinedAdsRows.map((r) => ({ row: r, diagnosis: analyzeAd(r) })),
+    [combinedAdsRows],
+  );
 
   const adsTotals = useMemo(() => {
-    if (adsRows.length === 0) return null;
-    const expenses = adsRows.reduce((s, r) => s + (r.expenses ?? 0), 0);
-    const gmv = adsRows.reduce((s, r) => s + (r.gmv ?? 0), 0);
+    if (combinedAdsRows.length === 0) return null;
+    const expenses = combinedAdsRows.reduce((s, r) => s + (r.expenses ?? 0), 0);
+    const gmv = combinedAdsRows.reduce((s, r) => s + (r.gmv ?? 0), 0);
     return {
       expenses,
       gmv,
@@ -224,7 +336,7 @@ export default function RelatoriosShopeePage() {
         (d) => d.diagnosis.metrics.find((m) => m.key === "roas")?.status === "ruim" && (d.row.expenses ?? 0) > 0,
       ).length,
     };
-  }, [adsRows, adsDiagnoses]);
+  }, [combinedAdsRows, adsDiagnoses]);
 
   async function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -432,11 +544,86 @@ export default function RelatoriosShopeePage() {
         </div>
       ) : null}
 
-      {reportType === "shopee_ads" && adsTotals ? (
+      {reportType === "shopee_ads" ? (
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6 shadow-[0_0_0_1px_rgba(6,182,212,0.08)]">
+          <p className="text-sm font-semibold text-slate-50">Aprofundar a análise (opcional)</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Além do relatório geral acima, a Shopee exporta mais 3 arquivos em "Exportar dados" que deixam o
+            diagnóstico mais preciso. Importe quantos quiser (ou nenhum) e clique em "Iniciar análise".
+          </p>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+              <p className="text-xs font-medium text-slate-200">Palavra-chave / locação</p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                {keywordSummary ? `${keywordSummary.rowCount} linha(s) importada(s)` : "Não importado ainda"}
+              </p>
+              <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] text-slate-200 hover:border-cyan-500/40 hover:text-cyan-200">
+                <Upload className="h-3 w-3" />
+                {keywordImporting ? "Importando..." : "Escolher arquivo"}
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  disabled={keywordImporting}
+                  onChange={(e) => void handleKeywordFile(e)}
+                />
+              </label>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+              <p className="text-xs font-medium text-slate-200">GMV Max detalhado</p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                {gmvMaxSummary ? `${gmvMaxSummary.rowCount} linha(s) importada(s)` : "Não importado ainda"}
+              </p>
+              <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] text-slate-200 hover:border-cyan-500/40 hover:text-cyan-200">
+                <Upload className="h-3 w-3" />
+                {gmvMaxImporting ? "Importando..." : "Escolher arquivo"}
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  disabled={gmvMaxImporting}
+                  onChange={(e) => void handleGmvMaxFile(e)}
+                />
+              </label>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+              <p className="text-xs font-medium text-slate-200">Grupos de anúncios</p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                {adGroupSummary ? `${adGroupSummary.rowCount} linha(s) importada(s)` : "Não importado ainda"}
+              </p>
+              <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-[11px] text-slate-200 hover:border-cyan-500/40 hover:text-cyan-200">
+                <Upload className="h-3 w-3" />
+                {adGroupImporting ? "Importando..." : "Escolher arquivo"}
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  disabled={adGroupImporting}
+                  onChange={(e) => void handleAdGroupFile(e)}
+                />
+              </label>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={!summary}
+            onClick={() => setAnalysisStarted(true)}
+            className="mt-4 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {summary ? "Iniciar análise" : "Importe o relatório geral de anúncios primeiro"}
+          </button>
+        </div>
+      ) : null}
+
+      {reportType === "shopee_ads" && analysisStarted && adsTotals ? (
         <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6 shadow-[0_0_0_1px_rgba(6,182,212,0.08)]">
           <p className="text-sm font-semibold text-slate-50">Como seus anúncios performaram</p>
           <p className="mt-1 text-xs text-slate-500">
-            A partir do arquivo importado — {summary?.periodStart && summary?.periodEnd ? `período ${summary.periodStart} a ${summary.periodEnd}` : "sem período identificado"}.
+            A partir do(s) arquivo(s) importado(s) — {summary?.periodStart && summary?.periodEnd ? `período ${summary.periodStart} a ${summary.periodEnd}` : "sem período identificado"}
+            {gmvMaxRows.length > 0 ? " · GMV Max detalhado por produto" : ""}
+            {keywordRows.length > 0 ? " · palavra-chave/locação incluída" : ""}.
           </p>
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -457,7 +644,7 @@ export default function RelatoriosShopeePage() {
             <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
               <p className="text-[10px] uppercase tracking-wide text-slate-500">No prejuízo</p>
               <p className="mt-1 text-lg font-semibold text-slate-50">
-                {adsTotals.losing}/{adsRows.length}
+                {adsTotals.losing}/{combinedAdsRows.length}
               </p>
             </div>
           </div>
@@ -473,12 +660,22 @@ export default function RelatoriosShopeePage() {
             </p>
           )}
 
+          {adGroupSummary && adGroupSummary.rowCount === 0 && (
+            <p className="mt-3 rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-2 text-[11px] text-slate-500">
+              Nenhum grupo de anúncio configurado nessa conta — normal se você usa só GMV Max (lance automático).
+            </p>
+          )}
+
           <div className="mt-4 space-y-2">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Diagnóstico por anúncio — clique pra abrir
             </p>
             {adsDiagnoses.map(({ row: r }, i) => (
-              <ShopeeAdDiagnosisCard key={`${r.itemId ?? r.adName}-${i}`} row={r} />
+              <ShopeeAdDiagnosisCard
+                key={`${r.itemId ?? r.adName}-${i}`}
+                row={r}
+                keywords={r.itemId ? keywordsByItemId.get(r.itemId) : undefined}
+              />
             ))}
           </div>
         </div>

@@ -1,7 +1,19 @@
 import { supabase } from "./supabaseClient";
-import { parsePerformanceFile, parseAdsFile } from "./shopeeReportParsers";
+import {
+  parsePerformanceFile,
+  parseAdsFile,
+  parseKeywordFile,
+  parseGmvMaxFile,
+  parseAdGroupFile,
+} from "./shopeeReportParsers";
 
-export type ShopeeReportType = "performance_produto" | "shopee_ads" | "minha_renda";
+export type ShopeeReportType =
+  | "performance_produto"
+  | "shopee_ads"
+  | "minha_renda"
+  | "shopee_ads_keyword"
+  | "shopee_ads_gmvmax"
+  | "shopee_ads_group";
 
 export type ShopeeImportSummary = {
   id: string;
@@ -286,7 +298,15 @@ export async function fetchLatestImport(
     .maybeSingle();
   if (error || !data) return null;
 
-  const table = reportType === "shopee_ads" ? "shopee_ads_performance" : "shopee_product_performance";
+  const REPORT_TABLE: Record<ShopeeReportType, string> = {
+    performance_produto: "shopee_product_performance",
+    shopee_ads: "shopee_ads_performance",
+    minha_renda: "shopee_product_performance",
+    shopee_ads_keyword: "shopee_ads_keyword_performance",
+    shopee_ads_gmvmax: "shopee_ads_gmvmax_performance",
+    shopee_ads_group: "shopee_ads_group_performance",
+  };
+  const table = REPORT_TABLE[reportType];
   let matchedCount = 0;
   if (reportType !== "minha_renda") {
     const { count } = await supabase
@@ -393,4 +413,385 @@ export async function fetchLatestAdsSpendTotal(userId: string): Promise<{ total:
   if (error || !data) return null;
   const total = data.reduce((sum, r) => sum + (Number(r.expenses) || 0), 0);
   return { total, periodStart: latest.periodStart, periodEnd: latest.periodEnd };
+}
+
+export type KeywordRowSummary = {
+  adName: string | null;
+  itemId: string | null;
+  matchedProductId: string | null;
+  keywordOrLocation: string | null;
+  matchType: string | null;
+  isAutomatic: boolean;
+  impressions: number | null;
+  clicks: number | null;
+  ctr: number | null;
+  conversions: number | null;
+  conversionRate: number | null;
+  costPerConversion: number | null;
+  itemsSold: number | null;
+  gmv: number | null;
+  expenses: number | null;
+  roas: number | null;
+  acos: number | null;
+};
+
+export async function importKeywordReport(userId: string, file: File): Promise<ImportOutcome> {
+  if (!supabase) return { ok: false, message: "Supabase não configurado." };
+
+  let parsed;
+  try {
+    parsed = await parseKeywordFile(file);
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Falha ao ler o arquivo." };
+  }
+  if (parsed.rows.length === 0) {
+    return { ok: false, message: "Não encontrei a tabela de palavra-chave/locação nesse arquivo." };
+  }
+
+  const products = await fetchProductLookup(userId);
+  const byItemId = new Map(products.filter((p) => p.shopeeItemId).map((p) => [p.shopeeItemId as string, p]));
+
+  const { data: importRow, error: importErr } = await supabase
+    .from("shopee_report_imports")
+    .insert({
+      user_id: userId,
+      report_type: "shopee_ads_keyword",
+      file_name: file.name,
+      period_start: parsed.periodStart,
+      period_end: parsed.periodEnd,
+      row_count: parsed.rows.length,
+    })
+    .select("id")
+    .single();
+  if (importErr || !importRow) {
+    return { ok: false, message: importErr?.message ?? "Falha ao registrar a importação." };
+  }
+
+  let matchedCount = 0;
+  const childRows = parsed.rows.map((r) => {
+    const match = r.itemId ? byItemId.get(r.itemId) : undefined;
+    if (match) matchedCount += 1;
+    return {
+      user_id: userId,
+      import_id: importRow.id,
+      ad_name: r.adName,
+      status: r.status,
+      ad_type: r.adType,
+      item_id: r.itemId,
+      matched_product_id: match?.id ?? null,
+      bid_method: r.bidMethod,
+      placement: r.placement,
+      keyword_or_location: r.keywordOrLocation,
+      match_type: r.matchType,
+      is_automatic: r.isAutomatic,
+      impressions: r.impressions,
+      clicks: r.clicks,
+      ctr: r.ctr,
+      conversions: r.conversions,
+      direct_conversions: r.directConversions,
+      conversion_rate: r.conversionRate,
+      direct_conversion_rate: r.directConversionRate,
+      cost_per_conversion: r.costPerConversion,
+      cost_per_conversion_direct: r.costPerConversionDirect,
+      items_sold: r.itemsSold,
+      items_sold_direct: r.itemsSoldDirect,
+      gmv: r.gmv,
+      direct_revenue: r.directRevenue,
+      expenses: r.expenses,
+      roas: r.roas,
+      direct_roas: r.directRoas,
+      acos: r.acos,
+      direct_acos: r.directAcos,
+      product_impressions: r.productImpressions,
+      product_clicks: r.productClicks,
+      product_ctr: r.productCtr,
+      period_start: parsed.periodStart,
+      period_end: parsed.periodEnd,
+    };
+  });
+
+  try {
+    await insertInBatches("shopee_ads_keyword_performance", childRows);
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Falha ao salvar os dados do relatório." };
+  }
+
+  return {
+    ok: true,
+    summary: {
+      id: importRow.id,
+      fileName: file.name,
+      periodStart: parsed.periodStart,
+      periodEnd: parsed.periodEnd,
+      rowCount: parsed.rows.length,
+      matchedCount,
+      importedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/** Palavras/locações reais só (exclui as automáticas) — agrupadas por anúncio, é o
+ * que dá pra otimizar de fato. Contas 100% GMV Max vêm vazias aqui (esperado). */
+export async function fetchKeywordRows(importId: string): Promise<KeywordRowSummary[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("shopee_ads_keyword_performance")
+    .select(
+      "ad_name, item_id, matched_product_id, keyword_or_location, match_type, is_automatic, impressions, " +
+        "clicks, ctr, conversions, conversion_rate, cost_per_conversion, items_sold, gmv, expenses, roas, acos",
+    )
+    .eq("import_id", importId)
+    .order("expenses", { ascending: false, nullsFirst: false });
+  if (error || !data) return [];
+  return data.map((r: any) => ({
+    adName: r.ad_name,
+    itemId: r.item_id,
+    matchedProductId: r.matched_product_id,
+    keywordOrLocation: r.keyword_or_location,
+    matchType: r.match_type,
+    isAutomatic: r.is_automatic,
+    impressions: r.impressions,
+    clicks: r.clicks,
+    ctr: r.ctr != null ? Number(r.ctr) : null,
+    conversions: r.conversions,
+    conversionRate: r.conversion_rate != null ? Number(r.conversion_rate) : null,
+    costPerConversion: r.cost_per_conversion != null ? Number(r.cost_per_conversion) : null,
+    itemsSold: r.items_sold,
+    gmv: r.gmv != null ? Number(r.gmv) : null,
+    expenses: r.expenses != null ? Number(r.expenses) : null,
+    roas: r.roas != null ? Number(r.roas) : null,
+    acos: r.acos != null ? Number(r.acos) : null,
+  }));
+}
+
+export type GmvMaxRowSummary = {
+  productName: string | null;
+  itemId: string | null;
+  matchedProductId: string | null;
+  matchedProductCost: number | null;
+  isStoreTotal: boolean;
+  impressions: number | null;
+  clicks: number | null;
+  ctr: number | null;
+  conversions: number | null;
+  conversionRate: number | null;
+  costPerConversion: number | null;
+  itemsSold: number | null;
+  gmv: number | null;
+  expenses: number | null;
+  roas: number | null;
+  acos: number | null;
+  voucherAmount: number | null;
+};
+
+export async function importGmvMaxReport(userId: string, file: File): Promise<ImportOutcome> {
+  if (!supabase) return { ok: false, message: "Supabase não configurado." };
+
+  let parsed;
+  try {
+    parsed = await parseGmvMaxFile(file);
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Falha ao ler o arquivo." };
+  }
+  if (parsed.rows.length === 0) {
+    return { ok: false, message: "Não encontrei a tabela do GMV Max nesse arquivo." };
+  }
+
+  const products = await fetchProductLookup(userId);
+  const byItemId = new Map(products.filter((p) => p.shopeeItemId).map((p) => [p.shopeeItemId as string, p]));
+
+  const { data: importRow, error: importErr } = await supabase
+    .from("shopee_report_imports")
+    .insert({
+      user_id: userId,
+      report_type: "shopee_ads_gmvmax",
+      file_name: file.name,
+      period_start: parsed.periodStart,
+      period_end: parsed.periodEnd,
+      row_count: parsed.rows.length,
+    })
+    .select("id")
+    .single();
+  if (importErr || !importRow) {
+    return { ok: false, message: importErr?.message ?? "Falha ao registrar a importação." };
+  }
+
+  let matchedCount = 0;
+  const childRows = parsed.rows.map((r) => {
+    const match = r.itemId ? byItemId.get(r.itemId) : undefined;
+    if (match) matchedCount += 1;
+    return {
+      user_id: userId,
+      import_id: importRow.id,
+      product_name: r.productName,
+      item_id: r.itemId,
+      matched_product_id: match?.id ?? null,
+      is_store_total: r.isStoreTotal,
+      impressions: r.impressions,
+      clicks: r.clicks,
+      ctr: r.ctr,
+      conversions: r.conversions,
+      direct_conversions: r.directConversions,
+      conversion_rate: r.conversionRate,
+      direct_conversion_rate: r.directConversionRate,
+      cost_per_conversion: r.costPerConversion,
+      cost_per_conversion_direct: r.costPerConversionDirect,
+      items_sold: r.itemsSold,
+      items_sold_direct: r.itemsSoldDirect,
+      gmv: r.gmv,
+      direct_revenue: r.directRevenue,
+      expenses: r.expenses,
+      roas: r.roas,
+      direct_roas: r.directRoas,
+      acos: r.acos,
+      direct_acos: r.directAcos,
+      voucher_amount: r.voucherAmount,
+      vouchered_sales: r.voucheredSales,
+      period_start: parsed.periodStart,
+      period_end: parsed.periodEnd,
+    };
+  });
+
+  try {
+    await insertInBatches("shopee_ads_gmvmax_performance", childRows);
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Falha ao salvar os dados do relatório." };
+  }
+
+  return {
+    ok: true,
+    summary: {
+      id: importRow.id,
+      fileName: file.name,
+      periodStart: parsed.periodStart,
+      periodEnd: parsed.periodEnd,
+      rowCount: parsed.rows.length,
+      matchedCount,
+      importedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/** Uma linha por produto dentro do GMV Max (exclui a linha-resumo "loja toda"). */
+export async function fetchGmvMaxRows(importId: string): Promise<GmvMaxRowSummary[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("shopee_ads_gmvmax_performance")
+    .select(
+      "product_name, item_id, matched_product_id, is_store_total, impressions, clicks, ctr, conversions, " +
+        "conversion_rate, cost_per_conversion, items_sold, gmv, expenses, roas, acos, voucher_amount, " +
+        "products:matched_product_id(total_cost)",
+    )
+    .eq("import_id", importId)
+    .eq("is_store_total", false)
+    .order("expenses", { ascending: false, nullsFirst: false });
+  if (error || !data) return [];
+  return data.map((r: any) => ({
+    productName: r.product_name,
+    itemId: r.item_id,
+    matchedProductId: r.matched_product_id,
+    matchedProductCost: r.products?.total_cost != null ? Number(r.products.total_cost) : null,
+    isStoreTotal: r.is_store_total,
+    impressions: r.impressions,
+    clicks: r.clicks,
+    ctr: r.ctr != null ? Number(r.ctr) : null,
+    conversions: r.conversions,
+    conversionRate: r.conversion_rate != null ? Number(r.conversion_rate) : null,
+    costPerConversion: r.cost_per_conversion != null ? Number(r.cost_per_conversion) : null,
+    itemsSold: r.items_sold,
+    gmv: r.gmv != null ? Number(r.gmv) : null,
+    expenses: r.expenses != null ? Number(r.expenses) : null,
+    roas: r.roas != null ? Number(r.roas) : null,
+    acos: r.acos != null ? Number(r.acos) : null,
+    voucherAmount: r.voucher_amount != null ? Number(r.voucher_amount) : null,
+  }));
+}
+
+export async function importAdGroupReport(userId: string, file: File): Promise<ImportOutcome> {
+  if (!supabase) return { ok: false, message: "Supabase não configurado." };
+
+  let parsed;
+  try {
+    parsed = await parseAdGroupFile(file);
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Falha ao ler o arquivo." };
+  }
+
+  const products = await fetchProductLookup(userId);
+  const byItemId = new Map(products.filter((p) => p.shopeeItemId).map((p) => [p.shopeeItemId as string, p]));
+
+  const { data: importRow, error: importErr } = await supabase
+    .from("shopee_report_imports")
+    .insert({
+      user_id: userId,
+      report_type: "shopee_ads_group",
+      file_name: file.name,
+      period_start: parsed.periodStart,
+      period_end: parsed.periodEnd,
+      row_count: parsed.rows.length,
+    })
+    .select("id")
+    .single();
+  if (importErr || !importRow) {
+    return { ok: false, message: importErr?.message ?? "Falha ao registrar a importação." };
+  }
+
+  let matchedCount = 0;
+  if (parsed.rows.length > 0) {
+    const childRows = parsed.rows.map((r) => {
+      const match = r.itemId ? byItemId.get(r.itemId) : undefined;
+      if (match) matchedCount += 1;
+      return {
+        user_id: userId,
+        import_id: importRow.id,
+        ad_name: r.adName,
+        status: r.status,
+        ad_type: r.adType,
+        item_id: r.itemId,
+        matched_product_id: match?.id ?? null,
+        bid_method: r.bidMethod,
+        impressions: r.impressions,
+        clicks: r.clicks,
+        ctr: r.ctr,
+        conversions: r.conversions,
+        direct_conversions: r.directConversions,
+        conversion_rate: r.conversionRate,
+        direct_conversion_rate: r.directConversionRate,
+        cost_per_conversion: r.costPerConversion,
+        cost_per_conversion_direct: r.costPerConversionDirect,
+        items_sold: r.itemsSold,
+        items_sold_direct: r.itemsSoldDirect,
+        gmv: r.gmv,
+        direct_revenue: r.directRevenue,
+        expenses: r.expenses,
+        roas: r.roas,
+        direct_roas: r.directRoas,
+        acos: r.acos,
+        direct_acos: r.directAcos,
+        voucher_amount: r.voucherAmount,
+        vouchered_sales: r.voucheredSales,
+        period_start: parsed.periodStart,
+        period_end: parsed.periodEnd,
+      };
+    });
+
+    try {
+      await insertInBatches("shopee_ads_group_performance", childRows);
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Falha ao salvar os dados do relatório." };
+    }
+  }
+
+  return {
+    ok: true,
+    summary: {
+      id: importRow.id,
+      fileName: file.name,
+      periodStart: parsed.periodStart,
+      periodEnd: parsed.periodEnd,
+      rowCount: parsed.rows.length,
+      matchedCount,
+      importedAt: new Date().toISOString(),
+    },
+  };
 }
