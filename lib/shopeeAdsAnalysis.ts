@@ -290,7 +290,7 @@ export function analyzeAd(row: AdsRowSummary): AdDiagnosis {
     overallStatus = "atencao";
     overallSummary = `Lucrativo, mas com pouca folga (ROAS ${mult(roas)}${breakEvenRoas != null ? `, equilíbrio em ${mult(breakEvenRoas)}` : ""}) — mantenha e acompanhe, ainda não é hora de aumentar o investimento.` + funnelNote;
   } else {
-    overallStatus = ctrStatus === "ruim" || convStatus === "ruim" ? "atencao" : "boa";
+    overallStatus = "boa";
     overallSummary =
       `Lucrativo de verdade (ROAS ${mult(roas)}${breakEvenRoas != null ? `, folgado acima do equilíbrio de ${mult(breakEvenRoas)}` : ""}) — bom candidato a escalar o investimento.` +
       funnelNote;
