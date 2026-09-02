@@ -34,14 +34,28 @@ export type AdsRowSummary = {
   adName: string | null;
   itemId: string | null;
   matchedProductId: string | null;
+  matchedProductCost: number | null;
   status: string | null;
-  expenses: number | null;
-  gmv: number | null;
-  roas: number | null;
-  acos: number | null;
-  itemsSold: number | null;
-  clicks: number | null;
+  adType: string | null;
+  placement: string | null;
   impressions: number | null;
+  clicks: number | null;
+  ctr: number | null;
+  addToCart: number | null;
+  conversions: number | null;
+  directConversions: number | null;
+  conversionRate: number | null;
+  directConversionRate: number | null;
+  costPerConversion: number | null;
+  itemsSold: number | null;
+  itemsSoldDirect: number | null;
+  gmv: number | null;
+  directRevenue: number | null;
+  expenses: number | null;
+  roas: number | null;
+  directRoas: number | null;
+  acos: number | null;
+  directAcos: number | null;
 };
 
 type ProductLookup = { id: string; sku: string | null; shopeeItemId: string | null };
@@ -329,22 +343,41 @@ export async function fetchAdsRows(importId: string): Promise<AdsRowSummary[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("shopee_ads_performance")
-    .select("ad_name, item_id, matched_product_id, status, expenses, gmv, roas, acos, items_sold, clicks, impressions")
+    .select(
+      "ad_name, item_id, matched_product_id, status, ad_type, placement, impressions, clicks, ctr, " +
+        "add_to_cart, conversions, direct_conversions, conversion_rate, direct_conversion_rate, " +
+        "cost_per_conversion, items_sold, items_sold_direct, gmv, direct_revenue, expenses, roas, " +
+        "direct_roas, acos, direct_acos, products:matched_product_id(total_cost)",
+    )
     .eq("import_id", importId)
     .order("expenses", { ascending: false, nullsFirst: false });
   if (error || !data) return [];
-  return data.map((r) => ({
+  return data.map((r: any) => ({
     adName: r.ad_name,
     itemId: r.item_id,
     matchedProductId: r.matched_product_id,
+    matchedProductCost: r.products?.total_cost != null ? Number(r.products.total_cost) : null,
     status: r.status,
-    expenses: r.expenses != null ? Number(r.expenses) : null,
-    gmv: r.gmv != null ? Number(r.gmv) : null,
-    roas: r.roas != null ? Number(r.roas) : null,
-    acos: r.acos != null ? Number(r.acos) : null,
-    itemsSold: r.items_sold,
-    clicks: r.clicks,
+    adType: r.ad_type,
+    placement: r.placement,
     impressions: r.impressions,
+    clicks: r.clicks,
+    ctr: r.ctr != null ? Number(r.ctr) : null,
+    addToCart: r.add_to_cart,
+    conversions: r.conversions,
+    directConversions: r.direct_conversions,
+    conversionRate: r.conversion_rate != null ? Number(r.conversion_rate) : null,
+    directConversionRate: r.direct_conversion_rate != null ? Number(r.direct_conversion_rate) : null,
+    costPerConversion: r.cost_per_conversion != null ? Number(r.cost_per_conversion) : null,
+    itemsSold: r.items_sold,
+    itemsSoldDirect: r.items_sold_direct,
+    gmv: r.gmv != null ? Number(r.gmv) : null,
+    directRevenue: r.direct_revenue != null ? Number(r.direct_revenue) : null,
+    expenses: r.expenses != null ? Number(r.expenses) : null,
+    roas: r.roas != null ? Number(r.roas) : null,
+    directRoas: r.direct_roas != null ? Number(r.direct_roas) : null,
+    acos: r.acos != null ? Number(r.acos) : null,
+    directAcos: r.direct_acos != null ? Number(r.direct_acos) : null,
   }));
 }
 

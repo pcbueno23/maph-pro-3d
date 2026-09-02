@@ -14,6 +14,8 @@ import {
   type PerformanceProductRow,
   type AdsRowSummary,
 } from "@/lib/supabaseShopeeReports";
+import { analyzeAd } from "@/lib/shopeeAdsAnalysis";
+import { ShopeeAdDiagnosisCard } from "@/components/reports/ShopeeAdDiagnosisCard";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -206,6 +208,8 @@ export default function RelatoriosShopeePage() {
     };
   }, [perfRows]);
 
+  const adsDiagnoses = useMemo(() => adsRows.map((r) => ({ row: r, diagnosis: analyzeAd(r) })), [adsRows]);
+
   const adsTotals = useMemo(() => {
     if (adsRows.length === 0) return null;
     const expenses = adsRows.reduce((s, r) => s + (r.expenses ?? 0), 0);
@@ -214,9 +218,13 @@ export default function RelatoriosShopeePage() {
       expenses,
       gmv,
       roas: expenses > 0 ? gmv / expenses : null,
-      losing: adsRows.filter((r) => r.roas != null && r.roas < 1 && (r.expenses ?? 0) > 0).length,
+      // "No prejuízo" real: usa o ROAS de equilíbrio calculado com o custo do produto
+      // quando disponível, não só ROAS < 1x (que subestima quem tem margem apertada).
+      losing: adsDiagnoses.filter(
+        (d) => d.diagnosis.metrics.find((m) => m.key === "roas")?.status === "ruim" && (d.row.expenses ?? 0) > 0,
+      ).length,
     };
-  }, [adsRows]);
+  }, [adsRows, adsDiagnoses]);
 
   async function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -456,8 +464,8 @@ export default function RelatoriosShopeePage() {
 
           {adsTotals.losing > 0 ? (
             <p className="mt-3 rounded-lg border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
-              {adsTotals.losing} anúncio(s) estão gastando mais em ads do que geram em venda (ROAS abaixo de 1x) —
-              esse custo precisa entrar na sua margem, ou vale pausar esses anúncios.
+              {adsTotals.losing} anúncio(s) estão no prejuízo de verdade (ROAS abaixo do que cobre custo de ads + custo
+              de produção) — abra o diagnóstico de cada um abaixo pra ver o motivo exato.
             </p>
           ) : (
             <p className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
@@ -465,42 +473,13 @@ export default function RelatoriosShopeePage() {
             </p>
           )}
 
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[480px] text-left text-xs">
-              <thead>
-                <tr className="text-slate-500">
-                  <th className="pb-2 font-medium">Anúncio</th>
-                  <th className="pb-2 text-right font-medium">Investido</th>
-                  <th className="pb-2 text-right font-medium">GMV</th>
-                  <th className="pb-2 text-right font-medium">ROAS</th>
-                  <th className="pb-2 text-right font-medium">ACOS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {adsRows.map((r, i) => (
-                  <tr key={`${r.itemId ?? r.adName}-${i}`} className="border-t border-slate-800/60">
-                    <td className="max-w-[220px] truncate py-2 pr-2 text-slate-200" title={r.adName ?? ""}>
-                      {r.adName ?? "—"}
-                      {!r.matchedProductId ? (
-                        <span className="ml-1 rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] text-slate-500">
-                          sem produto casado
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="py-2 pr-2 text-right text-slate-200">
-                      {r.expenses != null ? formatBRL(r.expenses) : "—"}
-                    </td>
-                    <td className="py-2 pr-2 text-right text-slate-300">
-                      {r.gmv != null ? formatBRL(r.gmv) : "—"}
-                    </td>
-                    <td className={`py-2 pr-2 text-right font-medium ${roasTone(r.roas)}`}>
-                      {r.roas != null ? `${r.roas.toFixed(2)}x` : "—"}
-                    </td>
-                    <td className="py-2 text-right text-slate-300">{formatPct(r.acos)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Diagnóstico por anúncio — clique pra abrir
+            </p>
+            {adsDiagnoses.map(({ row: r }, i) => (
+              <ShopeeAdDiagnosisCard key={`${r.itemId ?? r.adName}-${i}`} row={r} />
+            ))}
           </div>
         </div>
       ) : null}
