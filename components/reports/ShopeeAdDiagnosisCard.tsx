@@ -23,6 +23,14 @@ const STATUS_LABEL: Record<MetricStatus, string> = {
   neutro: "Sem dados",
 };
 
+/** Veredito geral do card = ação recomendada, diferente do rótulo usado métrica a métrica. */
+const OVERALL_STATUS_LABEL: Record<MetricStatus, string> = {
+  boa: "Escalar",
+  atencao: "Atenção",
+  ruim: "Pausar",
+  neutro: "Sem dados",
+};
+
 export function ShopeeAdDiagnosisCard({ row, keywords }: { row: AdsRowSummary; keywords?: KeywordRowSummary[] }) {
   const [open, setOpen] = useState(false);
   const diagnosis = analyzeAd(row);
@@ -54,7 +62,7 @@ export function ShopeeAdDiagnosisCard({ row, keywords }: { row: AdsRowSummary; k
               </span>
             )}
           </div>
-          <p className={`mt-0.5 text-xs ${s.text}`}>{STATUS_LABEL[diagnosis.overallStatus]} — {diagnosis.overallSummary}</p>
+          <p className={`mt-0.5 text-xs ${s.text}`}>{OVERALL_STATUS_LABEL[diagnosis.overallStatus]} — {diagnosis.overallSummary}</p>
         </div>
         <div className="hidden shrink-0 gap-4 text-right sm:flex">
           <div>

@@ -258,37 +258,42 @@ export function analyzeAd(row: AdsRowSummary): AdDiagnosis {
     explanation: roasExplain,
   });
 
-  // Veredito geral: prioriza a etapa do funil mais "de trás pra frente" que estiver ruim
-  // (impressão > criativo/CTR > página/conversão > checkout > custo), já que resolver uma
-  // etapa de trás sem resolver uma da frente não adianta.
-  let overallStatus: MetricStatus = "boa";
-  let overallSummary = "Anúncio saudável — sem gargalo claro nas métricas disponíveis.";
+  // Veredito geral = SEMPRE o resultado financeiro (ROAS real vs. equilíbrio), porque é
+  // isso que decide a ação (escalar/manter/pausar) — um anúncio pode ter CTR ou conversão
+  // fracos e ainda assim estar dando bastante lucro; o funil vira explicação complementar
+  // (o "porquê"), não o que define verde/amarelo/vermelho.
+  let overallStatus: MetricStatus = roasStatus;
+  let overallSummary: string;
+
+  const funnelNote =
+    ctrStatus === "ruim"
+      ? " Só um ponto de atenção: o CTR está baixo — melhorando a foto de capa ou o preço exibido, esse anúncio pode ir ainda melhor."
+      : convStatus === "ruim"
+        ? " Só um ponto de atenção: a taxa de conversão está baixa — parte de quem clica não fecha, então tem espaço pra melhorar a página do produto."
+        : "";
 
   if (impressions === 0) {
     overallStatus = "ruim";
-    overallSummary = "Anúncio sem alcance — não está sendo exibido. Revise status, lance e orçamento antes de qualquer outra coisa.";
+    overallSummary = "Sem alcance — esse anúncio não está sendo exibido. Revise status, lance e orçamento antes de mexer em qualquer outra coisa.";
     funnelStage = "alcance";
-  } else if (ctrStatus === "ruim") {
-    overallStatus = "ruim";
-    overallSummary = "Gargalo no CRIATIVO: pouca gente clica. Foto de capa e preço exibido precisam de ajuste antes de investir mais.";
-    funnelStage = "criativo";
-  } else if (convStatus === "ruim") {
-    overallStatus = "ruim";
-    overallSummary = "Gargalo na PÁGINA DO PRODUTO: o anúncio traz clique, mas a decisão de compra trava. Revise preço final, fotos e avaliações.";
-    funnelStage = "pagina";
-  } else if (metrics.find((m) => m.key === "cart")?.status === "ruim") {
-    overallStatus = "ruim";
-    overallSummary = "Gargalo no CHECKOUT: gente coloca no carrinho e desiste. Revise frete e prazo de entrega.";
-    funnelStage = "checkout";
+  } else if (expenses === 0) {
+    overallStatus = "neutro";
+    overallSummary = "Ainda sem investimento nesse período — sem dado suficiente pra dar veredito.";
   } else if (roasStatus === "ruim") {
     overallStatus = "ruim";
     overallSummary =
-      funnelStage === "custo" && breakEvenRoas != null
-        ? "O funil está funcionando (gente clica, converte, compra) mas o CUSTO não fecha: o anúncio está pagando a conta, não gerando lucro. Considere reduzir o lance ou pausar."
-        : "ROAS abaixo de 1x — o anúncio está no prejuízo direto.";
-  } else if ([ctrStatus, convStatus, roasStatus].includes("atencao")) {
+      (funnelStage === "custo" && breakEvenRoas != null
+        ? `Prejuízo real: o ROAS (${mult(roas)}) fica abaixo do que esse produto precisa pra cobrir custo de ads + produção (${mult(breakEvenRoas)}).`
+        : `ROAS ${mult(roas)} — abaixo de 1x, prejuízo direto.`) +
+      " Candidato a pausar ou reduzir o lance.";
+  } else if (roasStatus === "atencao") {
     overallStatus = "atencao";
-    overallSummary = "Anúncio no caminho certo, mas com folga apertada em algum ponto do funil — veja os detalhes abaixo.";
+    overallSummary = `Lucrativo, mas com pouca folga (ROAS ${mult(roas)}${breakEvenRoas != null ? `, equilíbrio em ${mult(breakEvenRoas)}` : ""}) — mantenha e acompanhe, ainda não é hora de aumentar o investimento.` + funnelNote;
+  } else {
+    overallStatus = ctrStatus === "ruim" || convStatus === "ruim" ? "atencao" : "boa";
+    overallSummary =
+      `Lucrativo de verdade (ROAS ${mult(roas)}${breakEvenRoas != null ? `, folgado acima do equilíbrio de ${mult(breakEvenRoas)}` : ""}) — bom candidato a escalar o investimento.` +
+      funnelNote;
   }
 
   return { overallStatus, overallSummary, funnelStage, lowSample, breakEvenRoas, metrics };
