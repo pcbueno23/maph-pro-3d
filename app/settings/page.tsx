@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { MercadoLivreIntegration } from "@/components/settings/MercadoLivreIntegration";
+import { ShopeeIntegration } from "@/components/settings/ShopeeIntegration";
 
 export default function SettingsPage() {
   return (
@@ -12,6 +13,7 @@ export default function SettingsPage() {
       </h1>
       <Suspense fallback={null}>
         <MercadoLivreIntegration />
+        <ShopeeIntegration />
       </Suspense>
       <SettingsForm />
     </div>
