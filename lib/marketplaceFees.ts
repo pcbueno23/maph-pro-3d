@@ -2,7 +2,7 @@
  * Motor de taxas 2026 – Shopee e Mercado Livre.
  *
  * Shopee:
- * - Padrão: 14% comissão, taxa fixa R$ 4 (CNPJ) / R$ 7 (CPF), teto comissão R$ 100.
+ * - Padrão: 14% comissão, taxa fixa R$ 4,50 (CNPJ, a partir de 01/10/2026) / R$ 7 (CPF), teto comissão R$ 100.
  * - Frete Grátis: 20% (14%+6%), mesma taxa fixa.
  * - Produtos < R$ 10: taxa fixa proporcional (até metade do valor) = preço/2.
  *
@@ -19,11 +19,11 @@ const SHOPEE_COMMISSION_CAP = 100;
 // Shopee: taxa fixa (CPF vs CNPJ).
 // Regras usadas aqui:
 // - CPF: R$ 7 (padrão)
-// - CNPJ: R$ 4 (padrão)
+// - CNPJ: R$ 4,50 (padrão — R$4,50 a partir de 01/10/2026, era R$4,00)
 // - Itens < R$ 10: taxa proporcional (até metade do valor) = preço/2
 function getShopeeFixedFee(personType: PersonType, price: number): number {
   if (price > 0 && price < 10) return price / 2;
-  return personType === "CPF" ? 7 : 4;
+  return personType === "CPF" ? 7 : 4.5;
 }
 
 function getShopeeCommissionPercent(freeShipping: boolean): number {
@@ -143,7 +143,7 @@ export function getMLFeeBreakdown(
   };
 }
 
-/** Preço sugerido Shopee (taxa fixa: ≥ R$ 10 → R$ 4/7, < R$ 10 → preço/2). */
+/** Preço sugerido Shopee (taxa fixa: ≥ R$ 10 → R$ 4,50/7, < R$ 10 → preço/2). */
 export function getShopeeSuggestedPrice(params: {
   totalCost: number;
   shippingAmount: number;
@@ -169,7 +169,7 @@ export function getShopeeSuggestedPrice(params: {
 
   // Taxa fixa depende do tipo de pessoa e, para tickets baixos (<10),
   // depende do próprio preço; fazemos iteração simples para convergir.
-  let price = (totalCost + shippingAmount + (personType === "CPF" ? 7 : 4)) / divisor;
+  let price = (totalCost + shippingAmount + (personType === "CPF" ? 7 : 4.5)) / divisor;
   for (let i = 0; i < 6; i++) {
     const fixedFee = getShopeeFixedFee(personType, price);
     const next = (totalCost + shippingAmount + fixedFee) / divisor;

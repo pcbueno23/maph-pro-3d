@@ -73,7 +73,9 @@ export type ShopeeResult = {
   margemMinimaPercent: number;
 };
 
-/** Regras de comissão Shopee 2026 (portado da calculadora externa). */
+/** Regras de comissão Shopee 2026 (portado da calculadora externa).
+ * Taxa fixa por item vendido (faixa < R$80): R$4,50 a partir de 01/10/2026
+ * (era R$4,00 — mudança confirmada pelo usuário). */
 export function calcularComissaoShopee(
   precoFinal: number,
   tipoVendedor: ShopeeInputs["tipoVendedor"],
@@ -84,7 +86,7 @@ export function calcularComissaoShopee(
 
   if (precoFinal < 80) {
     percentual = 0.2;
-    fixo = 4.0;
+    fixo = 4.5;
   } else if (precoFinal < 100) {
     percentual = 0.14;
     fixo = 16.0;
