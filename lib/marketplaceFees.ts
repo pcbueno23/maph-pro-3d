@@ -2,7 +2,11 @@
  * Motor de taxas 2026 – Shopee e Mercado Livre.
  *
  * Shopee:
- * - Padrão: 14% comissão, taxa fixa R$ 4,50 (CNPJ, a partir de 01/10/2026) / R$ 7 (CPF), teto comissão R$ 100.
+ * - Padrão: 14% comissão, taxa fixa R$ 4,50 (CPF e CNPJ, a partir de 01/10/2026 — era R$4,00),
+ *   teto comissão R$ 100.
+ * - CPF com "alta volume" (acima de ~300 vendas vitalícias na loja): taxa fixa sobe pra R$ 7,50
+ *   (R$4,50 + R$3 de acréscimo). Não é automático — a conta real de vendas não é rastreada aqui,
+ *   é um toggle manual (mesmo padrão já usado em lib/engines/shopee/engine.ts).
  * - Frete Grátis: 20% (14%+6%), mesma taxa fixa.
  * - Produtos < R$ 10: taxa fixa proporcional (até metade do valor) = preço/2.
  *
@@ -15,15 +19,16 @@ import type { PersonType } from "./constants";
 import { useSettingsStore } from "@/store/settingsStore";
 
 const SHOPEE_COMMISSION_CAP = 100;
+const SHOPEE_BASE_FIXED_FEE = 4.5;
+const SHOPEE_ALTA_VOLUME_SURCHARGE = 3;
 
-// Shopee: taxa fixa (CPF vs CNPJ).
-// Regras usadas aqui:
-// - CPF: R$ 7 (padrão)
-// - CNPJ: R$ 4,50 (padrão — R$4,50 a partir de 01/10/2026, era R$4,00)
-// - Itens < R$ 10: taxa proporcional (até metade do valor) = preço/2
-function getShopeeFixedFee(personType: PersonType, price: number): number {
+// Shopee: taxa fixa. R$4,50 pra todo mundo (CPF e CNPJ) até o limite de alta volume — só
+// CPF acima de ~300 vendas vitalícias paga o acréscimo (vira R$7,50). Itens < R$10: proporcional.
+function getShopeeFixedFee(personType: PersonType, price: number, altaVolume = false): number {
   if (price > 0 && price < 10) return price / 2;
-  return personType === "CPF" ? 7 : 4.5;
+  return personType === "CPF" && altaVolume
+    ? SHOPEE_BASE_FIXED_FEE + SHOPEE_ALTA_VOLUME_SURCHARGE
+    : SHOPEE_BASE_FIXED_FEE;
 }
 
 function getShopeeCommissionPercent(freeShipping: boolean): number {
@@ -37,11 +42,12 @@ function getShopeeCommissionPercent(freeShipping: boolean): number {
 export function getShopeeEffectiveFeePercent(
   personType: PersonType,
   price: number,
-  freeShipping: boolean
+  freeShipping: boolean,
+  altaVolume = false
 ): number {
   if (price <= 0) return 20;
   const commissionPct = getShopeeCommissionPercent(freeShipping);
-  const fixedFee = getShopeeFixedFee(personType, price);
+  const fixedFee = getShopeeFixedFee(personType, price, altaVolume);
   const commissionAmount = Math.min(
     (price * commissionPct) / 100,
     SHOPEE_COMMISSION_CAP
@@ -86,13 +92,14 @@ export function getEffectiveMarketplaceFeePercent(
   marketplace: Marketplace,
   personType: PersonType,
   price: number,
-  options: { freeShipping?: boolean; classicML?: boolean } = {}
+  options: { freeShipping?: boolean; classicML?: boolean; altaVolume?: boolean } = {}
 ): number {
   if (marketplace === "Shopee") {
     return getShopeeEffectiveFeePercent(
       personType,
       price,
-      options.freeShipping ?? false
+      options.freeShipping ?? false,
+      options.altaVolume ?? false
     );
   }
   if (marketplace === "Mercado Livre") {
@@ -109,14 +116,15 @@ export function getEffectiveMarketplaceFeePercent(
 export function getShopeeFeeBreakdown(
   price: number,
   personType: PersonType,
-  freeShipping: boolean
+  freeShipping: boolean,
+  altaVolume = false
 ): { commissionRateDecimal: number; commissionAmount: number; fixedFeeAmount: number } {
   const commissionPct = getShopeeCommissionPercent(freeShipping);
   const commissionAmount = Math.min(
     (price * commissionPct) / 100,
     SHOPEE_COMMISSION_CAP
   );
-  const fixedFeeAmount = getShopeeFixedFee(personType, price);
+  const fixedFeeAmount = getShopeeFixedFee(personType, price, altaVolume);
   return {
     commissionRateDecimal: commissionPct / 100,
     commissionAmount,
@@ -143,7 +151,7 @@ export function getMLFeeBreakdown(
   };
 }
 
-/** Preço sugerido Shopee (taxa fixa: ≥ R$ 10 → R$ 4,50/7, < R$ 10 → preço/2). */
+/** Preço sugerido Shopee (taxa fixa: ≥ R$ 10 → R$ 4,50 (ou R$7,50 se CPF em alta volume), < R$ 10 → preço/2). */
 export function getShopeeSuggestedPrice(params: {
   totalCost: number;
   shippingAmount: number;
@@ -151,6 +159,7 @@ export function getShopeeSuggestedPrice(params: {
   desiredMarginPercent: number;
   freeShipping: boolean;
   personType: PersonType;
+  altaVolume?: boolean;
 }): number {
   const {
     totalCost,
@@ -159,6 +168,7 @@ export function getShopeeSuggestedPrice(params: {
     desiredMarginPercent,
     freeShipping,
     personType,
+    altaVolume = false,
   } = params;
   const commissionPct = getShopeeCommissionPercent(freeShipping);
   const fee = commissionPct / 100;
@@ -167,11 +177,11 @@ export function getShopeeSuggestedPrice(params: {
   const divisor = 1 - fee - tax - margin;
   if (divisor <= 0) return totalCost + shippingAmount;
 
-  // Taxa fixa depende do tipo de pessoa e, para tickets baixos (<10),
+  // Taxa fixa depende do tipo de pessoa/alta volume e, para tickets baixos (<10),
   // depende do próprio preço; fazemos iteração simples para convergir.
-  let price = (totalCost + shippingAmount + (personType === "CPF" ? 7 : 4.5)) / divisor;
+  let price = (totalCost + shippingAmount + getShopeeFixedFee(personType, 999, altaVolume)) / divisor;
   for (let i = 0; i < 6; i++) {
-    const fixedFee = getShopeeFixedFee(personType, price);
+    const fixedFee = getShopeeFixedFee(personType, price, altaVolume);
     const next = (totalCost + shippingAmount + fixedFee) / divisor;
     if (Math.abs(next - price) < 0.01) break;
     price = next;
