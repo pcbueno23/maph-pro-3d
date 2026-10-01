@@ -36,6 +36,14 @@ const PROMPT_BUTTONS = [
 function formatBRL(v: number | null) {
   return v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
+function round2(v: number): number {
+  return Math.round(v * 100) / 100;
+}
+/** Valor pra defaultValue dos inputs de custo/embalagem — sempre 2 casas, nunca a
+ * precisão de ponto flutuante crua que vem de um custo puxado de outro cálculo. */
+function inputMoneyValue(v: number | null): string {
+  return v == null ? "" : round2(v).toFixed(2);
+}
 function formatPct(v: number | null) {
   return v == null ? "—" : `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 }
@@ -95,7 +103,7 @@ export default function MargemShopeePage() {
   const productCostByName = useMemo(() => {
     const map = new Map<string, number>();
     for (const p of products) {
-      if (typeof p.totalCost === "number" && Number.isFinite(p.totalCost)) map.set(p.name, p.totalCost);
+      if (typeof p.totalCost === "number" && Number.isFinite(p.totalCost)) map.set(p.name, round2(p.totalCost));
     }
     return map;
   }, [products]);
@@ -109,7 +117,7 @@ export default function MargemShopeePage() {
 
   function pulledEmbalagemFor(r: Pick<MarginRow, "embalagemOutros">): number | null {
     if (r.embalagemOutros != null) return null;
-    return params.embalagemPadrao || null;
+    return params.embalagemPadrao ? round2(params.embalagemPadrao) : null;
   }
 
   const computedRows: ComputedMarginRow[] = useMemo(
@@ -348,7 +356,7 @@ export default function MargemShopeePage() {
                         key={`custo-${r.id}-${raw.custoProducao ?? pulledCusto ?? "x"}`}
                         type="text"
                         inputMode="decimal"
-                        defaultValue={raw.custoProducao ?? pulledCusto ?? ""}
+                        defaultValue={inputMoneyValue(raw.custoProducao ?? pulledCusto)}
                         onBlur={(e) => handleCostChange(raw, "custoProducao", e.target.value)}
                         placeholder="R$/un"
                         title={pulledCusto != null ? "Puxado automaticamente do produto já precificado em Produtos" : undefined}
@@ -366,7 +374,7 @@ export default function MargemShopeePage() {
                         key={`embalagem-${r.id}-${raw.embalagemOutros ?? pulledEmbalagem ?? "x"}`}
                         type="text"
                         inputMode="decimal"
-                        defaultValue={raw.embalagemOutros ?? pulledEmbalagem ?? ""}
+                        defaultValue={inputMoneyValue(raw.embalagemOutros ?? pulledEmbalagem)}
                         onBlur={(e) => handleCostChange(raw, "embalagemOutros", e.target.value)}
                         placeholder="R$/un"
                         title={pulledEmbalagem != null ? "Preenchido pelo preset de Embalagem+outros (Parâmetros)" : undefined}
