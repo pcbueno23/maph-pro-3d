@@ -40,6 +40,8 @@ export function useCalculator() {
     lastResults,
     productToLoad,
     setProductToLoad,
+    pendingProductName,
+    setPendingProductName,
     stlPreset,
     setStlPreset,
   } = useCalculatorStore();
@@ -159,6 +161,15 @@ export function useCalculator() {
       setProductToLoad(null);
     }
   }, [productToLoad, setProductToLoad, form, defaultValues]);
+
+  // Pré-preenche só o nome do produto (ex.: vindo do backup da planilha Shopee),
+  // sem mexer no resto do formulário — ao contrário de productToLoad, que reseta tudo.
+  useEffect(() => {
+    if (pendingProductName != null) {
+      form.setValue("productName", pendingProductName);
+      setPendingProductName(null);
+    }
+  }, [pendingProductName, setPendingProductName, form]);
 
   // Aplicar preset vindo do analisador STL
   useEffect(() => {

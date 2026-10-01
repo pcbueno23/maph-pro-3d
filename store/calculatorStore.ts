@@ -14,6 +14,9 @@ interface CalculatorState {
   /** Timestamp (ms) da última vez que o usuário pediu para nova simulação (zerar formulário). */
   newSimulationRequestedAt: number | null;
   productToLoad: Product | null;
+  /** Nome pra pré-preencher no campo "Nome do produto" da calculadora de custo 3D,
+   * sem carregar um Product completo (ex.: vindo de um backup de planilha, sem peso/margem). */
+  pendingProductName: string | null;
   stlPreset: { weightGrams: number; estimatedMinutes: number } | null;
   setLastCalculation: (
     input: CalculatorFormValues,
@@ -24,6 +27,7 @@ interface CalculatorState {
   requestNewSimulation: () => void;
   clearNewSimulationRequested: () => void;
   setProductToLoad: (product: Product | null) => void;
+  setPendingProductName: (name: string | null) => void;
   setStlPreset: (data: { weightGrams: number; estimatedMinutes: number } | null) => void;
   /** Zera estado da calculadora (última conta, produto para carregar, preset STL). Usado no logout. */
   clearOnLogout: () => void;
@@ -37,12 +41,14 @@ export const useCalculatorStore = create<CalculatorState>((set) => ({
   saveChannel: null,
   newSimulationRequestedAt: null as number | null,
   productToLoad: null,
+  pendingProductName: null,
   stlPreset: null,
   clearOnLogout: () =>
     set({
       lastInput: null,
       lastResults: null,
       productToLoad: null,
+      pendingProductName: null,
       stlPreset: null,
       saveRequested: false,
       saveRequestedAt: null,
@@ -73,6 +79,7 @@ export const useCalculatorStore = create<CalculatorState>((set) => ({
       newSimulationRequestedAt: null,
     }),
   setProductToLoad: (product) => set({ productToLoad: product }),
+  setPendingProductName: (name) => set({ pendingProductName: name }),
   setStlPreset: (data) => set({ stlPreset: data }),
 }));
 

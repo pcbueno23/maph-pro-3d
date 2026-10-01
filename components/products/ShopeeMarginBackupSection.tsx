@@ -2,9 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ExternalLink, FileSpreadsheet } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Calculator, ChevronDown, ExternalLink, FileSpreadsheet } from "lucide-react";
 import { fetchMarginRows } from "@/lib/supabaseMarginSheet";
 import type { MarginRow } from "@/lib/shopeeMarginSheet";
+import { useCalculatorStore } from "@/store/calculatorStore";
+
+/** "Bandeja Canelada Oval c/ Pés (Kit Tamanhos Variados) — GRANDE 22x11x2 cm (todas as cores)" */
+function fullRowName(r: MarginRow): string {
+  return r.variacao ? `${r.produto} — ${r.variacao}` : r.produto;
+}
 
 function formatBRL(v: number | null) {
   return v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -14,9 +21,16 @@ function formatBRL(v: number | null) {
  * fica separada da tabela principal (que alimenta custo/kits/ordens) porque é só
  * um backup de referência: custo/embalagem/preços vêm da planilha, não daqui. */
 export function ShopeeMarginBackupSection({ userId }: { userId: string | undefined }) {
+  const router = useRouter();
+  const setPendingProductName = useCalculatorStore((s) => s.setPendingProductName);
   const [rows, setRows] = useState<MarginRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+
+  function handleCalcularCusto(r: MarginRow) {
+    setPendingProductName(fullRowName(r));
+    router.push("/calculadoras/custo");
+  }
 
   useEffect(() => {
     if (!userId) {
@@ -75,6 +89,7 @@ export function ShopeeMarginBackupSection({ userId }: { userId: string | undefin
                   <th className="px-2 py-2 text-right">Preço cadastro</th>
                   <th className="px-2 py-2 text-right">Custo produção</th>
                   <th className="px-2 py-2 text-right">Embalagem+outros</th>
+                  <th className="px-2 py-2 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/70">
@@ -109,6 +124,17 @@ export function ShopeeMarginBackupSection({ userId }: { userId: string | undefin
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums text-slate-300">
                       {formatBRL(r.embalagemOutros)}
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleCalcularCusto(r)}
+                        title="Abre a calculadora de custo 3D com o nome deste produto já preenchido"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/70 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 hover:border-cyan-500/40 hover:text-cyan-200"
+                      >
+                        <Calculator className="h-3.5 w-3.5" />
+                        Calcular custo
+                      </button>
                     </td>
                   </tr>
                 ))}
