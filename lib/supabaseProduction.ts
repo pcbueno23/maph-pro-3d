@@ -223,6 +223,7 @@ export async function upsertSupply(
     user_id: userId,
     name: input.name,
     category: input.category,
+    material: input.material ?? null,
     unit: input.unit,
     unit_cost: input.unitCost,
     stock_qty: input.stockQty,
@@ -284,7 +285,7 @@ export async function deleteSuppliesBulk(userId: string, ids: string[]): Promise
  * criação, com os padrões do banco: custo 0, mínimo em branco). */
 export async function upsertSuppliesFromImport(
   userId: string,
-  items: Array<{ name: string; category: SupplyItem["category"]; unit: string; stockQty: number }>,
+  items: Array<{ name: string; category: SupplyItem["category"]; material?: string | null; unit: string; stockQty: number }>,
 ): Promise<{ ok: true; imported: number; updated: number } | { ok: false; message: string }> {
   if (items.length === 0) return { ok: true, imported: 0, updated: 0 };
   const client = mustHaveClient();
@@ -311,6 +312,7 @@ export async function upsertSuppliesFromImport(
         user_id: userId,
         name: item.name,
         category: item.category,
+        material: item.material ?? null,
         unit: item.unit,
         stock_qty: item.stockQty,
         updated_at: new Date().toISOString(),
@@ -355,6 +357,7 @@ function mapSupplyRow(row: any): SupplyItem {
     userId: row.user_id,
     name: row.name,
     category: row.category,
+    material: row.material ?? null,
     unit: row.unit,
     unitCost: Number(row.unit_cost ?? 0),
     stockQty: Number(row.stock_qty ?? 0),

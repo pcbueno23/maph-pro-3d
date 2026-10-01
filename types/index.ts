@@ -690,6 +690,8 @@ export interface SupplyItem {
   userId: string;
   name: string;
   category: SupplyCategory;
+  /** Material específico (ex.: PLA, PETG, ABS, TPU) — opcional, separado do nome livre. */
+  material?: string | null;
   unit: string; // ex: g, kg, ml, unit
   unitCost: number;
   stockQty: number;

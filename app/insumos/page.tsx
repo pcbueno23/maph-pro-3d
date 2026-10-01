@@ -19,6 +19,7 @@ type DraftSupply = {
   id?: string;
   name: string;
   category: SupplyCategory;
+  material: string;
   unit: string;
   unitCost: number | "";
   stockQty: number | "";
@@ -44,6 +45,7 @@ function toDraft(s?: SupplyItem | null): DraftSupply {
     return {
       name: "",
       category: "filament",
+      material: "",
       unit: "g",
       unitCost: "",
       stockQty: "",
@@ -67,6 +69,7 @@ function toDraft(s?: SupplyItem | null): DraftSupply {
     id: s.id,
     name: s.name,
     category: s.category,
+    material: s.material ?? "",
     unit: s.unit,
     unitCost: s.unitCost ?? "",
     stockQty: s.stockQty ?? "",
@@ -222,6 +225,7 @@ export default function InsumosPage() {
       id: draft.id ?? newId("supply"),
       name,
       category: draft.category,
+      material: draft.material.trim() || null,
       unit,
       unitCost,
       stockQty,
@@ -297,6 +301,7 @@ export default function InsumosPage() {
         id: s.id,
         name: s.name,
         category: s.category,
+        material: s.material ?? null,
         unit: s.unit,
         unitCost: value,
         stockQty: s.stockQty,
@@ -426,6 +431,7 @@ export default function InsumosPage() {
         id: moveSupply.id,
         name: moveSupply.name,
         category: moveSupply.category,
+        material: moveSupply.material ?? null,
         unit: moveSupply.unit,
         unitCost: moveSupply.unitCost,
         stockQty: nextStock,
@@ -585,7 +591,8 @@ export default function InsumosPage() {
                         <div className="min-w-0">
                           <p className="truncate font-medium text-slate-100">{s.name}</p>
                           <p className="mt-0.5 text-[11px] text-slate-400">
-                            {categoryLabel[s.category]} • {s.unit}
+                            {categoryLabel[s.category]}
+                            {s.material ? ` — ${s.material}` : ""} • {s.unit}
                           </p>
                         </div>
                       </div>
@@ -715,7 +722,10 @@ export default function InsumosPage() {
                             <span className="text-slate-100">{s.name}</span>
                           </div>
                         </td>
-                        <td className="px-2 py-2 text-slate-300">{categoryLabel[s.category]}</td>
+                        <td className="px-2 py-2 text-slate-300">
+                          {categoryLabel[s.category]}
+                          {s.material ? ` — ${s.material}` : ""}
+                        </td>
                         <td className="px-2 py-2 text-slate-300">{s.unit}</td>
                         <td className="px-2 py-2">
                           <span className="inline-flex items-center gap-1">
@@ -841,6 +851,17 @@ export default function InsumosPage() {
                   <option value="part">Peça</option>
                   <option value="other">Outro</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-slate-300">Material (opcional)</label>
+                <input
+                  type="text"
+                  placeholder="ex.: PLA, PETG, ABS, TPU"
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                  value={draft.material}
+                  onChange={(e) => setDraft((d) => ({ ...d, material: e.target.value }))}
+                />
               </div>
 
               <div>
