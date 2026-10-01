@@ -21,12 +21,12 @@ import {
 } from "@/lib/supabaseMarginSheet";
 import {
   SHOPEE_MARGIN_SHEET_PROMPT_COWORK,
-  SHOPEE_MARGIN_SHEET_PROMPT_CODEX,
+  SHOPEE_MARGIN_SHEET_PROMPT_AGENT,
 } from "@/lib/shopeeMarginSheetPrompts";
 
 const PROMPT_BUTTONS = [
   { key: "cowork", label: "Prompt p/ Claude Cowork", prompt: SHOPEE_MARGIN_SHEET_PROMPT_COWORK },
-  { key: "codex", label: "Prompt p/ Codex", prompt: SHOPEE_MARGIN_SHEET_PROMPT_CODEX },
+  { key: "agent", label: "Prompt p/ Modo Agente", prompt: SHOPEE_MARGIN_SHEET_PROMPT_AGENT },
 ].filter((p): p is { key: string; label: string; prompt: string } => !!p.prompt);
 
 function formatBRL(v: number | null) {
