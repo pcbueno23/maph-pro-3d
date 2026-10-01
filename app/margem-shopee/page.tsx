@@ -122,7 +122,7 @@ export default function MargemShopeePage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">
           Preço e Margem — Shopee
@@ -160,7 +160,7 @@ export default function MargemShopeePage() {
       </div>
 
       {importMsg && (
-        <p className="rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-xs text-slate-300">{importMsg}</p>
+        <p className="rounded-lg border border-slate-800 bg-slate-900/50 px-2 py-2 text-xs text-slate-300">{importMsg}</p>
       )}
 
       {showParams && (
@@ -195,34 +195,34 @@ export default function MargemShopeePage() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[2000px] text-left text-xs">
+            <table className="w-full min-w-[1500px] text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-500">
-                  <th className="sticky left-0 z-10 bg-slate-950 px-3 py-2 font-medium">Produto</th>
-                  <th className="px-3 py-2 font-medium">Variação</th>
-                  <th className="bg-amber-500/10 px-3 py-2 text-right font-medium text-amber-200">Custo produção</th>
-                  <th className="bg-amber-500/10 px-3 py-2 text-right font-medium text-amber-200">Embalagem+outros</th>
-                  <th className="px-3 py-2 text-right font-medium">Cadastro</th>
-                  <th className="px-3 py-2 text-right font-medium">Promoção</th>
-                  <th className="px-3 py-2 text-right font-medium">Cliente paga (sem relâmpago)</th>
-                  <th className="px-3 py-2 text-right font-medium">Lucro (sem relâmpago)</th>
-                  <th className="px-3 py-2 text-right font-medium">Margem (sem relâmpago)</th>
-                  <th className="px-3 py-2 text-right font-medium">Relâmpago</th>
-                  <th className="px-3 py-2 text-right font-medium">Cliente paga (com relâmpago)</th>
-                  <th className="px-3 py-2 text-right font-medium">Lucro (com relâmpago)</th>
-                  <th className="px-3 py-2 text-right font-medium">Margem (com relâmpago)</th>
-                  <th className="px-3 py-2 text-right font-medium">Preço p/ margem alvo</th>
-                  <th className="px-3 py-2 text-right font-medium">Promoção p/ margem alvo</th>
-                  <th className="px-3 py-2 font-medium">Alerta</th>
+                  <th className="sticky left-0 z-10 bg-slate-950 px-2 py-2 font-medium">Produto</th>
+                  <th className="px-2 py-2 font-medium">Variação</th>
+                  <th className="bg-amber-500/10 px-2 py-2 text-right font-medium text-amber-200">Custo produção</th>
+                  <th className="bg-amber-500/10 px-2 py-2 text-right font-medium text-amber-200">Embalagem+outros</th>
+                  <th className="px-2 py-2 text-right font-medium">Cadastro</th>
+                  <th className="px-2 py-2 text-right font-medium">Promoção</th>
+                  <th className="px-2 py-2 text-right font-medium">Cliente paga (sem relâmpago)</th>
+                  <th className="px-2 py-2 text-right font-medium">Lucro (sem relâmpago)</th>
+                  <th className="px-2 py-2 text-right font-medium">Margem (sem relâmpago)</th>
+                  <th className="px-2 py-2 text-right font-medium">Relâmpago</th>
+                  <th className="px-2 py-2 text-right font-medium">Cliente paga (com relâmpago)</th>
+                  <th className="px-2 py-2 text-right font-medium">Lucro (com relâmpago)</th>
+                  <th className="px-2 py-2 text-right font-medium">Margem (com relâmpago)</th>
+                  <th className="px-2 py-2 text-right font-medium">Preço p/ margem alvo</th>
+                  <th className="px-2 py-2 text-right font-medium">Promoção p/ margem alvo</th>
+                  <th className="px-2 py-2 font-medium">Alerta</th>
                 </tr>
               </thead>
               <tbody>
                 {computedRows.map((r) => (
                   <tr key={r.id} className="border-b border-slate-800/60">
-                    <td className="sticky left-0 z-10 max-w-[220px] truncate bg-slate-950 px-3 py-2 text-slate-200" title={r.produto}>
+                    <td className="sticky left-0 z-10 max-w-[160px] truncate bg-slate-950 px-2 py-2 text-slate-200" title={r.produto}>
                       {r.produto}
                     </td>
-                    <td className="max-w-[180px] truncate px-3 py-2 text-slate-400" title={r.variacao}>
+                    <td className="max-w-[140px] truncate px-2 py-2 text-slate-400" title={r.variacao}>
                       {r.variacao || "—"}
                     </td>
                     <td className="bg-amber-500/5 px-2 py-1.5">
@@ -232,7 +232,7 @@ export default function MargemShopeePage() {
                         defaultValue={r.custoProducao ?? ""}
                         onBlur={(e) => handleCostChange(r, "custoProducao", e.target.value)}
                         placeholder="R$/un"
-                        className="w-20 rounded border border-amber-500/30 bg-slate-900/80 px-2 py-1 text-right text-amber-100 outline-none focus:border-amber-400"
+                        className="w-16 rounded border border-amber-500/30 bg-slate-900/80 px-1.5 py-1 text-right text-amber-100 outline-none focus:border-amber-400"
                       />
                       {savingCell === `${r.id}-custoProducao` && <span className="ml-1 text-[9px] text-slate-500">salvando…</span>}
                     </td>
@@ -243,25 +243,25 @@ export default function MargemShopeePage() {
                         defaultValue={r.embalagemOutros ?? ""}
                         onBlur={(e) => handleCostChange(r, "embalagemOutros", e.target.value)}
                         placeholder="R$/un"
-                        className="w-20 rounded border border-amber-500/30 bg-slate-900/80 px-2 py-1 text-right text-amber-100 outline-none focus:border-amber-400"
+                        className="w-16 rounded border border-amber-500/30 bg-slate-900/80 px-1.5 py-1 text-right text-amber-100 outline-none focus:border-amber-400"
                       />
                     </td>
-                    <td className="px-3 py-2 text-right text-slate-300">{formatBRL(r.precoCadastro)}</td>
-                    <td className="px-3 py-2 text-right text-blue-300">{formatBRL(r.precoPromocaoRede)}</td>
-                    <td className="px-3 py-2 text-right text-slate-200">{formatBRL(r.clientePagaSemRelampago)}</td>
-                    <td className="px-3 py-2 text-right text-slate-200">{formatBRL(r.lucroSemRelampago)}</td>
-                    <td className={`px-3 py-2 text-right font-medium ${margemTone(r.margemSemRelampagoPct, params.margemAlvoPercent)}`}>
+                    <td className="px-2 py-2 text-right text-slate-300">{formatBRL(r.precoCadastro)}</td>
+                    <td className="px-2 py-2 text-right text-blue-300">{formatBRL(r.precoPromocaoRede)}</td>
+                    <td className="px-2 py-2 text-right text-slate-200">{formatBRL(r.clientePagaSemRelampago)}</td>
+                    <td className="px-2 py-2 text-right text-slate-200">{formatBRL(r.lucroSemRelampago)}</td>
+                    <td className={`px-2 py-2 text-right font-medium ${margemTone(r.margemSemRelampagoPct, params.margemAlvoPercent)}`}>
                       {formatPct(r.margemSemRelampagoPct)}
                     </td>
-                    <td className="px-3 py-2 text-right text-blue-300">{formatBRL(r.precoRelampago)}</td>
-                    <td className="px-3 py-2 text-right text-slate-200">{formatBRL(r.clientePagaComRelampago)}</td>
-                    <td className="px-3 py-2 text-right text-slate-200">{formatBRL(r.lucroComRelampago)}</td>
-                    <td className={`px-3 py-2 text-right font-medium ${margemTone(r.margemComRelampagoPct, params.margemAlvoPercent)}`}>
+                    <td className="px-2 py-2 text-right text-blue-300">{formatBRL(r.precoRelampago)}</td>
+                    <td className="px-2 py-2 text-right text-slate-200">{formatBRL(r.clientePagaComRelampago)}</td>
+                    <td className="px-2 py-2 text-right text-slate-200">{formatBRL(r.lucroComRelampago)}</td>
+                    <td className={`px-2 py-2 text-right font-medium ${margemTone(r.margemComRelampagoPct, params.margemAlvoPercent)}`}>
                       {formatPct(r.margemComRelampagoPct)}
                     </td>
-                    <td className="px-3 py-2 text-right text-slate-300">{formatBRL(r.clienteDevePagarParaMargemAlvo)}</td>
-                    <td className="px-3 py-2 text-right text-slate-300">{formatBRL(r.precoPromocaoParaMargemAlvo)}</td>
-                    <td className="max-w-[200px] px-3 py-2 text-rose-300">{r.alerta}</td>
+                    <td className="px-2 py-2 text-right text-slate-300">{formatBRL(r.clienteDevePagarParaMargemAlvo)}</td>
+                    <td className="px-2 py-2 text-right text-slate-300">{formatBRL(r.precoPromocaoParaMargemAlvo)}</td>
+                    <td className="max-w-[200px] px-2 py-2 text-rose-300">{r.alerta}</td>
                   </tr>
                 ))}
               </tbody>
