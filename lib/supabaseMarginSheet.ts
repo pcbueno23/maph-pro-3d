@@ -6,7 +6,7 @@ export async function fetchMarginRows(userId: string): Promise<MarginRow[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("shopee_margin_sheet_rows")
-    .select("id, produto, variacao, num_variacoes, preco_cadastro, preco_promocao_rede, preco_relampago, custo_producao, embalagem_outros")
+    .select("id, produto, variacao, num_variacoes, preco_cadastro, preco_promocao_rede, preco_relampago, custo_producao, embalagem_outros, link")
     .eq("user_id", userId)
     .order("produto", { ascending: true });
   if (error || !data) return [];
@@ -20,6 +20,7 @@ export async function fetchMarginRows(userId: string): Promise<MarginRow[]> {
     precoRelampago: r.preco_relampago != null ? Number(r.preco_relampago) : null,
     custoProducao: r.custo_producao != null ? Number(r.custo_producao) : null,
     embalagemOutros: r.embalagem_outros != null ? Number(r.embalagem_outros) : null,
+    link: r.link ?? null,
   }));
 }
 
@@ -59,6 +60,7 @@ export async function upsertMarginRowsFromImport(
         preco_cadastro: r.precoCadastro,
         preco_promocao_rede: r.precoPromocaoRede,
         preco_relampago: r.precoRelampago,
+        link: r.link,
         updated_at: new Date().toISOString(),
       };
     });

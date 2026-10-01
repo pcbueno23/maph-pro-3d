@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { Upload, Download, Settings2, ChevronDown } from "lucide-react";
+import { Upload, Download, Settings2, ChevronDown, ExternalLink } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import {
   computeRow,
@@ -219,8 +219,23 @@ export default function MargemShopeePage() {
               <tbody>
                 {computedRows.map((r) => (
                   <tr key={r.id} className="border-b border-slate-800/60">
-                    <td className="sticky left-0 z-10 max-w-[160px] truncate bg-slate-950 px-2 py-2 text-slate-200" title={r.produto}>
-                      {r.produto}
+                    <td className="sticky left-0 z-10 max-w-[160px] bg-slate-950 px-2 py-2 text-slate-200">
+                      <span className="inline-flex max-w-full items-center gap-1">
+                        <span className="truncate" title={r.produto}>
+                          {r.produto}
+                        </span>
+                        {r.link && (
+                          <a
+                            href={r.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Abrir anúncio na Shopee"
+                            className="shrink-0 text-cyan-400 hover:text-cyan-300"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                      </span>
                     </td>
                     <td className="max-w-[140px] truncate px-2 py-2 text-slate-400" title={r.variacao}>
                       {r.variacao || "—"}

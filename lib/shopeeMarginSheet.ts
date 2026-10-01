@@ -50,6 +50,8 @@ export type MarginRow = {
   precoRelampago: number | null;
   custoProducao: number | null;
   embalagemOutros: number | null;
+  /** Link do anúncio na Shopee (coluna W, opcional — nem toda planilha importada tem essa coluna). */
+  link: string | null;
 };
 
 export type ComputedMarginRow = MarginRow & {
@@ -263,6 +265,7 @@ export async function parseMarginSheetXlsx(file: File): Promise<MarginSheetParse
       precoRelampago: numOrNull(row[8]),
       custoProducao: numOrNull(row[11]),
       embalagemOutros: numOrNull(row[12]),
+      link: row[22]?.trim() || null,
     });
   }
 
@@ -411,6 +414,7 @@ const DATA_HEADERS = [
   "Cliente deve pagar p/ margem alvo",
   "Preço promoção p/ margem alvo",
   "Alerta",
+  "Link do anúncio",
 ];
 
 const LEGEND_LINES = [
@@ -465,7 +469,7 @@ function groupHeaderRow(): string {
 
 function mergeCellsXml(): string {
   const ranges = [
-    "A2:V2",
+    "A2:W2",
     "A3:D3",
     "E3:H3",
     "I3:K3",
@@ -512,6 +516,7 @@ export function buildMarginSheetXlsxBlob(computedRows: ComputedMarginRow[], para
       numCell(`T${rowNum}`, r.clienteDevePagarParaMargemAlvo, S.currency),
       numCell(`U${rowNum}`, r.precoPromocaoParaMargemAlvo, S.currency),
       strCell(`V${rowNum}`, r.alerta, S.text),
+      strCell(`W${rowNum}`, r.link ?? "", S.text),
     ].join("");
     dataRowsXml += `<row r="${rowNum}">${cells}</row>`;
   });
@@ -528,7 +533,7 @@ export function buildMarginSheetXlsxBlob(computedRows: ComputedMarginRow[], para
 
   const sheet1Xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<dimension ref="A1:V${lastRow}"/>
+<dimension ref="A1:W${lastRow}"/>
 <sheetData>
 <row r="1">${strCell("A1", "Preço final ao cliente e margem por produto (1 unidade)", S.title)}</row>
 <row r="2">${strCell("A2", note, S.note)}</row>
