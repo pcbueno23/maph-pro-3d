@@ -53,6 +53,7 @@ export const navGroups: NavGroup[] = [
       { href: "/calculadoras/venda-direta", label: "Venda direta", icon: Calculator },
       { href: "/orcamentos", label: "Orçamentos", icon: FileText },
       { href: "/relatorios-shopee", label: "Relatórios Shopee", icon: FileSpreadsheet },
+      { href: "/margem-shopee", label: "Preço e Margem Shopee", icon: Percent },
     ],
   },
   {

@@ -1,0 +1,164 @@
+MAPH PRO 3D — ROADMAP DE FUNCIONALIDADES (comparativo com concorrente "Cordeiro Flow")
+Gerado em 22/09/2026. Ordem sugerida por esforço/dependência (fácil e que destrava outras coisas primeiro).
+
+Como usar: quando for implementar um item, abra uma conversa nova com o Claude Code
+(ou continue nesta mesma) e cole o "PROMPT" daquele item. Cada prompt já tem contexto
+suficiente sobre o que existe hoje no projeto pra não precisar re-explicar tudo.
+
+==============================================================================
+JÁ EXISTE HOJE (não precisa implementar, só conferir se quer mudar de nome/lugar)
+==============================================================================
+- Calculadora de Preços -> já tenho (Shopee/ML/TikTok/Venda Direta, mais completo que o concorrente)
+- Pedidos (em andamento/finalizados/estatísticas) -> /ordens + /reports
+- Estoque -> /inventory
+- Orçamento com PDF -> /orcamentos (jsPDF, logo, dados do cliente)
+- Vitrine pública -> /catalogo (config interna) + /c/[slug] (página pública)
+
+==============================================================================
+ORDEM DE IMPLEMENTAÇÃO SUGERIDA
+==============================================================================
+
+------------------------------------------------------------------------------
+1) CADASTRO DE CLIENTES (CRM básico) — esforço: baixo — prioridade: alta
+------------------------------------------------------------------------------
+Por quê primeiro: hoje o nome/telefone do cliente vive solto dentro de cada
+orçamento, sem registro reutilizável. Isso destrava orçamento, pedidos e o
+financeiro (item 8) de uma vez.
+
+PROMPT:
+"Quero criar um cadastro de clientes reutilizável no Maph Pro 3D. Hoje o
+nome/telefone do cliente vivem soltos dentro de cada orçamento (tipo Quote,
+em app/orcamentos/page.tsx), sem registro separado. Crie uma tabela
+`customers` (nome, telefone, e-mail opcional, endereço opcional, notas) com
+RLS por user_id, seguindo o padrão de migrations em supabase/migrations/.
+Depois, ligue essa tabela em app/orcamentos/page.tsx (autocompletar cliente
+já cadastrado ao criar orçamento) e crie uma tela nova /clientes com
+listagem e CRUD básico. Siga o padrão de store Zustand + lib/supabaseXxx.ts
+já usado no projeto (ex: store/inventoryStore.ts + lib/supabaseProducts.ts
+como referência de estrutura). Depois de implementar, rode o fluxo de
+verificação (tsc --noEmit -> build -> vitest) e faça push pra main."
+
+------------------------------------------------------------------------------
+2) CALENDÁRIO — esforço: baixo — prioridade: média
+------------------------------------------------------------------------------
+Usa dados que já existem (pedidos de produção), é só uma visualização nova.
+
+PROMPT:
+"Quero uma tela /calendario mostrando os pedidos de produção
+(production_orders, já usados em app/ordens/page.tsx) organizados por data
+de entrega/previsão num calendário mensal. Reaproveite os dados que já
+existem (lib/supabaseProduction.ts) — não crie tabela nova, só uma
+visualização em cima do que já tem. Depois de implementar, rode tsc/build/
+vitest e faça push pra main."
+
+------------------------------------------------------------------------------
+3) CHECKLIST 3D (pré-impressão) — esforço: trivial — prioridade: baixa
+------------------------------------------------------------------------------
+PROMPT:
+"Quero uma tela /checklist com um checklist de pré-impressão 3D
+(nivelamento da mesa, temperatura, primeira camada, etc.) que o usuário
+marca item por item antes de iniciar uma impressão. Pode ser estático por
+enquanto (sem precisar salvar histórico no banco), só uma lista de itens
+com checkbox local, seguindo o visual do resto do app (dark theme — use
+app/impressoras/page.tsx como referência de estilo)."
+
+------------------------------------------------------------------------------
+4) LINKS ÚTEIS — esforço: trivial — prioridade: baixa
+------------------------------------------------------------------------------
+PROMPT:
+"Quero uma tela /links-uteis com uma lista curada de links úteis pra quem
+vende impressão 3D (fóruns, calculadoras de terceiros, lojas de filamento,
+etc.) — conteúdo estático, só uma página de referência. Antes de montar,
+me pergunte quais links eu quero incluir."
+
+------------------------------------------------------------------------------
+5) CALCULADORA DE ESCALA — esforço: baixo — prioridade: média
+------------------------------------------------------------------------------
+PROMPT:
+"Quero adicionar uma 'Calculadora de Escala' — informo as dimensões
+originais de uma peça, o peso original, e um fator de escala (ou dimensão
+alvo), e o sistema calcula o novo peso (escala cúbica: peso_novo =
+peso_original × fator³) e o impacto no custo (reaproveitando o motor de
+custo 3D já existente em lib/calculations.ts). Decida o melhor lugar pra
+isso (aba nova dentro de /calculadoras/custo ou ferramenta separada) — o
+projeto prefere estender feature existente a criar rota nova quando faz
+sentido."
+
+------------------------------------------------------------------------------
+6) MIX DE FILAMENTO / TINTAS — esforço: médio — prioridade: média
+------------------------------------------------------------------------------
+PROMPT:
+"Quero uma ferramenta de 'Mix de Filamento' — informo duas (ou mais)
+cores/tipos de filamento e a proporção de mistura, e o sistema calcula a
+cor resultante aproximada (mistura RGB simples) e o custo médio ponderado
+por grama, usando os insumos já cadastrados em /insumos
+(store/suppliesStore.ts). Antes de implementar, me pergunte se eu quero
+simulação de cor (RGB) e custo médio juntos, ou só o custo médio primeiro."
+
+------------------------------------------------------------------------------
+7) PROMPTS IA (templates) — esforço: médio — prioridade: baixa
+------------------------------------------------------------------------------
+PROMPT:
+"Quero uma tela /prompts-ia com templates de prompt prontos pra gerar
+imagens de produto (bonecos, chaveiros, decoração etc.) usando IA — só
+templates de texto com campos pra preencher (nome do objeto, estilo, cor),
+sem gerar imagem de verdade (isso fica separado). Antes de montar, me
+pergunte quais categorias de prompt eu quero incluir."
+
+------------------------------------------------------------------------------
+8) FINANCEIRO GERAL (receitas/despesas) — esforço: médio — prioridade: alta
+------------------------------------------------------------------------------
+Depende do item 1 (clientes) se eu quiser ligar receita a cliente
+específico depois — mas pode ser feito sem isso também.
+
+PROMPT:
+"Quero um módulo financeiro geral em /financeiro — receitas e despesas que
+não são por produto (aluguel, energia geral, manutenção, impostos fixos,
+etc.), com um resumo de fluxo de caixa mensal. Crie uma tabela nova
+(financial_entries: tipo receita/despesa, categoria, valor, data,
+descrição) com RLS por user_id, e uma tela com lista + formulário +
+resumo/gráfico simples de entrada x saída por mês, seguindo o padrão de
+outras telas de gestão (ex: app/inventory/page.tsx como referência de
+estrutura)."
+
+------------------------------------------------------------------------------
+9) CONSIGNADOS — esforço: médio — prioridade: baixa
+------------------------------------------------------------------------------
+PROMPT:
+"Quero rastrear peças em consignação em lojas parceiras — uma tela
+/consignados onde cadastro a loja parceira, quais produtos/quantidades
+foram deixados lá, e vou marcando o que foi vendido ou devolvido. Crie uma
+tabela consignment_locations (nome da loja, contato) e consignment_items
+(produto ligado ao já cadastrado em /products, quantidade enviada,
+quantidade vendida, quantidade devolvida, datas), com RLS, seguindo o
+padrão de migrations do projeto."
+
+==============================================================================
+GRANDES APOSTAS (decisão estratégica — não é só "adicionar feature")
+==============================================================================
+Os itens abaixo mudam o Maph Pro 3D de "SaaS de precificação/gestão" pra
+"SaaS de precificação/gestão + mini-CAD". São semanas de trabalho cada, e
+valem uma conversa separada de prioridade antes de começar a codar. Achado
+importante: já existe base de leitura de geometria real (lib/stlParser.ts
+e lib/threeMFParser.ts, usando three.js pra calcular volume/malha de
+verdade) só que DESCONECTADA — nenhuma tela usa isso hoje. Se decidir
+seguir por essa linha, vale reconectar essas libs em vez de começar do
+zero.
+
+- Otimizador de Projetos (se for organizar peças na mesa de impressão —
+  bin packing 2D/3D)
+- Gerador de Objetos paramétricos (jarros, coleira PET, chaveiros, caixas,
+  QR code em 3D) — precisa de motor de geometria (tipo manifold/CSG)
+- Cordeiro Cut (cortar peça grande em partes que cabem na mesa)
+- Cordeiro Paint (pintar/colorir malha por área, pra multi-material)
+- Separa Cores - OBJ (separar arquivo OBJ por cor/material)
+
+Quando quiser retomar esse bloco, é melhor me chamar direto na conversa (não
+só colar um prompt solto) pra decidirmos junto qual desses vale a pena e em
+que ordem, dado o tamanho do investimento.
+
+==============================================================================
+NÃO É CÓDIGO
+==============================================================================
+- Aulas (cursos em vídeo) e Manuais (guias em PDF/vídeo) — produção de
+  conteúdo, decisão de negócio/marketing, não é algo que eu implemento.
