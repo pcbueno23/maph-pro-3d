@@ -122,7 +122,7 @@ export default function MargemShopeePage() {
   }
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full min-w-0 space-y-4">
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">
           Preço e Margem — Shopee
@@ -186,7 +186,7 @@ export default function MargemShopeePage() {
         </div>
       )}
 
-      <div className="glass-panel overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60">
+      <div className="glass-panel min-w-0 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60">
         {loading ? (
           <p className="p-6 text-sm text-slate-500">Carregando...</p>
         ) : rows.length === 0 ? (
