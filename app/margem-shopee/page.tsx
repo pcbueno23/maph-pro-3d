@@ -200,15 +200,15 @@ export default function MargemShopeePage() {
                 <tr className="border-b border-slate-800 text-slate-500">
                   <th className="sticky left-0 z-10 bg-slate-950 px-3 py-2 font-medium">Produto</th>
                   <th className="px-3 py-2 font-medium">Variação</th>
+                  <th className="bg-amber-500/10 px-3 py-2 text-right font-medium text-amber-200">Custo produção</th>
+                  <th className="bg-amber-500/10 px-3 py-2 text-right font-medium text-amber-200">Embalagem+outros</th>
                   <th className="px-3 py-2 text-right font-medium">Cadastro</th>
                   <th className="px-3 py-2 text-right font-medium">Promoção</th>
                   <th className="px-3 py-2 text-right font-medium">Cliente paga (sem relâmpago)</th>
-                  <th className="px-3 py-2 text-right font-medium">Relâmpago</th>
-                  <th className="px-3 py-2 text-right font-medium">Cliente paga (com relâmpago)</th>
-                  <th className="bg-amber-500/10 px-3 py-2 text-right font-medium text-amber-200">Custo produção</th>
-                  <th className="bg-amber-500/10 px-3 py-2 text-right font-medium text-amber-200">Embalagem+outros</th>
                   <th className="px-3 py-2 text-right font-medium">Lucro (sem relâmpago)</th>
                   <th className="px-3 py-2 text-right font-medium">Margem (sem relâmpago)</th>
+                  <th className="px-3 py-2 text-right font-medium">Relâmpago</th>
+                  <th className="px-3 py-2 text-right font-medium">Cliente paga (com relâmpago)</th>
                   <th className="px-3 py-2 text-right font-medium">Lucro (com relâmpago)</th>
                   <th className="px-3 py-2 text-right font-medium">Margem (com relâmpago)</th>
                   <th className="px-3 py-2 text-right font-medium">Preço p/ margem alvo</th>
@@ -225,11 +225,6 @@ export default function MargemShopeePage() {
                     <td className="max-w-[180px] truncate px-3 py-2 text-slate-400" title={r.variacao}>
                       {r.variacao || "—"}
                     </td>
-                    <td className="px-3 py-2 text-right text-slate-300">{formatBRL(r.precoCadastro)}</td>
-                    <td className="px-3 py-2 text-right text-blue-300">{formatBRL(r.precoPromocaoRede)}</td>
-                    <td className="px-3 py-2 text-right text-slate-200">{formatBRL(r.clientePagaSemRelampago)}</td>
-                    <td className="px-3 py-2 text-right text-blue-300">{formatBRL(r.precoRelampago)}</td>
-                    <td className="px-3 py-2 text-right text-slate-200">{formatBRL(r.clientePagaComRelampago)}</td>
                     <td className="bg-amber-500/5 px-2 py-1.5">
                       <input
                         type="text"
@@ -251,10 +246,15 @@ export default function MargemShopeePage() {
                         className="w-20 rounded border border-amber-500/30 bg-slate-900/80 px-2 py-1 text-right text-amber-100 outline-none focus:border-amber-400"
                       />
                     </td>
+                    <td className="px-3 py-2 text-right text-slate-300">{formatBRL(r.precoCadastro)}</td>
+                    <td className="px-3 py-2 text-right text-blue-300">{formatBRL(r.precoPromocaoRede)}</td>
+                    <td className="px-3 py-2 text-right text-slate-200">{formatBRL(r.clientePagaSemRelampago)}</td>
                     <td className="px-3 py-2 text-right text-slate-200">{formatBRL(r.lucroSemRelampago)}</td>
                     <td className={`px-3 py-2 text-right font-medium ${margemTone(r.margemSemRelampagoPct, params.margemAlvoPercent)}`}>
                       {formatPct(r.margemSemRelampagoPct)}
                     </td>
+                    <td className="px-3 py-2 text-right text-blue-300">{formatBRL(r.precoRelampago)}</td>
+                    <td className="px-3 py-2 text-right text-slate-200">{formatBRL(r.clientePagaComRelampago)}</td>
                     <td className="px-3 py-2 text-right text-slate-200">{formatBRL(r.lucroComRelampago)}</td>
                     <td className={`px-3 py-2 text-right font-medium ${margemTone(r.margemComRelampagoPct, params.margemAlvoPercent)}`}>
                       {formatPct(r.margemComRelampagoPct)}
