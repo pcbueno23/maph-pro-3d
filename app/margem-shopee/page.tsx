@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { Upload, Download, Settings2, ChevronDown, ExternalLink } from "lucide-react";
+import { Upload, Download, Settings2, ChevronDown, ExternalLink, ClipboardCopy, Check } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import {
   computeRow,
@@ -19,6 +19,15 @@ import {
   fetchMarginParams,
   saveMarginParams,
 } from "@/lib/supabaseMarginSheet";
+import {
+  SHOPEE_MARGIN_SHEET_PROMPT_COWORK,
+  SHOPEE_MARGIN_SHEET_PROMPT_CODEX,
+} from "@/lib/shopeeMarginSheetPrompts";
+
+const PROMPT_BUTTONS = [
+  { key: "cowork", label: "Prompt p/ Claude Cowork", prompt: SHOPEE_MARGIN_SHEET_PROMPT_COWORK },
+  { key: "codex", label: "Prompt p/ Codex", prompt: SHOPEE_MARGIN_SHEET_PROMPT_CODEX },
+].filter((p): p is { key: string; label: string; prompt: string } => !!p.prompt);
 
 function formatBRL(v: number | null) {
   return v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -42,6 +51,17 @@ export default function MargemShopeePage() {
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [showParams, setShowParams] = useState(false);
   const [savingCell, setSavingCell] = useState<string | null>(null);
+  const [copiedPrompt, setCopiedPrompt] = useState<string | null>(null);
+
+  async function handleCopyPrompt(key: string, prompt: string) {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopiedPrompt(key);
+      setTimeout(() => setCopiedPrompt((c) => (c === key ? null : c)), 2000);
+    } catch {
+      setImportMsg("Não consegui copiar pro clipboard — copie manualmente.");
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -148,15 +168,28 @@ export default function MargemShopeePage() {
           <Download className="h-4 w-4" />
           Exportar planilha
         </button>
-        <button
-          type="button"
-          onClick={() => setShowParams((v) => !v)}
-          className="ml-auto inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 transition hover:border-slate-500"
-        >
-          <Settings2 className="h-4 w-4" />
-          Parâmetros
-          <ChevronDown className={`h-4 w-4 transition-transform ${showParams ? "rotate-180" : ""}`} />
-        </button>
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          {PROMPT_BUTTONS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => void handleCopyPrompt(p.key, p.prompt)}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 transition hover:border-violet-500/40 hover:text-violet-200"
+            >
+              {copiedPrompt === p.key ? <Check className="h-4 w-4 text-emerald-400" /> : <ClipboardCopy className="h-4 w-4" />}
+              {copiedPrompt === p.key ? "Copiado!" : p.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setShowParams((v) => !v)}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm text-slate-200 transition hover:border-slate-500"
+          >
+            <Settings2 className="h-4 w-4" />
+            Parâmetros
+            <ChevronDown className={`h-4 w-4 transition-transform ${showParams ? "rotate-180" : ""}`} />
+          </button>
+        </div>
       </div>
 
       {importMsg && (
