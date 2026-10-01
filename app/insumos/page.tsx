@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Download, Trash2, Upload } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import type { StockMovementKind, SupplyCategory, SupplyItem, SupplyMovement } from "@/types";
 import {
   createSupplyMovement,
   deleteSupply,
+  deleteSuppliesBulk,
   listSupplies,
   listSupplyMovements,
   upsertSupply,
+  upsertSuppliesFromImport,
 } from "@/lib/supabaseProduction";
+import { parseInsumosXlsx, buildInsumosTemplateXlsxBlob } from "@/lib/insumosImport";
 
 type DraftSupply = {
   id?: string;
@@ -85,6 +89,11 @@ export default function InsumosPage() {
   const [supplies, setSupplies] = useState<SupplyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // importar planilha de estoque + seleção em massa
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // modal CRUD
   const [openSupplyModal, setOpenSupplyModal] = useState(false);
@@ -264,6 +273,80 @@ export default function InsumosPage() {
     }
   };
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => (prev.size === supplies.length ? new Set() : new Set(supplies.map((s) => s.id))));
+  }
+
+  const removeSelected = async () => {
+    if (!user || selectedIds.size === 0) return;
+    const ok =
+      typeof window !== "undefined"
+        ? window.confirm(
+            `Remover ${selectedIds.size} insumo(s) selecionado(s)?\n\nEles serão retirados da ficha técnica (BOM) dos produtos que os utilizam. O histórico de movimentações também será apagado.`,
+          )
+        : false;
+    if (!ok) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteSuppliesBulk(user.id, Array.from(selectedIds));
+      setSupplies((prev) => prev.filter((x) => !selectedIds.has(x.id)));
+      setSelectedIds(new Set());
+    } catch (e: any) {
+      setError(e?.message ?? "Falha ao remover os insumos selecionados.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  async function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+    setImporting(true);
+    setImportMsg(null);
+    setError(null);
+    try {
+      const rows = await parseInsumosXlsx(file);
+      if (rows.length === 0) {
+        setImportMsg("Não encontrei linhas de estoque nesse arquivo — confira se é o formato certo (aba 'Estoque').");
+        return;
+      }
+      const result = await upsertSuppliesFromImport(user.id, rows);
+      if (!result.ok) {
+        setImportMsg(result.message);
+        return;
+      }
+      await loadSupplies();
+      setImportMsg(
+        `Importado: ${result.imported} insumo(s) novo(s), ${result.updated} atualizado(s) (estoque corrigido pela planilha; custo e mínimo já preenchidos foram mantidos).`,
+      );
+    } catch (err) {
+      setImportMsg(err instanceof Error ? err.message : "Falha ao ler o arquivo.");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function handleDownloadTemplate() {
+    const blob = buildInsumosTemplateXlsxBlob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "modelo_estoque_filamentos.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const openMovements = async (s: SupplyItem) => {
     setMoveSupply(s);
     setMoveKind("in");
@@ -354,21 +437,50 @@ export default function InsumosPage() {
             Controle estoque, custos e movimentações (entrada/saída/ajuste).
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
-          disabled={!canUseSupabase}
-          title={!canUseSupabase ? "Faça login para gerenciar insumos." : undefined}
-        >
-          Novo insumo
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Baixar modelo
+          </button>
+          <label
+            className={`inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-cyan-500/40 hover:text-cyan-200 ${
+              !canUseSupabase || importing ? "pointer-events-none opacity-50" : ""
+            }`}
+          >
+            <Upload className="h-3.5 w-3.5" />
+            {importing ? "Importando..." : "Importar estoque (.xlsx)"}
+            <input
+              type="file"
+              accept=".xlsx"
+              className="hidden"
+              disabled={!canUseSupabase || importing}
+              onChange={(e) => void handleImportFile(e)}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
+            disabled={!canUseSupabase}
+            title={!canUseSupabase ? "Faça login para gerenciar insumos." : undefined}
+          >
+            Novo insumo
+          </button>
+        </div>
       </div>
 
       {!canUseSupabase ? (
         <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300">
           Você precisa estar logado para cadastrar insumos.
         </div>
+      ) : null}
+
+      {importMsg ? (
+        <p className="rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-xs text-slate-300">{importMsg}</p>
       ) : null}
 
       {error ? (
@@ -392,6 +504,30 @@ export default function InsumosPage() {
         </div>
       </div>
 
+      {selectedIds.size > 0 ? (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-100">
+          <span>{selectedIds.size} insumo(s) selecionado(s)</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="rounded-lg px-2.5 py-1.5 text-xs text-rose-200 hover:text-rose-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={removeSelected}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/20 px-3 py-1.5 text-xs font-semibold text-rose-50 hover:bg-rose-500/30 disabled:opacity-60"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Remover selecionados
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm">
         {loading && supplies.length === 0 ? (
           <p className="text-slate-400">Carregando...</p>
@@ -411,11 +547,19 @@ export default function InsumosPage() {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-slate-100">{s.name}</p>
-                        <p className="mt-0.5 text-[11px] text-slate-400">
-                          {categoryLabel[s.category]} • {s.unit}
-                        </p>
+                      <div className="flex min-w-0 items-start gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(s.id)}
+                          onChange={() => toggleSelect(s.id)}
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-rose-400"
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-slate-100">{s.name}</p>
+                          <p className="mt-0.5 text-[11px] text-slate-400">
+                            {categoryLabel[s.category]} • {s.unit}
+                          </p>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className={`text-[11px] font-semibold ${low ? "text-amber-300" : "text-slate-200"}`}>
@@ -490,6 +634,15 @@ export default function InsumosPage() {
               <table className="min-w-full text-left text-xs">
                 <thead className="border-b border-slate-800 text-[11px] uppercase tracking-[0.18em] text-slate-400">
                   <tr>
+                    <th className="w-8 px-2 py-2">
+                      <input
+                        type="checkbox"
+                        checked={supplies.length > 0 && selectedIds.size === supplies.length}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 accent-rose-400"
+                        title="Selecionar todos"
+                      />
+                    </th>
                     <th className="px-2 py-2">Nome</th>
                     <th className="px-2 py-2">Categoria</th>
                     <th className="px-2 py-2">Unidade</th>
@@ -506,6 +659,14 @@ export default function InsumosPage() {
                       (s.minStockQty ?? 0) > 0 && (s.stockQty ?? 0) <= (s.minStockQty ?? 0);
                     return (
                       <tr key={s.id} className="hover:bg-slate-900/60">
+                        <td className="px-2 py-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(s.id)}
+                            onChange={() => toggleSelect(s.id)}
+                            className="h-4 w-4 accent-rose-400"
+                          />
+                        </td>
                         <td className="px-2 py-2">
                           <div className="flex items-center gap-2">
                             <span

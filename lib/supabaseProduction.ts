@@ -258,6 +258,71 @@ export async function deleteSupply(userId: string, id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Remove vários insumos de uma vez (ex.: limpar um estoque antigo errado antes de
+ * reimportar). Mesma regra do delete individual: limpa o BOM antes (ON DELETE RESTRICT). */
+export async function deleteSuppliesBulk(userId: string, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const client = mustHaveClient();
+  const batchSize = 200;
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const chunk = ids.slice(i, i + batchSize);
+    const { error: bomError } = await client
+      .from("product_materials")
+      .delete()
+      .eq("user_id", userId)
+      .in("supply_id", chunk);
+    if (bomError) throw bomError;
+
+    const { error } = await client.from("supplies").delete().eq("user_id", userId).in("id", chunk);
+    if (error) throw error;
+  }
+}
+
+/** Importa insumos de uma planilha de estoque: upsert por nome (case-insensitive) —
+ * atualiza categoria/unidade/estoque (a correção que o usuário importou), mas NUNCA
+ * sobrescreve custo/mínimo/cor/link de um insumo que já existia (preenchidos só na
+ * criação, com os padrões do banco: custo 0, mínimo em branco). */
+export async function upsertSuppliesFromImport(
+  userId: string,
+  items: Array<{ name: string; category: SupplyItem["category"]; unit: string; stockQty: number }>,
+): Promise<{ ok: true; imported: number; updated: number } | { ok: false; message: string }> {
+  if (items.length === 0) return { ok: true, imported: 0, updated: 0 };
+  const client = mustHaveClient();
+
+  const { data: existing, error: fetchErr } = await client
+    .from("supplies")
+    .select("id, name")
+    .eq("user_id", userId);
+  if (fetchErr) return { ok: false, message: fetchErr.message };
+
+  const existingByName = new Map((existing ?? []).map((r) => [String(r.name).toLowerCase(), r.id as string]));
+
+  let imported = 0;
+  let updated = 0;
+  const batchSize = 200;
+  for (let i = 0; i < items.length; i += batchSize) {
+    const chunk = items.slice(i, i + batchSize);
+    const payload = chunk.map((item) => {
+      const id = existingByName.get(item.name.toLowerCase());
+      if (id) updated++;
+      else imported++;
+      return {
+        ...(id ? { id } : {}),
+        user_id: userId,
+        name: item.name,
+        category: item.category,
+        unit: item.unit,
+        stock_qty: item.stockQty,
+        updated_at: new Date().toISOString(),
+      };
+    });
+    const { error } = await client.from("supplies").upsert(payload, { onConflict: "id" });
+    if (error) return { ok: false, message: error.message };
+  }
+
+  return { ok: true, imported, updated };
+}
+
 export async function createSupplyMovement(
   userId: string,
   input: Omit<SupplyMovement, "userId" | "createdAt" | "id">,
