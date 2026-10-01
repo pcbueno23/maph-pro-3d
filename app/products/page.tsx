@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import type { Product } from "@/types";
 import { ProductTable } from "@/components/products/ProductTable";
 import { NewProductWizard } from "@/components/products/NewProductWizard";
+import { ShopeeMarginBackupSection } from "@/components/products/ShopeeMarginBackupSection";
 import { useProductsStore } from "@/store/productsStore";
+import { useAuthStore } from "@/store/authStore";
 
 export default function ProductsPage() {
   const { products, hydrateFromStorage } = useProductsStore();
+  const user = useAuthStore((s) => s.user);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardInitialProduct, setWizardInitialProduct] = useState<Product | null>(null);
 
@@ -40,6 +43,8 @@ export default function ProductsPage() {
           setWizardOpen(true);
         }}
       />
+
+      <ShopeeMarginBackupSection userId={user?.id} />
 
       <NewProductWizard
         open={wizardOpen}
