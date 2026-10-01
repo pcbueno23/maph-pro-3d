@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload, Download, Settings2, ChevronDown, ExternalLink, ClipboardCopy, Check, Calculator } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useCalculatorStore } from "@/store/calculatorStore";
+import { useProductsStore } from "@/store/productsStore";
 import {
   computeRow,
   parseMarginSheetXlsx,
@@ -49,6 +50,7 @@ export default function MargemShopeePage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const setPendingProductName = useCalculatorStore((s) => s.setPendingProductName);
+  const { products, hydrateFromStorage } = useProductsStore();
   const [rows, setRows] = useState<MarginRow[]>([]);
   const [params, setParams] = useState<MarginParams>(DEFAULT_MARGIN_PARAMS);
   const [loading, setLoading] = useState(true);
@@ -83,7 +85,48 @@ export default function MargemShopeePage() {
     };
   }, [user]);
 
-  const computedRows: ComputedMarginRow[] = useMemo(() => rows.map((r) => computeRow(r, params)), [rows, params]);
+  useEffect(() => {
+    hydrateFromStorage();
+  }, [hydrateFromStorage]);
+
+  // Custo já calculado em /products (via o botão "Calcular custo" dessa mesma página,
+  // que salva com o nome "Produto — Variação") — usado como fallback automático pra
+  // linhas sem custo de produção preenchido manualmente.
+  const productCostByName = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of products) {
+      if (typeof p.totalCost === "number" && Number.isFinite(p.totalCost)) map.set(p.name, p.totalCost);
+    }
+    return map;
+  }, [products]);
+
+  const rowsById = useMemo(() => new Map(rows.map((r) => [r.id, r] as const)), [rows]);
+
+  function pulledCustoFor(r: Pick<MarginRow, "produto" | "variacao" | "custoProducao">): number | null {
+    if (r.custoProducao != null) return null;
+    return productCostByName.get(marginRowFullName(r)) ?? null;
+  }
+
+  function pulledEmbalagemFor(r: Pick<MarginRow, "embalagemOutros">): number | null {
+    if (r.embalagemOutros != null) return null;
+    return params.embalagemPadrao || null;
+  }
+
+  const computedRows: ComputedMarginRow[] = useMemo(
+    () =>
+      rows.map((r) => {
+        const pulledCusto = pulledCustoFor(r);
+        const pulledEmbalagem = pulledEmbalagemFor(r);
+        const effective: MarginRow = {
+          ...r,
+          custoProducao: r.custoProducao ?? pulledCusto,
+          embalagemOutros: r.embalagemOutros ?? pulledEmbalagem,
+        };
+        return computeRow(effective, params);
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, params, productCostByName],
+  );
 
   async function handleImport(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -103,8 +146,11 @@ export default function MargemShopeePage() {
         return;
       }
       if (parsed.params) {
-        await saveMarginParams(user.id, parsed.params);
-        setParams(parsed.params);
+        // embalagemPadrao não existe no formato da planilha (é só um preset do app) —
+        // preserva o que o usuário já tinha configurado em vez de resetar pra 0.
+        const merged: MarginParams = { ...parsed.params, embalagemPadrao: params.embalagemPadrao };
+        await saveMarginParams(user.id, merged);
+        setParams(merged);
       }
       const fresh = await fetchMarginRows(user.id);
       setRows(fresh);
@@ -215,7 +261,16 @@ export default function MargemShopeePage() {
             <ParamField label="Imposto (%)" value={params.impostoPercent} onChange={(v) => handleParamChange({ impostoPercent: v })} />
             <ParamField label="Taxa fixa (R$)" value={params.taxaFixa} onChange={(v) => handleParamChange({ taxaFixa: v })} />
             <ParamField label="Margem alvo (%)" value={params.margemAlvoPercent} onChange={(v) => handleParamChange({ margemAlvoPercent: v })} />
+            <ParamField
+              label="Embalagem+outros padrão (R$)"
+              value={params.embalagemPadrao}
+              onChange={(v) => handleParamChange({ embalagemPadrao: v })}
+            />
           </div>
+          <p className="mt-2 text-[11px] text-slate-500">
+            Preenche automaticamente a coluna "Embalagem+outros" em linhas sem valor próprio
+            (marcadas com o selo "preset" na tabela) — digitar um valor na linha sempre tem prioridade.
+          </p>
           <p className="mb-2 mt-4 text-xs font-medium uppercase tracking-wide text-slate-500">Faixas de cupom da loja</p>
           <div className="space-y-1">
             {params.cupomTiers.map((t, i) => (
@@ -261,7 +316,11 @@ export default function MargemShopeePage() {
                 </tr>
               </thead>
               <tbody>
-                {computedRows.map((r) => (
+                {computedRows.map((r) => {
+                  const raw = rowsById.get(r.id) ?? r;
+                  const pulledCusto = pulledCustoFor(raw);
+                  const pulledEmbalagem = pulledEmbalagemFor(raw);
+                  return (
                   <tr key={r.id} className="border-b border-slate-800/60">
                     <td className="sticky left-0 z-10 max-w-[160px] bg-slate-950 px-2 py-2 text-slate-200">
                       <span className="inline-flex max-w-full items-center gap-1">
@@ -286,24 +345,38 @@ export default function MargemShopeePage() {
                     </td>
                     <td className="bg-amber-500/5 px-2 py-1.5">
                       <input
+                        key={`custo-${r.id}-${raw.custoProducao ?? pulledCusto ?? "x"}`}
                         type="text"
                         inputMode="decimal"
-                        defaultValue={r.custoProducao ?? ""}
-                        onBlur={(e) => handleCostChange(r, "custoProducao", e.target.value)}
+                        defaultValue={raw.custoProducao ?? pulledCusto ?? ""}
+                        onBlur={(e) => handleCostChange(raw, "custoProducao", e.target.value)}
                         placeholder="R$/un"
-                        className="w-16 rounded border border-amber-500/30 bg-slate-900/80 px-1.5 py-1 text-right text-amber-100 outline-none focus:border-amber-400"
+                        title={pulledCusto != null ? "Puxado automaticamente do produto já precificado em Produtos" : undefined}
+                        className={`w-16 rounded border bg-slate-900/80 px-1.5 py-1 text-right outline-none ${
+                          pulledCusto != null
+                            ? "border-cyan-500/30 text-cyan-100 focus:border-cyan-400"
+                            : "border-amber-500/30 text-amber-100 focus:border-amber-400"
+                        }`}
                       />
+                      {pulledCusto != null && <span className="ml-1 text-[9px] text-cyan-400">auto</span>}
                       {savingCell === `${r.id}-custoProducao` && <span className="ml-1 text-[9px] text-slate-500">salvando…</span>}
                     </td>
                     <td className="bg-amber-500/5 px-2 py-1.5">
                       <input
+                        key={`embalagem-${r.id}-${raw.embalagemOutros ?? pulledEmbalagem ?? "x"}`}
                         type="text"
                         inputMode="decimal"
-                        defaultValue={r.embalagemOutros ?? ""}
-                        onBlur={(e) => handleCostChange(r, "embalagemOutros", e.target.value)}
+                        defaultValue={raw.embalagemOutros ?? pulledEmbalagem ?? ""}
+                        onBlur={(e) => handleCostChange(raw, "embalagemOutros", e.target.value)}
                         placeholder="R$/un"
-                        className="w-16 rounded border border-amber-500/30 bg-slate-900/80 px-1.5 py-1 text-right text-amber-100 outline-none focus:border-amber-400"
+                        title={pulledEmbalagem != null ? "Preenchido pelo preset de Embalagem+outros (Parâmetros)" : undefined}
+                        className={`w-16 rounded border bg-slate-900/80 px-1.5 py-1 text-right outline-none ${
+                          pulledEmbalagem != null
+                            ? "border-cyan-500/30 text-cyan-100 focus:border-cyan-400"
+                            : "border-amber-500/30 text-amber-100 focus:border-amber-400"
+                        }`}
                       />
+                      {pulledEmbalagem != null && <span className="ml-1 text-[9px] text-cyan-400">preset</span>}
                     </td>
                     <td className="px-2 py-2 text-right text-slate-300">{formatBRL(r.precoCadastro)}</td>
                     <td className="px-2 py-2 text-right text-blue-300">{formatBRL(r.precoPromocaoRede)}</td>
@@ -333,7 +406,8 @@ export default function MargemShopeePage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -22,6 +22,9 @@ export type MarginParams = {
   impostoPercent: number; // ex. 5 (%)
   taxaFixa: number; // R$ por venda
   margemAlvoPercent: number; // ex. 20 (%)
+  /** Preset aplicado como "Embalagem+outros" em linhas sem valor próprio preenchido
+   * (0 = sem preset, cada linha fica em branco/0 como hoje). */
+  embalagemPadrao: number;
   cupomTiers: CupomTier[]; // ordenados por "min" crescente
 };
 
@@ -31,6 +34,7 @@ export const DEFAULT_MARGIN_PARAMS: MarginParams = {
   impostoPercent: 5,
   taxaFixa: 4.5,
   margemAlvoPercent: 20,
+  embalagemPadrao: 0,
   cupomTiers: [
     { min: 0, desconto: 0, label: "Sem cupom" },
     { min: 15.99, desconto: 1, label: "R$1 OFF acima de R$15,99" },
@@ -303,6 +307,9 @@ export async function parseMarginSheetXlsx(file: File): Promise<MarginSheetParse
         impostoPercent,
         taxaFixa,
         margemAlvoPercent,
+        // embalagemPadrao não existe no formato da planilha (é só um preset do app) —
+        // a página mescla com o valor atual do usuário antes de salvar, pra não resetar.
+        embalagemPadrao: DEFAULT_MARGIN_PARAMS.embalagemPadrao,
         cupomTiers: cupomTiers.length > 0 ? cupomTiers : DEFAULT_MARGIN_PARAMS.cupomTiers,
       };
     }
