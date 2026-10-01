@@ -94,6 +94,7 @@ export default function InsumosPage() {
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [savingCostId, setSavingCostId] = useState<string | null>(null);
 
   // modal CRUD
   const [openSupplyModal, setOpenSupplyModal] = useState(false);
@@ -284,6 +285,33 @@ export default function InsumosPage() {
 
   function toggleSelectAll() {
     setSelectedIds((prev) => (prev.size === supplies.length ? new Set() : new Set(supplies.map((s) => s.id))));
+  }
+
+  async function handleUnitCostChange(s: SupplyItem, raw: string) {
+    if (!user) return;
+    const value = Math.max(0, normalizeNumber(raw.replace(",", "."), 0));
+    if (value === Number(s.unitCost ?? 0)) return;
+    setSavingCostId(s.id);
+    try {
+      const updated = await upsertSupply(user.id, {
+        id: s.id,
+        name: s.name,
+        category: s.category,
+        unit: s.unit,
+        unitCost: value,
+        stockQty: s.stockQty,
+        minStockQty: s.minStockQty ?? null,
+        color: s.color ?? null,
+        purchaseLink: s.purchaseLink ?? null,
+        createdAt: s.createdAt,
+        updatedAt: new Date().toISOString(),
+      });
+      setSupplies((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+    } catch (e: any) {
+      setError(e?.message ?? "Falha ao salvar custo.");
+    } finally {
+      setSavingCostId(null);
+    }
   }
 
   const removeSelected = async () => {
@@ -574,7 +602,17 @@ export default function InsumosPage() {
                     <div className="mt-3 space-y-1 text-[11px] text-slate-300">
                       <div className="flex items-center justify-between gap-2">
                         <span>Custo/un</span>
-                        <span className="text-slate-100">{formatBRL(Number(s.unitCost ?? 0))}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <input
+                            key={`cost-${s.id}-${s.unitCost}`}
+                            type="text"
+                            inputMode="decimal"
+                            defaultValue={Number(s.unitCost ?? 0).toFixed(2)}
+                            onBlur={(e) => handleUnitCostChange(s, e.target.value)}
+                            className="w-20 rounded border border-slate-700 bg-slate-900/80 px-1.5 py-1 text-right text-slate-100 outline-none focus:border-cyan-500"
+                          />
+                          {savingCostId === s.id && <span className="text-[9px] text-slate-500">...</span>}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span>Mínimo</span>
@@ -679,7 +717,19 @@ export default function InsumosPage() {
                         </td>
                         <td className="px-2 py-2 text-slate-300">{categoryLabel[s.category]}</td>
                         <td className="px-2 py-2 text-slate-300">{s.unit}</td>
-                        <td className="px-2 py-2 text-slate-100">{formatBRL(Number(s.unitCost ?? 0))}</td>
+                        <td className="px-2 py-2">
+                          <span className="inline-flex items-center gap-1">
+                            <input
+                              key={`cost-${s.id}-${s.unitCost}`}
+                              type="text"
+                              inputMode="decimal"
+                              defaultValue={Number(s.unitCost ?? 0).toFixed(2)}
+                              onBlur={(e) => handleUnitCostChange(s, e.target.value)}
+                              className="w-20 rounded border border-slate-700 bg-slate-900/80 px-1.5 py-1 text-right text-slate-100 outline-none focus:border-cyan-500"
+                            />
+                            {savingCostId === s.id && <span className="text-[9px] text-slate-500">...</span>}
+                          </span>
+                        </td>
                         <td
                           className={`px-2 py-2 ${low ? "text-amber-300" : "text-slate-100"}`}
                         >
