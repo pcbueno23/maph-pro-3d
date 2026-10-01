@@ -5,13 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Calculator, ChevronDown, ExternalLink, FileSpreadsheet } from "lucide-react";
 import { fetchMarginRows } from "@/lib/supabaseMarginSheet";
-import type { MarginRow } from "@/lib/shopeeMarginSheet";
+import { marginRowFullName, type MarginRow } from "@/lib/shopeeMarginSheet";
 import { useCalculatorStore } from "@/store/calculatorStore";
-
-/** "Bandeja Canelada Oval c/ Pés (Kit Tamanhos Variados) — GRANDE 22x11x2 cm (todas as cores)" */
-function fullRowName(r: MarginRow): string {
-  return r.variacao ? `${r.produto} — ${r.variacao}` : r.produto;
-}
 
 function formatBRL(v: number | null) {
   return v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -28,7 +23,7 @@ export function ShopeeMarginBackupSection({ userId }: { userId: string | undefin
   const [open, setOpen] = useState(false);
 
   function handleCalcularCusto(r: MarginRow) {
-    setPendingProductName(fullRowName(r));
+    setPendingProductName(marginRowFullName(r));
     router.push("/calculadoras/custo");
   }
 

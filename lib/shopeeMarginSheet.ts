@@ -82,6 +82,12 @@ function cupomFor(preco: number | null, tiers: CupomTier[]): number | null {
   return best;
 }
 
+/** "Bandeja Canelada Oval c/ Pés (Kit Tamanhos Variados) — GRANDE 22x11x2 cm (todas as cores)" —
+ * usado pra pré-preencher o nome do produto na calculadora de custo 3D a partir de uma linha. */
+export function marginRowFullName(row: Pick<MarginRow, "produto" | "variacao">): string {
+  return row.variacao ? `${row.produto} — ${row.variacao}` : row.produto;
+}
+
 export function computeRow(row: MarginRow, params: MarginParams): ComputedMarginRow {
   const feeRate = (params.comissaoPercent + params.taxaTransacaoPercent + params.impostoPercent) / 100;
   const embalagem = row.embalagemOutros ?? 0;

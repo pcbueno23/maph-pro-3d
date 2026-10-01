@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { Upload, Download, Settings2, ChevronDown, ExternalLink, ClipboardCopy, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Upload, Download, Settings2, ChevronDown, ExternalLink, ClipboardCopy, Check, Calculator } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import { useCalculatorStore } from "@/store/calculatorStore";
 import {
   computeRow,
   parseMarginSheetXlsx,
   buildMarginSheetXlsxBlob,
+  marginRowFullName,
   DEFAULT_MARGIN_PARAMS,
   type MarginRow,
   type MarginParams,
@@ -43,7 +46,9 @@ function margemTone(pct: number | null, alvo: number): string {
 }
 
 export default function MargemShopeePage() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const setPendingProductName = useCalculatorStore((s) => s.setPendingProductName);
   const [rows, setRows] = useState<MarginRow[]>([]);
   const [params, setParams] = useState<MarginParams>(DEFAULT_MARGIN_PARAMS);
   const [loading, setLoading] = useState(true);
@@ -121,6 +126,11 @@ export default function MargemShopeePage() {
     a.download = `precos_e_margem_shopee_${new Date().toISOString().slice(0, 10)}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function handleCalcularCusto(r: MarginRow) {
+    setPendingProductName(marginRowFullName(r));
+    router.push("/calculadoras/custo");
   }
 
   async function handleCostChange(row: MarginRow, field: "custoProducao" | "embalagemOutros", raw: string) {
@@ -247,6 +257,7 @@ export default function MargemShopeePage() {
                   <th className="px-2 py-2 text-right font-medium">Preço p/ margem alvo</th>
                   <th className="px-2 py-2 text-right font-medium">Promoção p/ margem alvo</th>
                   <th className="px-2 py-2 font-medium">Alerta</th>
+                  <th className="px-2 py-2 font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -310,6 +321,17 @@ export default function MargemShopeePage() {
                     <td className="px-2 py-2 text-right text-slate-300">{formatBRL(r.clienteDevePagarParaMargemAlvo)}</td>
                     <td className="px-2 py-2 text-right text-slate-300">{formatBRL(r.precoPromocaoParaMargemAlvo)}</td>
                     <td className="max-w-[200px] px-2 py-2 text-rose-300">{r.alerta}</td>
+                    <td className="px-2 py-2">
+                      <button
+                        type="button"
+                        onClick={() => handleCalcularCusto(r)}
+                        title="Abre a calculadora de custo 3D com o nome deste produto já preenchido"
+                        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-800 bg-slate-900/70 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 hover:border-cyan-500/40 hover:text-cyan-200"
+                      >
+                        <Calculator className="h-3.5 w-3.5" />
+                        Calcular custo
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
