@@ -73,6 +73,14 @@ export type ComputedMarginRow = MarginRow & {
   clienteDevePagarParaMargemAlvo: number | null;
   precoPromocaoParaMargemAlvo: number | null;
   alerta: string;
+  /** ROAS de equilíbrio (sem relâmpago): abaixo disso, o anúncio dá prejuízo mesmo com
+   * a margem de contribuição atual. = 1 / margemSemRelampagoPct. Null se não dá pra
+   * calcular (sem custo preenchido) ou se a margem já é ≤ 0 mesmo sem anúncio. */
+  roasMinimo: number | null;
+  /** ROAS necessário (sem relâmpago) pra, depois de pagar o anúncio, ainda bater a
+   * margem alvo dos Parâmetros. = 1 / (margemSemRelampagoPct - margemAlvo). Null se a
+   * margem atual já está na meta ou abaixo dela mesmo sem gastar com anúncio. */
+  roasParaMargemAlvo: number | null;
 };
 
 /** LOOKUP(preco, tiers) — maior tier.min que seja <= preco (tiers precisam estar em ordem crescente). */
@@ -137,6 +145,16 @@ export function computeRow(row: MarginRow, params: MarginParams): ComputedMargin
     precoPromocaoParaMargemAlvo = clienteDevePagarParaMargemAlvo + outer;
   }
 
+  // ROAS de equilíbrio e ROAS p/ margem alvo, a partir da margem de contribuição sem
+  // relâmpago (já descontados custo, embalagem, comissão/transação/imposto e taxa fixa).
+  // Ad spend como fração da receita = 1/ROAS; margem após anúncio = margemContrib - 1/ROAS.
+  const roasMinimo = margemSemRelampagoPct != null && margemSemRelampagoPct > 0 ? 1 / margemSemRelampagoPct : null;
+  const margemAlvoFrac = params.margemAlvoPercent / 100;
+  const roasParaMargemAlvo =
+    margemSemRelampagoPct != null && margemSemRelampagoPct > margemAlvoFrac
+      ? 1 / (margemSemRelampagoPct - margemAlvoFrac)
+      : null;
+
   let alerta = "";
   if (row.precoRelampago != null && row.precoPromocaoRede != null && row.precoRelampago >= row.precoPromocaoRede) {
     alerta = "Relâmpago mais caro que a promoção";
@@ -164,6 +182,8 @@ export function computeRow(row: MarginRow, params: MarginParams): ComputedMargin
     clienteDevePagarParaMargemAlvo,
     precoPromocaoParaMargemAlvo,
     alerta,
+    roasMinimo,
+    roasParaMargemAlvo,
   };
 }
 

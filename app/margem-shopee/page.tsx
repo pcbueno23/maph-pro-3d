@@ -47,6 +47,9 @@ function inputMoneyValue(v: number | null): string {
 function formatPct(v: number | null) {
   return v == null ? "—" : `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 }
+function formatRoas(v: number | null) {
+  return v == null ? "—" : `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x`;
+}
 function margemTone(pct: number | null, alvo: number): string {
   if (pct == null) return "text-slate-500";
   if (pct < 0) return "text-rose-400";
@@ -301,7 +304,7 @@ export default function MargemShopeePage() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1500px] text-left text-xs">
+            <table className="w-full min-w-[1700px] text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-500">
                   <th className="sticky left-0 z-10 bg-slate-950 px-2 py-2 font-medium">Produto</th>
@@ -313,6 +316,18 @@ export default function MargemShopeePage() {
                   <th className="px-2 py-2 text-right font-medium">Cliente paga (sem relâmpago)</th>
                   <th className="px-2 py-2 text-right font-medium">Lucro (sem relâmpago)</th>
                   <th className="px-2 py-2 text-right font-medium">Margem (sem relâmpago)</th>
+                  <th
+                    className="px-2 py-2 text-right font-medium"
+                    title="ROAS de equilíbrio — abaixo disso, o anúncio dá prejuízo mesmo com a margem de contribuição atual"
+                  >
+                    ROAS mínimo
+                  </th>
+                  <th
+                    className="px-2 py-2 text-right font-medium"
+                    title="ROAS necessário pra, depois de pagar o anúncio, ainda bater a margem alvo dos Parâmetros"
+                  >
+                    ROAS p/ margem alvo
+                  </th>
                   <th className="px-2 py-2 text-right font-medium">Relâmpago</th>
                   <th className="px-2 py-2 text-right font-medium">Cliente paga (com relâmpago)</th>
                   <th className="px-2 py-2 text-right font-medium">Lucro (com relâmpago)</th>
@@ -393,6 +408,8 @@ export default function MargemShopeePage() {
                     <td className={`px-2 py-2 text-right font-medium ${margemTone(r.margemSemRelampagoPct, params.margemAlvoPercent)}`}>
                       {formatPct(r.margemSemRelampagoPct)}
                     </td>
+                    <td className="px-2 py-2 text-right text-violet-300">{formatRoas(r.roasMinimo)}</td>
+                    <td className="px-2 py-2 text-right text-violet-300">{formatRoas(r.roasParaMargemAlvo)}</td>
                     <td className="px-2 py-2 text-right text-blue-300">{formatBRL(r.precoRelampago)}</td>
                     <td className="px-2 py-2 text-right text-slate-200">{formatBRL(r.clientePagaComRelampago)}</td>
                     <td className="px-2 py-2 text-right text-slate-200">{formatBRL(r.lucroComRelampago)}</td>
