@@ -14,6 +14,8 @@ export default function DiscountField({
   ceilingPrice,
   ceilingHint,
   allowValorMode = true,
+  safeMaxPercent,
+  safeMaxWarning,
 }: {
   label: string;
   percent: number;
@@ -31,6 +33,11 @@ export default function DiscountField({
    * (qualquer % resulta no mesmo preço final), então o modo R$ é escondido.
    */
   allowValorMode?: boolean;
+  /** Regra confirmada da Shopee (skill shopee-precificacao): limite com folga de
+   * segurança abaixo do limite real da plataforma (ex.: 48% pra oferta relâmpago,
+   * cujo teto real é 50% — acima disso a Shopee recusa por "desconto enganoso"). */
+  safeMaxPercent?: number;
+  safeMaxWarning?: string;
 }) {
   const [mode, setMode] = useState<Mode>("pct");
 
@@ -41,10 +48,13 @@ export default function DiscountField({
   const resultingPrice = referencePrice * (1 - (percent || 0) / 100);
   // Aviso informativo, não bloqueia nem corrige o valor digitado — a estratégia de
   // ranqueamento pode aceitar qualquer combinação, inclusive lucro negativo.
-  const warning =
+  const ceilingWarning =
     ceilingPrice != null && resultingPrice >= ceilingPrice
       ? `Esse valor não fica abaixo de ${formatBRL(ceilingPrice)}${ceilingHint ? ` ${ceilingHint}` : ""}`
       : null;
+  // Regra da plataforma (não é só um aviso de estratégia) — fica mais forte/vermelho.
+  const safeMaxExceeded = safeMaxPercent != null && (percent || 0) > safeMaxPercent;
+  const warning = safeMaxExceeded ? (safeMaxWarning ?? `Acima de ${safeMaxPercent}% — risco de bloqueio pela Shopee`) : ceilingWarning;
 
   function commitPercent(rawPct: number) {
     // Limite só pra evitar 100% exato (o que quebraria a divisão no modo margem) — sem forçar mínimo.
@@ -102,7 +112,7 @@ export default function DiscountField({
         />
       )}
 
-      <p className={`text-xs ${warning ? "text-amber-400" : "text-slate-500"}`}>
+      <p className={`text-xs ${safeMaxExceeded ? "font-semibold text-rose-400" : warning ? "text-amber-400" : "text-slate-500"}`}>
         {warning ??
           (mode === "pct" || !allowValorMode
             ? `= ${formatBRL(resultingPrice)} após esse desconto`

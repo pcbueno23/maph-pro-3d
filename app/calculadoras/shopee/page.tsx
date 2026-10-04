@@ -752,6 +752,8 @@ export default function ShopeeCalculatorPage() {
                   ceilingPrice={discountChain.comDesconto}
                   ceilingHint="do desconto normal (não acumula com ele, substitui)"
                   allowValorMode={inputs.modo !== "margem"}
+                  safeMaxPercent={48}
+                  safeMaxWarning="Shopee recusa oferta relâmpago acima de 50% (desconto enganoso) — fique até 48% de folga"
                 />
                 <DiscountField
                   label="Cupom loja"

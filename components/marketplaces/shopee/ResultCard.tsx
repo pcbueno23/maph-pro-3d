@@ -413,6 +413,17 @@ Geração feita via MAPH PRO SHOPEE.
                 </p>
               )}
 
+              {(promocaoPercent > 0 || ofertaRelampagoPercent > 0) && (
+                <div className="flex items-start gap-1.5 rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-2 text-left">
+                  <Info size={12} className="mt-0.5 shrink-0 text-slate-400" />
+                  <p className="text-[11px] leading-snug text-slate-400">
+                    Antes de ativar, confira no painel da Shopee (ícone <strong className="text-slate-300">(i)</strong> ao
+                    lado do campo) o menor preço dos últimos 7 dias dessa variação — a campanha só é aceita com preço
+                    estritamente abaixo disso. Deixe uma folga de R$0,50 a R$1,00, não cole no limite.
+                  </p>
+                </div>
+              )}
+
               {badZone && (
                 <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-left print:hidden">
                   <div className="flex items-start gap-2">
