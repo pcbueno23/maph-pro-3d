@@ -304,7 +304,7 @@ export default function MargemShopeePage() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1700px] text-left text-xs">
+            <table className="w-full min-w-[1900px] text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-500">
                   <th className="sticky left-0 z-10 bg-slate-950 px-2 py-2 font-medium">Produto</th>
@@ -332,6 +332,18 @@ export default function MargemShopeePage() {
                   <th className="px-2 py-2 text-right font-medium">Cliente paga (com relâmpago)</th>
                   <th className="px-2 py-2 text-right font-medium">Lucro (com relâmpago)</th>
                   <th className="px-2 py-2 text-right font-medium">Margem (com relâmpago)</th>
+                  <th
+                    className="px-2 py-2 text-right font-medium"
+                    title="ROAS de equilíbrio com relâmpago ativo — abaixo disso, o anúncio dá prejuízo mesmo com a margem de contribuição atual"
+                  >
+                    ROAS mínimo
+                  </th>
+                  <th
+                    className="px-2 py-2 text-right font-medium"
+                    title="ROAS necessário com relâmpago ativo pra, depois de pagar o anúncio, ainda bater a margem alvo dos Parâmetros"
+                  >
+                    ROAS p/ margem alvo
+                  </th>
                   <th className="px-2 py-2 text-right font-medium">Preço p/ margem alvo</th>
                   <th className="px-2 py-2 text-right font-medium">Promoção p/ margem alvo</th>
                   <th className="px-2 py-2 font-medium">Alerta</th>
@@ -416,6 +428,8 @@ export default function MargemShopeePage() {
                     <td className={`px-2 py-2 text-right font-medium ${margemTone(r.margemComRelampagoPct, params.margemAlvoPercent)}`}>
                       {formatPct(r.margemComRelampagoPct)}
                     </td>
+                    <td className="px-2 py-2 text-right text-violet-300">{formatRoas(r.roasMinimoComRelampago)}</td>
+                    <td className="px-2 py-2 text-right text-violet-300">{formatRoas(r.roasParaMargemAlvoComRelampago)}</td>
                     <td className="px-2 py-2 text-right text-slate-300">{formatBRL(r.clienteDevePagarParaMargemAlvo)}</td>
                     <td className="px-2 py-2 text-right text-slate-300">{formatBRL(r.precoPromocaoParaMargemAlvo)}</td>
                     <td className="max-w-[200px] px-2 py-2 text-rose-300">{r.alerta}</td>

@@ -81,6 +81,11 @@ export type ComputedMarginRow = MarginRow & {
    * margem alvo dos Parâmetros. = 1 / (margemSemRelampagoPct - margemAlvo). Null se a
    * margem atual já está na meta ou abaixo dela mesmo sem gastar com anúncio. */
   roasParaMargemAlvo: number | null;
+  /** Mesma conta de roasMinimo, mas com a margem de contribuição COM relâmpago ativo —
+   * cenário mais comum de venda real. */
+  roasMinimoComRelampago: number | null;
+  /** Mesma conta de roasParaMargemAlvo, mas com a margem de contribuição COM relâmpago. */
+  roasParaMargemAlvoComRelampago: number | null;
 };
 
 /** LOOKUP(preco, tiers) — maior tier.min que seja <= preco (tiers precisam estar em ordem crescente). */
@@ -154,6 +159,13 @@ export function computeRow(row: MarginRow, params: MarginParams): ComputedMargin
     margemSemRelampagoPct != null && margemSemRelampagoPct > margemAlvoFrac
       ? 1 / (margemSemRelampagoPct - margemAlvoFrac)
       : null;
+  // Mesma conta, cenário com relâmpago ativo (a maioria das vendas reais acontece assim).
+  const roasMinimoComRelampago =
+    margemComRelampagoPct != null && margemComRelampagoPct > 0 ? 1 / margemComRelampagoPct : null;
+  const roasParaMargemAlvoComRelampago =
+    margemComRelampagoPct != null && margemComRelampagoPct > margemAlvoFrac
+      ? 1 / (margemComRelampagoPct - margemAlvoFrac)
+      : null;
 
   let alerta = "";
   if (row.precoRelampago != null && row.precoPromocaoRede != null && row.precoRelampago >= row.precoPromocaoRede) {
@@ -184,6 +196,8 @@ export function computeRow(row: MarginRow, params: MarginParams): ComputedMargin
     alerta,
     roasMinimo,
     roasParaMargemAlvo,
+    roasMinimoComRelampago,
+    roasParaMargemAlvoComRelampago,
   };
 }
 
