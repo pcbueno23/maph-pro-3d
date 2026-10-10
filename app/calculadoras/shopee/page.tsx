@@ -761,6 +761,7 @@ export default function ShopeeCalculatorPage() {
                   onPercentChange={(v) => setNum("cupomLojaPercent", v)}
                   referencePrice={discountChain.precoAtivo}
                   allowValorMode={inputs.modo !== "margem"}
+                  capAmount={inputs.cupomMaxRS}
                 />
                 <InputField
                   label="Teto do cupom"

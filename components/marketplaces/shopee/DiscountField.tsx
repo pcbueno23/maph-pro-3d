@@ -16,6 +16,7 @@ export default function DiscountField({
   allowValorMode = true,
   safeMaxPercent,
   safeMaxWarning,
+  capAmount,
 }: {
   label: string;
   percent: number;
@@ -38,6 +39,10 @@ export default function DiscountField({
    * cujo teto real é 50% — acima disso a Shopee recusa por "desconto enganoso"). */
   safeMaxPercent?: number;
   safeMaxWarning?: string;
+  /** Teto em R$ do valor do desconto (ex.: cupom "5%, até R$2") — a dica de preço
+   * resultante precisa respeitar esse limite, senão mostra um valor que nunca vai
+   * acontecer de verdade. */
+  capAmount?: number;
 }) {
   const [mode, setMode] = useState<Mode>("pct");
 
@@ -45,7 +50,10 @@ export default function DiscountField({
     if (!allowValorMode) setMode("pct");
   }, [allowValorMode]);
 
-  const resultingPrice = referencePrice * (1 - (percent || 0) / 100);
+  const rawDiscountAmount = referencePrice * (percent || 0) / 100;
+  const cappedByMax = capAmount != null && capAmount > 0 && rawDiscountAmount > capAmount;
+  const discountAmount = cappedByMax ? capAmount! : rawDiscountAmount;
+  const resultingPrice = referencePrice - discountAmount;
   // Aviso informativo, não bloqueia nem corrige o valor digitado — a estratégia de
   // ranqueamento pode aceitar qualquer combinação, inclusive lucro negativo.
   const ceilingWarning =
@@ -112,10 +120,10 @@ export default function DiscountField({
         />
       )}
 
-      <p className={`text-xs ${safeMaxExceeded ? "font-semibold text-rose-400" : warning ? "text-amber-400" : "text-slate-500"}`}>
+      <p className={`text-xs ${safeMaxExceeded ? "font-semibold text-rose-400" : warning ? "text-amber-400" : cappedByMax ? "text-amber-400" : "text-slate-500"}`}>
         {warning ??
           (mode === "pct" || !allowValorMode
-            ? `= ${formatBRL(resultingPrice)} após esse desconto`
+            ? `= ${formatBRL(resultingPrice)} após esse desconto${cappedByMax ? ` (limitado ao teto de ${formatBRL(capAmount!)})` : ""}`
             : `= ${formatPct(percent)} de desconto`)}
       </p>
     </div>

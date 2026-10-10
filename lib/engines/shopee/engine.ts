@@ -371,19 +371,26 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     // o preço de cadastro sobe pra compensar qualquer desconto dado.
     let precoFinalTarget = resolverPorMargem(inputs);
     if (!precoFinalTarget || precoFinalTarget <= 0) precoFinalTarget = 0.01;
-    precoFinalSugerido = precoFinalTarget;
 
-    const { precoAntesCupom, limitadoPeloTeto } = resolverPrecoAntesCupom(
-      precoFinalTarget,
-      cupomPercent,
-      cupomMaxRS,
-    );
-    cupomLimitadoPeloTeto = limitadoPeloTeto;
-    valorCupomRS = precoAntesCupom - precoFinalTarget;
+    const { precoAntesCupom } = resolverPrecoAntesCupom(precoFinalTarget, cupomPercent, cupomMaxRS);
     precoCadastroSugerido =
       descontoAtivoFracao > 0
         ? Math.ceil(precoAntesCupom / (1 - descontoAtivoFracao)) - 0.1
         : precoAntesCupom;
+
+    // precoCadastroSugerido arredonda pra CIMA (termina em ",90") — o preço que o
+    // cliente paga de verdade, calculado pra frente a partir desse cadastro já
+    // arredondado, fica um pouco ACIMA do precoFinalTarget usado só pra resolver
+    // o cadastro. Usa sempre esse preço real daqui em diante (nunca o target),
+    // senão o "ativo agora" e o Detalhamento de Custos mostram um valor que a
+    // Shopee nunca vai cobrar de fato (bug real, não só estético — pego numa
+    // revisão: cadastro R$111,90 + oferta 48% + cupom 5% até R$2 resulta em
+    // R$56,19 de verdade, não nos R$55,90 do target pré-arredondamento).
+    const precoAntesCupomReal = precoCadastroSugerido * (1 - descontoAtivoFracao);
+    const cupomReal = aplicarCupom(precoAntesCupomReal, cupomPercent, cupomMaxRS);
+    precoFinalSugerido = cupomReal.precoFinal;
+    cupomLimitadoPeloTeto = cupomReal.limitadoPeloTeto;
+    valorCupomRS = cupomReal.valorCupom;
   } else {
     // markup / lucroRS / precoTravado: cadastro fixo (independe do desconto), e o
     // desconto reduz de verdade o preço final — lucro/margem exibidos são o resultado
@@ -422,18 +429,10 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
           .precoFinal
       : null;
 
-  // No modo margem, o desconto/cupom "ativo agora" é o que já foi usado pra
-  // travar o preço final na meta — usa o mesmo número aqui em vez de recalcular
-  // pra frente a partir do preço de cadastro (já arredondado), senão os dois
-  // arredondamentos independentes divergem em centavos e o Detalhamento de
-  // Custos passa a não bater com o preço mostrado como "ativo agora".
-  if (modo === "margem") {
-    if (ofertaRelampagoPercent > 0) {
-      precoComOfertaECupom = precoFinalSugerido;
-    } else {
-      precoComDescontoECupom = precoFinalSugerido;
-    }
-  }
+  // No modo margem, precoFinalSugerido agora É o preço real calculado pra frente a
+  // partir do precoCadastroSugerido (ver acima) com a mesma fórmula usada aqui embaixo
+  // — então o que estiver "ativo agora" (oferta ou desconto normal) já bate sozinho,
+  // sem precisar forçar/sobrescrever nada.
 
   const custos = derivar(precoFinalSugerido, inputs, valorCupomRS);
   const {
