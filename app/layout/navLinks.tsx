@@ -19,6 +19,7 @@ import {
   MessageCircle,
   Puzzle,
   FileSpreadsheet,
+  Sparkles,
 } from "lucide-react";
 
 export type NavLinkItem = {
@@ -65,6 +66,7 @@ export const navGroups: NavGroup[] = [
       { href: "/ordens", label: "Ordens de produção", icon: Printer },
       { href: "/impressoras", label: "Impressoras", icon: Printer },
       { href: "/insumos", label: "Insumos", icon: FlaskConical },
+      { href: "/prompts-impressao", label: "Prompts IA — Impressão 3D", icon: Sparkles },
     ],
   },
   {
