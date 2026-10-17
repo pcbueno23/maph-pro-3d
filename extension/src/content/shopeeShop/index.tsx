@@ -2,11 +2,30 @@ import { createRoot, type Root } from "react-dom/client";
 import { Panel } from "./Panel";
 import { watchShopItems, type ShopItem, type ShopDebugInfo } from "./scrape";
 import { computeShopStats } from "./aggregate";
+import {
+  upsertShopMiniCard,
+  pruneShopMiniCards,
+  repositionAllShopMiniCards,
+  clearAllShopMiniCards,
+  initShopMiniCardTheme,
+} from "./miniCard";
 import { onDiagnostic, type Diagnostic } from "../../lib/shopeeCapture";
 import { sendToBackground } from "../../lib/messaging";
 import { onAuthChange, isAdminEmail } from "../../lib/authGate";
 import { getTheme, onThemeChange } from "../../lib/theme";
 import { BADGE_STYLES } from "../styles";
+
+/** Pinta o mini-card individual embaixo de cada anúncio da loja (dado daquele
+ * item, não o resumo da loja) — só pra itens já casados com um elemento DOM. */
+function paintItemMiniCards(items: ShopItem[], locked: boolean) {
+  const activeEls = new Set<HTMLElement>();
+  for (const item of items) {
+    if (!item.el) continue;
+    activeEls.add(item.el);
+    upsertShopMiniCard(item, locked);
+  }
+  pruneShopMiniCards(activeEls);
+}
 
 const HOST_ID = "mp3d-shopee-shop-panel";
 const POS_KEY = "mp3d_shop_panel_pos";
@@ -45,6 +64,7 @@ export function mountShopPanel(): () => void {
 
   getTheme().then((t) => host.setAttribute("data-theme", t));
   const stopThemeWatch = onThemeChange((t) => host.setAttribute("data-theme", t));
+  const stopMiniCardTheme = initShopMiniCardTheme();
 
   loadPanelPos().then((pos) => {
     host.style.top = `${pos.top}px`;
@@ -116,6 +136,13 @@ export function mountShopPanel(): () => void {
 
   const render = (loading: boolean) => {
     if (stopped) return;
+    paintItemMiniCards(latestItems, !signedIn);
+    // Reposiciona de novo logo em seguida (igual shopeeSearch/index.tsx): o
+    // próprio ato de pintar/colapsar mini-cards muda a altura da página.
+    window.setTimeout(() => {
+      if (!stopped) repositionAllShopMiniCards();
+    }, 60);
+
     const stats = computeShopStats(latestItems, latestTotal);
     root.render(
       <Panel
@@ -141,6 +168,16 @@ export function mountShopPanel(): () => void {
 
   render(true);
 
+  // Coordenadas dos mini-cards são absolutas na página — rolar não precisa
+  // reposicionar, só resize e o carregamento preguiçoso de imagem da Shopee
+  // (muda a altura dos cards depois do primeiro paint).
+  window.addEventListener("resize", repositionAllShopMiniCards);
+  const warmupTimers = [500, 1200, 2500, 4000].map((delay) =>
+    window.setTimeout(() => {
+      if (!stopped) repositionAllShopMiniCards();
+    }, delay),
+  );
+
   const stopDiagnostic = onDiagnostic((d) => {
     latestDiagnostic = d;
     render(!received);
@@ -165,8 +202,12 @@ export function mountShopPanel(): () => void {
     stopDiagnostic();
     stopAuthWatch();
     stopThemeWatch();
+    stopMiniCardTheme();
+    window.removeEventListener("resize", repositionAllShopMiniCards);
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerup", onPointerUp);
+    warmupTimers.forEach((t) => window.clearTimeout(t));
+    clearAllShopMiniCards();
     root.unmount();
     host.remove();
   };
