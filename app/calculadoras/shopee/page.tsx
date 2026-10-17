@@ -706,6 +706,7 @@ export default function ShopeeCalculatorPage() {
                     value={inputs.precoTravado}
                     onChange={(v) => setNum("precoTravado", v)}
                     prefix="R$"
+                    hint="Preço que o cliente paga de fato, já com oferta relâmpago/desconto/cupom aplicados. O cadastro sobe sozinho pra compensar."
                   />
                 )}
 
@@ -734,11 +735,12 @@ export default function ShopeeCalculatorPage() {
                   step={0.1}
                 />
 
-                {inputs.modo === "margem" && (
+                {(inputs.modo === "margem" || inputs.modo === "precoTravado") && (
                   <div className="sm:col-span-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-200/90">
-                    No modo Margem, o preço final e o lucro ficam sempre travados na meta —
-                    os descontos abaixo só mudam quanto cadastrar, não o que o cliente paga.
-                    Pra ver o lucro cair de verdade com o desconto, use o modo Markup.
+                    {inputs.modo === "margem"
+                      ? "No modo Margem, o preço final e o lucro ficam sempre travados na meta — os descontos abaixo só mudam quanto cadastrar, não o que o cliente paga."
+                      : "No modo Preço travado, o valor acima É o preço final ao cliente — os descontos abaixo só mudam quanto cadastrar pra chegar nesse preço, nunca reduzem ele."}
+                    {" "}Pra ver o lucro cair de verdade com o desconto, use o modo Markup.
                   </div>
                 )}
 

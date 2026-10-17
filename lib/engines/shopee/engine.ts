@@ -438,10 +438,14 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
   /** Cupom da loja em R$, no cenário de preço ativo — usado na taxa de transação. */
   let valorCupomRS = 0;
 
-  if (modo === "margem") {
-    // Comportamento original: o preço final (e a margem) ficam garantidos na meta,
-    // o preço de cadastro sobe pra compensar qualquer desconto dado.
-    let precoFinalTarget = resolverPorMargem(inputs);
+  if (modo === "margem" || modo === "precoTravado") {
+    // Margem: o preço final (e a margem) ficam garantidos na meta — o preço de
+    // cadastro sobe pra compensar qualquer desconto dado. Preço travado: o MESMO
+    // raciocínio, mas o alvo não vem de uma meta de margem calculada, vem direto do
+    // que o usuário digitou — "preço travado" é o preço final ao cliente (depois de
+    // oferta relâmpago/desconto/cupom), não o preço de cadastro. O cadastro sobe pra
+    // compensar os descontos e entregar esse preço final exato.
+    let precoFinalTarget = modo === "margem" ? resolverPorMargem(inputs) : inputs.precoTravado;
     if (!precoFinalTarget || precoFinalTarget <= 0) precoFinalTarget = 0.01;
 
     const { precoAntesCupom } = resolverPrecoAntesCupomGeral(precoFinalTarget, inputs);
@@ -465,13 +469,11 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     valorCupomRS = cupomReal.valorCupom;
     cupomTierAtivoLabel = cupomReal.label;
   } else {
-    // markup / lucroRS / precoTravado: cadastro fixo (independe do desconto), e o
-    // desconto reduz de verdade o preço final — lucro/margem exibidos são o resultado
-    // real (podem cair ou até ficar negativos). É o comportamento certo pra simular
-    // estratégias de ranqueamento (ver o quanto o desconto consome da margem).
-    if (modo === "precoTravado") {
-      precoCadastroSugerido = inputs.precoTravado;
-    } else if (modo === "lucroRS") {
+    // markup / lucroRS: cadastro fixo (independe do desconto), e o desconto reduz de
+    // verdade o preço final — lucro/margem exibidos são o resultado real (podem cair
+    // ou até ficar negativos). É o comportamento certo pra simular estratégias de
+    // ranqueamento (ver o quanto o desconto consome da margem).
+    if (modo === "lucroRS") {
       precoCadastroSugerido = resolverPorLucroRS(inputs);
     } else {
       precoCadastroSugerido = resolverPorMarkup(inputs);
