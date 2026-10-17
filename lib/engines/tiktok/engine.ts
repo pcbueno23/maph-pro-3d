@@ -74,8 +74,13 @@ export type TikTokResult = {
   valorAfiliado: number;
   custoAds: number;
   valorTributacao: number;
+  /** ROAS de equilíbrio: abaixo disso a venda dá prejuízo (999 = sem dado suficiente). */
   roasMinimo: number;
   roasAlvo: number;
+  /** ROAS que você precisa bater na campanha (Ads/GMV Max) pra, depois do custo do
+   * próprio anúncio, ainda fechar com a margem alvo. Null se a margem já não fecha nem sem ads. */
+  roasAlvoParaMargem: number | null;
+  metaLucroPercent: number;
   margemContribuicao: number;
   margemContribuicaoPct: number;
   faixaLabel: string;
@@ -330,6 +335,14 @@ export function calcularPrecoTikTok(inputs: TikTokInputs): TikTokResult {
   const denomRoas = precoFinalSugerido - custosSemAds;
   const roasMinimo = denomRoas > 0 ? precoFinalSugerido / denomRoas : 999;
 
+  // ROAS que você precisa bater na campanha pra, além do próprio anúncio, ainda fechar
+  // com a margem alvo — mesma base completa do roasMinimo acima (nunca a margemContribuicao
+  // simplificada, que não inclui afiliado/tributação).
+  const margemAntesDosAdsPercent = precoFinalSugerido > 0 && denomRoas > 0 ? (denomRoas / precoFinalSugerido) * 100 : 0;
+  const metaMargem = inputs.metaLucroPercent || 0;
+  const roasAlvoParaMargem =
+    denomRoas > 0 && margemAntesDosAdsPercent > metaMargem ? 100 / (margemAntesDosAdsPercent - metaMargem) : null;
+
   const margemContribuicao = precoFinalSugerido - custoBase - valorComissao - valorSFP;
   const margemContribuicaoPct =
     precoFinalSugerido > 0 ? (margemContribuicao / precoFinalSugerido) * 100 : 0;
@@ -405,6 +418,8 @@ export function calcularPrecoTikTok(inputs: TikTokInputs): TikTokResult {
     valorTributacao,
     roasMinimo,
     roasAlvo,
+    roasAlvoParaMargem,
+    metaLucroPercent: metaMargem,
     margemContribuicao,
     margemContribuicaoPct,
     faixaLabel: getFaixaLabel(precoFinalSugerido, inputs.novoVendedorIsento),

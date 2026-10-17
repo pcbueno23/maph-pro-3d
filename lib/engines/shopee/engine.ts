@@ -46,7 +46,11 @@ export type ShopeeResult = {
   custoAcelera: number;
   /** Taxa de transação Shopee: 2% sobre (preço − cupom da loja pago pelo vendedor). */
   custoTaxaTransacao: number;
+  /** ROAS de equilíbrio: abaixo disso a venda dá prejuízo (999 = sem dado suficiente). */
   roasMinimo: number;
+  /** ROAS que você precisa bater na campanha pra, depois do custo do próprio anúncio, ainda
+   * fechar com a margem alvo (Meta de lucro %). Null quando a margem já não fecha nem sem ads. */
+  roasAlvoParaMargem: number | null;
   roasAlvo: number;
   margemContribuicao: number;
   margemContribuicaoPct: number;
@@ -459,6 +463,15 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     custoTaxaTransacao;
   const roasMinimo = denominador > 0 ? precoFinalSugerido / denominador : 999;
 
+  // ROAS que você precisa bater na campanha (Shopee Ads) pra, além de cobrir o próprio
+  // anúncio, ainda fechar com a margem alvo (mesma base de custo do roasMinimo acima —
+  // nunca uma versão simplificada, senão os dois números divergem e confundem).
+  const margemAntesDosAdsPercent = precoFinalSugerido > 0 ? (denominador / precoFinalSugerido) * 100 : 0;
+  const roasAlvoParaMargem =
+    denominador > 0 && margemAntesDosAdsPercent > (inputs.metaLucroPercent || 0)
+      ? 100 / (margemAntesDosAdsPercent - (inputs.metaLucroPercent || 0))
+      : null;
+
   const distribuicao = [
     { label: "Custo de compra", valor: custoBase, cor: "#6366f1" },
     { label: "Comissão Shopee", valor: valorComissao, cor: "#ee4d2d" },
@@ -536,6 +549,7 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     custoAcelera,
     custoTaxaTransacao,
     roasMinimo,
+    roasAlvoParaMargem,
     roasAlvo,
     margemContribuicao,
     margemContribuicaoPct,

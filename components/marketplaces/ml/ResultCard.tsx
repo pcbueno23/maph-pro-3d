@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { MlInputs, MlResult } from "@/lib/engines/ml/engine";
 import { formatBRL, formatPct } from "@/lib/engines/ml/engine";
+import { RoasCampaignBox } from "@/components/marketplaces/shared/RoasCampaignBox";
 
 function DonutChart({
   data,
@@ -193,6 +194,13 @@ export default function ResultCard({
     custos,
     distribuicao,
     estimativaVendas,
+    roasMinimo: roasMinimoResult,
+    roasBreakeven,
+    acosBreakeven,
+    roasTarget,
+    acosTarget,
+    tacosEscala,
+    metaLucroPercent: metaMargem,
   } = result;
 
   const totalCustos =
@@ -215,33 +223,11 @@ export default function ResultCard({
     roasAlvo,
     tacosPercent,
     proporcaoOrganica,
-    metaLucroPercent,
     promocaoPercent,
     cupomLojaPercent,
   } = inputs;
 
-  const margemBrutaPct = precoFinal > 0 ? (margemContribuicao / precoFinal) * 100 : 0;
-  const acosBreakeven = margemBrutaPct;
-  const roasBreakeven = acosBreakeven > 0 ? 1 / (acosBreakeven / 100) : null;
-  const metaMargem = metaLucroPercent || 20;
-  const acosTarget = Math.max(0, acosBreakeven - metaMargem);
-  const roasTarget = acosTarget > 0 ? 1 / (acosTarget / 100) : null;
-  const tacosEscala =
-    acosTarget > 0 ? acosTarget * (1 - (proporcaoOrganica || 50) / 100) : null;
-
-  const custosSemAds =
-    custoBase +
-    custos.comissao +
-    custos.taxaFixa +
-    custos.frete +
-    custos.nf +
-    custos.opsPercent +
-    custos.promo +
-    custos.cupom +
-    custos.oferta;
-  const denominador = precoFinal - custosSemAds;
-  const roasMinimo = denominador > 0 ? (precoFinal / denominador).toFixed(1) : null;
-  const roasOk = !roasAlvo || Number(roasAlvo) >= Number(roasMinimo || 0);
+  const roasOk = !roasAlvo || roasAlvo >= (roasMinimoResult ?? 0);
   const temDesconto = promocaoPercent > 0 || cupomLojaPercent > 0;
 
   const acos =
@@ -329,6 +315,13 @@ Gerado via MAPH PRO ML.
               </p>
             </div>
           )}
+
+          <RoasCampaignBox
+            roasMinimo={roasMinimoResult}
+            roasAlvoParaMargem={roasTarget}
+            metaLucroPercent={metaMargem}
+            adsPlatformLabel="Mercado Ads"
+          />
         </div>
 
         <div className="grid gap-3 px-5 pb-5 sm:grid-cols-2">
@@ -344,8 +337,7 @@ Gerado via MAPH PRO ML.
                 roasOk ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"
               }`}
             >
-              ROAS mínimo: {roasMinimo ? `x${roasMinimo}` : "—"}{" "}
-              {roasAlvo ? `· Seu alvo: x${roasAlvo}` : ""}
+              Seu ROAS configurado: {roasAlvo ? `x${roasAlvo}` : "—"}
             </p>
             <p className="mt-0.5 text-xs text-slate-300">
               Campanha lucrativa com o ROAS configurado
@@ -382,7 +374,7 @@ Gerado via MAPH PRO ML.
       >
         <div className="grid gap-2">
           <div className="rounded-xl border border-slate-800 bg-slate-950/30 px-4 py-3">
-            <p className="text-xs font-semibold text-slate-200">BreakEven</p>
+            <p className="text-xs font-semibold text-slate-200">Equilíbrio</p>
             <p className="mt-0.5 text-xs text-slate-500">
               Lucro zero no Ads
             </p>
@@ -399,7 +391,7 @@ Gerado via MAPH PRO ML.
           </div>
 
           <div className="rounded-xl border border-ml-200 bg-ml-50 px-4 py-3 dark:border-ml-500/30 dark:bg-ml-500/10">
-            <p className="text-xs font-semibold text-ml-700 dark:text-ml-300">Target</p>
+            <p className="text-xs font-semibold text-ml-700 dark:text-ml-300">Meta</p>
             <p className="mt-0.5 text-xs text-slate-300">
               Margem alvo de {formatPct(metaMargem)}
             </p>

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { ShopeeResult } from "@/lib/engines/shopee/engine";
 import { formatBRL, formatPct } from "@/lib/engines/shopee/engine";
+import { RoasCampaignBox } from "@/components/marketplaces/shared/RoasCampaignBox";
 
 type ShopeeBadPriceZone = {
   min: number;
@@ -251,6 +252,7 @@ export default function ResultCard({
     custoAcelera,
     custoTaxaTransacao,
     roasMinimo,
+    roasAlvoParaMargem,
     roasAlvo,
     faixaLabel,
     margemContribuicao,
@@ -446,6 +448,13 @@ Geração feita via MAPH PRO SHOPEE.
               )}
             </div>
           )}
+
+          <RoasCampaignBox
+            roasMinimo={roasMinimo}
+            roasAlvoParaMargem={roasAlvoParaMargem}
+            metaLucroPercent={margemMinimaPercent}
+            adsPlatformLabel="Shopee Ads"
+          />
         </div>
 
         <div className="grid gap-3 px-5 pb-5 sm:grid-cols-2">
@@ -461,7 +470,7 @@ Geração feita via MAPH PRO SHOPEE.
                 roasOk ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"
               }`}
             >
-              ROAS mínimo: x{roasMinimo.toFixed(1)} · Seu alvo: x{roasAlvo.toFixed(1)}
+              Seu ROAS configurado: x{roasAlvo.toFixed(1)}
             </p>
             <p className="mt-0.5 text-xs text-slate-300">
               Campanha lucrativa com o ROAS configurado

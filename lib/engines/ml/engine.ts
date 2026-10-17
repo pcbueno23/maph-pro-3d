@@ -43,14 +43,20 @@ export type MlResult = {
   margem: number;
   margemContribuicao: number;
   margemContribuicaoPct: number;
+  /** ROAS de equilíbrio (mesma base de custo completa do roasMinimo — não é o
+   * margemContribuicao simplificado, que não inclui NF/custos operacionais/promo/cupom). */
   roasMinimo: number | null;
   acosAtual: number | null;
   tacosEstimado: number | null;
+  /** Igual a roasMinimo — mantido como alias pra quem já usa esse nome. */
   roasBreakeven: number | null;
   acosBreakeven: number;
+  /** ROAS que você precisa bater na campanha (Mercado Ads) pra, depois do custo do
+   * próprio anúncio, ainda fechar com a margem alvo. Null se a margem já não fecha nem sem ads. */
   roasTarget: number | null;
   acosTarget: number;
   tacosEscala: number | null;
+  metaLucroPercent: number;
   projecaoMensal: {
     faturamento: number;
     lucroLiquido: number;
@@ -367,10 +373,12 @@ export function calcularPrecoML(inputs: MlInputs): MlResult {
   const tacosEstimado =
     acosAtual != null ? acosAtual * (1 - (inputs.proporcaoOrganica || 50) / 100) : null;
 
-  // Níveis ROAS/ACOS (portando a lógica explicativa do produto externo)
-  const margemBrutaPct = precoFinal > 0 ? (margemContribuicao / precoFinal) * 100 : 0;
-  const acosBreakeven = margemBrutaPct;
-  const roasBreakeven = acosBreakeven > 0 ? 1 / (acosBreakeven / 100) : null;
+  // Níveis ROAS/ACOS — MESMA base de custo completa do roasMinimo acima (denomRoas,
+  // que inclui NF/custos operacionais/promoção/cupom/oferta), nunca a margemContribuicao
+  // simplificada: usar bases diferentes fazia o ROAS mínimo do topo da tela divergir do
+  // ROAS mínimo mostrado aqui embaixo, dois números diferentes pro mesmo conceito.
+  const acosBreakeven = precoFinal > 0 && denomRoas > 0 ? (denomRoas / precoFinal) * 100 : 0;
+  const roasBreakeven = roasMinimo;
   const metaMargem = inputs.metaLucroPercent || 20;
   const acosTarget = Math.max(0, acosBreakeven - metaMargem);
   const roasTarget = acosTarget > 0 ? 1 / (acosTarget / 100) : null;
@@ -424,6 +432,7 @@ export function calcularPrecoML(inputs: MlInputs): MlResult {
     roasTarget,
     acosTarget,
     tacosEscala,
+    metaLucroPercent: metaMargem,
     projecaoMensal,
     custoBase,
     custos,
