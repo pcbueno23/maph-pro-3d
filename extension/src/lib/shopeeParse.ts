@@ -145,15 +145,17 @@ export function parseItemNode(node: any): ParsedItem {
         "sold",
         "global_sold",
       ]),
-    // "Últimos 30 dias" direto da Shopee quando existir — só confirmado em
-    // shop/rcmd_items, e só como número (não vi variante em texto ainda). Pode vir 0
-    // mesmo com vendas recentes (mesma suspeita do historical_sold_count acima) —
-    // por isso o painel da loja também calcula uma estimativa própria (histórico ÷
-    // dias no ar) e mostra as duas, nunca só confiando nesse campo sozinho.
-    soldMonthly: pick<number>(node, [
-      "item_card_display_sold_count.monthly_sold_count",
-      "item_data.item_card_display_sold_count.monthly_sold_count",
-    ]),
+    // "Últimos 30 dias" direto da Shopee — mesma pegadinha do historical_sold_count:
+    // confirmado ao vivo (17/10/2026) que "monthly_sold_count" (número) vem 0 mesmo em
+    // item com "monthly_sold_count_text": "105 Vendido/Mês" — texto tentado ANTES do
+    // número pelo mesmo motivo. O painel da loja ainda assim calcula uma estimativa
+    // própria (histórico ÷ dias no ar) como checagem cruzada, nunca só confia aqui.
+    soldMonthly:
+      parseDisplayCount(pick(node, ["item_card_display_sold_count.monthly_sold_count_text"])) ??
+      pick<number>(node, [
+        "item_card_display_sold_count.monthly_sold_count",
+        "item_data.item_card_display_sold_count.monthly_sold_count",
+      ]),
     liked: pick<number>(node, [
       "item_basic.liked_count",
       "item_data.liked_count",
