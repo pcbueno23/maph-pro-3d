@@ -26,6 +26,7 @@ const PATTERN_LABELS: Record<CapturePatternKey, string> = {
   pdpGetPc: "Detalhe do anúncio (pdp/get_pc)",
   searchItems: "Resultados da busca (search_items)",
   itemGet: "item/get (endpoint antigo, fallback)",
+  shopRcmdItems: "Grade de produtos da loja (shop/rcmd_items)",
 };
 
 export function Panel({

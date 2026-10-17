@@ -15,13 +15,44 @@
  */
 import { mountProductOverlay } from "./shopeeProduct";
 import { mountSearchPanel } from "./shopeeSearch";
+import { mountShopPanel } from "./shopeeShop";
 import { mountAuthModal } from "./authModalMount";
 
 // Modal de login — independente de a página ser anúncio ou busca, então
 // fica montado uma vez só, fora do liga/desliga de `applyKind` abaixo.
 mountAuthModal();
 
-type PageKind = "product" | "search" | null;
+type PageKind = "product" | "search" | "shop" | null;
+
+/**
+ * Rotas de 1 segmento que a Shopee reserva pra outras coisas (carrinho,
+ * notificação, conta etc.) e que por isso NÃO são a página-vitrine de uma
+ * loja, mesmo tendo o mesmo formato de URL (`shopee.com.br/<slug>`).
+ * Confirmado real: página de loja é `shopee.com.br/storeffmaker?page=0&sortBy=sales&tab=0`
+ * — um slug qualquer, sem outro segmento de path depois.
+ */
+const RESERVED_ROOT_PATHS = new Set([
+  "cart", "checkout", "payment", "notification", "notifications", "wishlist",
+  "flash_sale", "flashsale", "daily_discover", "live", "lives", "lucky_draw",
+  "shopee_premium", "shopeepay", "lelong", "voucher", "vouchers", "coin", "coins",
+  "m", "app_redirect", "download", "about-us", "legal", "terms", "privacy-policy",
+  "help", "feedback", "verify", "buyer", "seller", "user", "sellercenter",
+  "shop_collection", "campaign", "offline", "cancel", "return-refund", "chat",
+  "inbox", "me", "settings", "address", "bank-account", "my-purchase", "product",
+  "search", "cat", "void", "universal-link", "mall",
+]);
+
+function isShopPath(href: string): boolean {
+  try {
+    const path = new URL(href).pathname;
+    const match = /^\/([^/]+)\/?$/.exec(path);
+    if (!match) return false;
+    const slug = match[1].toLowerCase();
+    return slug.length > 0 && !RESERVED_ROOT_PATHS.has(slug);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Link de afiliado (ex.: encurtador s.shopee.com.br) redireciona pra um
@@ -47,6 +78,7 @@ function detectKind(href: string): PageKind {
   ) {
     return "search";
   }
+  if (isShopPath(href)) return "shop";
   return null;
 }
 
@@ -60,6 +92,7 @@ function applyKind(kind: PageKind) {
   currentKind = kind;
   if (kind === "product") cleanup = mountProductOverlay();
   else if (kind === "search") cleanup = mountSearchPanel();
+  else if (kind === "shop") cleanup = mountShopPanel();
 }
 
 function checkUrl() {

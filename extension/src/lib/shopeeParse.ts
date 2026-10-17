@@ -27,6 +27,12 @@ export type ParsedItem = {
   discountPercent: number | null;
   thumbnailUrl: string | null;
   sold: number | null;
+  /** Vendido nos últimos 30 dias — só vem preenchido em endpoints que trazem
+   * `monthly_sold_count` (ex.: shop/rcmd_items). Confirmado ao vivo que às vezes vem 0
+   * mesmo pra item com vendas (ver comentário de `parseDisplayCount`/sold abaixo) —
+   * trate como "dado da Shopee, mas pode subestimar"; prefira o `salesPerDay` estimado
+   * (histórico ÷ dias no ar) quando precisar de um número mais confiável. */
+  soldMonthly: number | null;
   liked: number | null;
   reviewCount: number | null;
   rating: number | null;
@@ -89,6 +95,7 @@ export function parseItemNode(node: any): ParsedItem {
       pick(node, [
         "item_basic.price",
         "item_data.item_card_display_price.price",
+        "item_card_display_price.price", // shop/rcmd_items (sem o prefixo "item_data.")
         "item_card_displayed_asset.display_price.price",
         "price",
         "price_info.current_price",
@@ -99,6 +106,7 @@ export function parseItemNode(node: any): ParsedItem {
       pick(node, [
         "item_basic.price_before_discount",
         "item_data.item_card_display_price.original_price",
+        "item_card_display_price.original_price", // shop/rcmd_items
         "item_card_displayed_asset.display_price.strikethrough_price",
         "price_before_discount",
         "price_info.original_price",
@@ -107,6 +115,7 @@ export function parseItemNode(node: any): ParsedItem {
     discountPercent: pick<number>(node, [
       "item_basic.raw_discount",
       "item_data.item_card_display_price.discount",
+      "item_card_display_price.discount", // shop/rcmd_items
       "raw_discount",
       "discount",
     ]),
@@ -120,12 +129,30 @@ export function parseItemNode(node: any): ParsedItem {
       ]);
       return image ? `https://down-br.img.susercontent.com/file/${image}` : null;
     })(),
-    sold: pick<number>(node, [
-      "item_basic.historical_sold",
-      "item_data.item_card_display_sold_count.historical_sold_count",
-      "historical_sold",
-      "sold",
-      "global_sold",
+    // Em shop/rcmd_items, confirmado ao vivo (17/10/2026) que o campo numérico
+    // "historical_sold_count" vem 0 mesmo em item com vendas reais — só o texto
+    // formatado "historical_sold_count_text" ("12 Vendido(s)") tem o valor certo
+    // (mesma pegadinha que o pdp/get_pc já tinha, ver parsePdpGetPc). Por isso o
+    // texto é tentado ANTES do número aqui — não quebra os outros endpoints porque
+    // eles não têm esse campo de texto (pick só "acha" o que existir de fato).
+    sold:
+      parseDisplayCount(pick(node, ["item_card_display_sold_count.historical_sold_count_text"])) ??
+      pick<number>(node, [
+        "item_basic.historical_sold",
+        "item_data.item_card_display_sold_count.historical_sold_count",
+        "item_card_display_sold_count.historical_sold_count", // shop/rcmd_items
+        "historical_sold",
+        "sold",
+        "global_sold",
+      ]),
+    // "Últimos 30 dias" direto da Shopee quando existir — só confirmado em
+    // shop/rcmd_items, e só como número (não vi variante em texto ainda). Pode vir 0
+    // mesmo com vendas recentes (mesma suspeita do historical_sold_count acima) —
+    // por isso o painel da loja também calcula uma estimativa própria (histórico ÷
+    // dias no ar) e mostra as duas, nunca só confiando nesse campo sozinho.
+    soldMonthly: pick<number>(node, [
+      "item_card_display_sold_count.monthly_sold_count",
+      "item_data.item_card_display_sold_count.monthly_sold_count",
     ]),
     liked: pick<number>(node, [
       "item_basic.liked_count",
@@ -150,11 +177,14 @@ export function parseItemNode(node: any): ParsedItem {
     sellerName: pick<string>(node, [
       "item_basic.shop_name",
       "item_data.shop_data.shop_name",
+      "shop_data.shop_name", // shop/rcmd_items
       "shop_name",
       "shop.name",
     ]),
     sellerLocation: pick<string>(node, [
       "item_basic.shop_location",
+      "item_data.shop_data.shop_location",
+      "shop_data.shop_location", // shop/rcmd_items
       "item_card_displayed_asset.shop_location",
       "shop_location",
       "shop.shop_location",
@@ -221,4 +251,24 @@ export function parseSearchItems(json: unknown): SearchItemsParseResult {
   const rawFirstEntry = items[0];
   const parsed = items.map((entry) => parseItemNode(entry));
   return { items: parsed, rawJson: json, rawFirstEntry };
+}
+
+export type ShopRcmdItemsParseResult = SearchItemsParseResult & {
+  /** Total de produtos da loja (segundo a própria Shopee) — pode ser bem maior que
+   * `items.length` nessa captura: a loja pagina, e só capturamos a(s) página(s) que o
+   * usuário realmente visitou. Usado pra deixar claro na tela que o dado é parcial. */
+  total: number | null;
+};
+
+/** `shop/rcmd_items` (página da loja): lista em `data.centralize_item_card.item_cards`
+ * — confirmado ao vivo em 17/10/2026 (ver CAPTURE_PATTERNS.shopRcmdItems). */
+export function parseShopRcmdItems(json: unknown): ShopRcmdItemsParseResult {
+  const items = pick<any[]>(json, ["data.centralize_item_card.item_cards"]) ?? [];
+  const total = pick<number>(json, ["data.total"]);
+  if (items.length === 0) {
+    return { items: [], rawJson: json, rawFirstEntry: null, total };
+  }
+  const rawFirstEntry = items[0];
+  const parsed = items.map((entry) => parseItemNode(entry));
+  return { items: parsed, rawJson: json, rawFirstEntry, total };
 }
