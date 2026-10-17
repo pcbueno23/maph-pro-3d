@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Flame, Gauge, RotateCcw, Save, TrendingUp } from "lucide-react";
 import InputField from "@/components/marketplaces/shopee/InputField";
 import DiscountField from "@/components/marketplaces/shopee/DiscountField";
+import { CupomTierEditor } from "@/components/marketplaces/shopee/CupomTierEditor";
 import ResultCard from "@/components/marketplaces/shopee/ResultCard";
 import ProductNameAutocomplete from "@/components/marketplaces/shared/ProductNameAutocomplete";
 import { PresetPicker, type PresetItem } from "@/components/marketplaces/shared/PresetPicker";
@@ -39,6 +40,7 @@ const DEFAULT_INPUTS: ShopeeInputs = {
   promocaoPercent: 15,
   cupomLojaPercent: 0,
   cupomMaxRS: 0,
+  cupomTiers: [],
   ofertaRelampagoPercent: 0,
   campanhasDestaque: false,
   shopeeAcelera: "none",
@@ -252,7 +254,10 @@ export default function ShopeeCalculatorPage() {
 
   const applyRankingStrategy = useCallback(
     (strategy: RankingStrategyKey) => {
-      setInputs((prev) => ({ ...prev, ...rankingStrategies[strategy] }));
+      // cupomTiers zerado: a estratégia define um cupom único (cupomLojaPercent) — se
+      // o editor por faixa estivesse ativo, ele teria prioridade e a estratégia pareceria
+      // não ter feito nada.
+      setInputs((prev) => ({ ...prev, ...rankingStrategies[strategy], cupomTiers: [] }));
     },
     [rankingStrategies],
   );
@@ -755,21 +760,15 @@ export default function ShopeeCalculatorPage() {
                   safeMaxPercent={48}
                   safeMaxWarning="Shopee recusa oferta relâmpago acima de 50% (desconto enganoso) — fique até 48% de folga"
                 />
-                <DiscountField
-                  label="Cupom loja"
-                  percent={inputs.cupomLojaPercent}
-                  onPercentChange={(v) => setNum("cupomLojaPercent", v)}
+                <CupomTierEditor
+                  tiers={inputs.cupomTiers}
+                  onTiersChange={(tiers) => set("cupomTiers", tiers)}
+                  flatPercent={inputs.cupomLojaPercent}
+                  onFlatPercentChange={(v) => setNum("cupomLojaPercent", v)}
+                  flatMaxRS={inputs.cupomMaxRS ?? 0}
+                  onFlatMaxRSChange={(v) => setNum("cupomMaxRS", v)}
                   referencePrice={discountChain.precoAtivo}
                   allowValorMode={inputs.modo !== "margem"}
-                  capAmount={inputs.cupomMaxRS}
-                />
-                <InputField
-                  label="Teto do cupom"
-                  value={inputs.cupomMaxRS ?? 0}
-                  onChange={(v) => setNum("cupomMaxRS", v)}
-                  prefix="R$"
-                  placeholder="Sem limite"
-                  hint="Ex.: cupom de 5%, até R$10 — deixe 0 pra não limitar."
                 />
 
                 <div className="flex flex-col gap-1">

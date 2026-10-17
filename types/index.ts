@@ -354,6 +354,16 @@ const shopeeInputsSchema = z.object({
   promocaoPercent: z.number().default(15),
   cupomLojaPercent: z.number().default(0),
   cupomMaxRS: z.number().default(0),
+  cupomTiers: z
+    .array(
+      z.object({
+        min: z.number().default(0),
+        percent: z.number().default(0),
+        maxRS: z.number().default(0),
+        label: z.string().optional(),
+      }),
+    )
+    .default([]),
   ofertaRelampagoPercent: z.number().default(0),
   campanhasDestaque: z.boolean().default(false),
   shopeeAcelera: z
