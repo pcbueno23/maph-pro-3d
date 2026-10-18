@@ -1,0 +1,97 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Box, Loader2 } from "lucide-react";
+import type { ModelFileEntry } from "@/lib/modelLibrary/types";
+import { generateThumbnail } from "@/lib/modelLibrary/thumbnail";
+import { getCachedThumbnail, setCachedThumbnail, thumbnailCacheKey } from "@/lib/modelLibrary/thumbnailCache";
+
+function fmtSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Só gera/lê a miniatura quando o card entra perto da tela — gerar os ~900 de
+ * uma vez travaria o navegador. `rootMargin` generoso pra já ir adiantando
+ * enquanto o usuário rola. */
+export function ModelCard({ entry }: { entry: ModelFileEntry }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState<string | null>(null);
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "failed">("idle");
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        observer.disconnect();
+        setStatus("loading");
+
+        const key = thumbnailCacheKey(entry.name, entry.size, entry.lastModified);
+        (async () => {
+          const cached = await getCachedThumbnail(key);
+          if (cached) {
+            setThumb(cached);
+            setStatus("done");
+            return;
+          }
+          try {
+            const file = await entry.handle.getFile();
+            const dataUrl = await generateThumbnail(file, entry.ext);
+            if (dataUrl) {
+              setThumb(dataUrl);
+              setStatus("done");
+              void setCachedThumbnail(key, dataUrl);
+            } else {
+              setStatus("failed");
+            }
+          } catch {
+            setStatus("failed");
+          }
+        })();
+      },
+      { rootMargin: "400px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="glass-panel flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/50 transition hover:border-cyan-500/30"
+    >
+      <div className="relative flex aspect-square items-center justify-center bg-slate-900/60">
+        {thumb ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={thumb} alt={entry.name} className="h-full w-full object-contain" draggable={false} />
+        ) : status === "failed" ? (
+          <div className="flex flex-col items-center gap-1 text-slate-600">
+            <Box className="h-9 w-9" />
+            <span className="text-[10px]">sem pré-visualização</span>
+          </div>
+        ) : (
+          <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
+        )}
+        <span className="absolute left-2 top-2 rounded-full border border-slate-700 bg-slate-950/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-300">
+          .{entry.ext}
+        </span>
+      </div>
+      <div className="space-y-0.5 p-2.5">
+        <p className="truncate text-xs font-semibold text-slate-100" title={entry.name}>
+          {entry.name}
+        </p>
+        <p
+          className="truncate text-[10px] text-slate-500"
+          title={entry.path.length > 0 ? entry.path.join(" / ") : entry.folderLabel}
+        >
+          {entry.path.length > 0 ? entry.path.join(" / ") : entry.folderLabel}
+        </p>
+        <p className="text-[10px] text-slate-600">{fmtSize(entry.size)}</p>
+      </div>
+    </div>
+  );
+}
