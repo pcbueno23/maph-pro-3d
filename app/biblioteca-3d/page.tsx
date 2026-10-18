@@ -156,8 +156,10 @@ export default function Biblioteca3DPage() {
           <p className="mt-1 text-sm text-slate-400">
             Aponte a pasta onde ficam seus downloads do MakerWorld, Printables, Cults3D etc. — a gente lê os .stl e
             .3mf direto do seu computador e mostra a miniatura de cada um, pra ficar fácil de reconhecer qual é
-            qual. Pra abrir no fatiador, é só achar pelo nome/miniatura e abrir normalmente pelo Explorer — o
-            navegador não consegue abrir o Bambu Studio sozinho.
+            qual. O ícone de copiar em cada card copia o caminho dentro da pasta (subpasta + nome) — cole na{" "}
+            <strong className="text-slate-300">barra de endereço</strong> do Explorer (não na busca) estando dentro
+            da pasta conectada, que ele abre o arquivo direto. O navegador não consegue mandar abrir o Bambu Studio
+            sozinho, essa é a forma mais próxima disso.
           </p>
         </div>
         <button
