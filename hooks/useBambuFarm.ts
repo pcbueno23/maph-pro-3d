@@ -52,6 +52,10 @@ export function useBambuFarm(userId: string | undefined, pollMs = 15_000) {
   const [bambuPassword, setBambuPassword] = useState("");
   const [bambuNeedsCode, setBambuNeedsCode] = useState(false);
   const [bambuCode, setBambuCode] = useState("");
+  /** Preenchido quando o login funcionou mas não conseguiu achar o uid — JSON real que a
+   * Bambu respondeu (token redigido), pra diagnosticar o nome certo do campo em vez de
+   * continuar adivinhando. Null quando não há nada pra mostrar. */
+  const [bambuUidDebug, setBambuUidDebug] = useState<{ loginJson: unknown; jwtPayload: unknown } | null>(null);
 
   async function getAuthToken(): Promise<string | null> {
     if (!supabase) return null;
@@ -115,6 +119,11 @@ export function useBambuFarm(userId: string | undefined, pollMs = 15_000) {
         setBambuError("A Bambu Lab mandou um código de verificação pro seu e-mail — digita ele abaixo.");
         return;
       }
+      if (data.uidMissing) {
+        setBambuUidDebug({ loginJson: data.debugLoginJson, jwtPayload: data.debugJwtPayload });
+      } else {
+        setBambuUidDebug(null);
+      }
       setBambuPassword("");
       await refreshBambuDevices();
     } catch {
@@ -139,6 +148,11 @@ export function useBambuFarm(userId: string | undefined, pollMs = 15_000) {
       if (!res.ok) {
         setBambuError(`${data.error ?? "Código inválido."} ${data.bambuBody ? `(${data.bambuBody})` : ""}`);
         return;
+      }
+      if (data.uidMissing) {
+        setBambuUidDebug({ loginJson: data.debugLoginJson, jwtPayload: data.debugJwtPayload });
+      } else {
+        setBambuUidDebug(null);
       }
       setBambuNeedsCode(false);
       setBambuCode("");
@@ -181,6 +195,7 @@ export function useBambuFarm(userId: string | undefined, pollMs = 15_000) {
     bambuNeedsCode,
     bambuCode,
     setBambuCode,
+    bambuUidDebug,
     refreshBambuDevices,
     handleBambuLogin,
     handleBambuVerify,

@@ -17,7 +17,17 @@ function baseUrl(region: string): string {
 }
 
 export type BambuLoginResult =
-  | { ok: true; accessToken: string; refreshToken: string | null; expiresAt: string | null; uid: string | null }
+  | {
+      ok: true;
+      accessToken: string;
+      refreshToken: string | null;
+      expiresAt: string | null;
+      uid: string | null;
+      /** Preenchido só quando `uid` veio null — pra parar de adivinhar nome de campo e
+       * ver o formato real que a Bambu respondeu (token em si nunca aparece aqui). */
+      debugLoginJson?: unknown;
+      debugJwtPayload?: unknown;
+    }
   | { ok: true; needsVerification: true }
   | { ok: false; status: number; body: string };
 
@@ -28,29 +38,49 @@ function extractUid(json: any): string | null {
   return raw != null ? String(raw) : null;
 }
 
-/**
- * O login da Bambu normalmente NÃO devolve um campo "uid" solto — o uid vem embutido
- * dentro do próprio accessToken (JWT), na claim "username" no formato "u_<uid>" (mesmo
- * formato já usado como username da conexão MQTT em bambuMqttPoll.ts). Técnica documentada
- * nos projetos open-source (pybambu decodifica o JWT do mesmo jeito) — mais confiável que
- * tentar adivinhar o formato do JSON de resposta do login.
- */
-function decodeUidFromAccessToken(accessToken: string): string | null {
+/** Decodifica só o payload do JWT (não exige validar assinatura — é usado aqui como
+ * leitura de dado, não como autenticação, a própria Bambu já autenticou). */
+function decodeJwtPayload(token: string): any {
   try {
-    const payloadB64 = accessToken.split(".")[1];
+    const payloadB64 = token.split(".")[1];
     if (!payloadB64) return null;
     const normalized = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
-    const json = JSON.parse(Buffer.from(normalized, "base64").toString("utf8"));
-    const username = json?.username;
-    if (typeof username === "string") {
-      const match = username.match(/^u_(.+)$/);
-      return match ? match[1] : username;
-    }
-    const sub = json?.sub;
-    return sub != null ? String(sub) : null;
+    return JSON.parse(Buffer.from(normalized, "base64").toString("utf8"));
   } catch {
     return null;
   }
+}
+
+/**
+ * Tenta achar o uid dentro do payload do JWT do accessToken — alguns projetos
+ * open-source (pybambu) leem a claim "username" (formato "u_<uid>", mesmo usado como
+ * username da conexão MQTT). Mantido como 2ª tentativa; se também vier null, o chamador
+ * expõe o payload bruto em vez de insistir num 3º palpite de nome de campo.
+ */
+function extractUidFromJwtPayload(payload: any): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const direct = payload.uid ?? payload.userId ?? payload.user_id ?? payload.id ?? null;
+  if (direct != null) return String(direct);
+  const username = payload.username;
+  if (typeof username === "string") {
+    const match = username.match(/^u_(.+)$/);
+    return match ? match[1] : username;
+  }
+  const sub = payload.sub;
+  return sub != null ? String(sub) : null;
+}
+
+/** Nunca devolve o valor de accessToken/refreshToken pro cliente — só o formato/tamanho. */
+function redactTokens(json: any): any {
+  if (!json || typeof json !== "object") return json;
+  const clone: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(json)) {
+    clone[k] =
+      (k === "accessToken" || k === "refreshToken") && typeof v === "string"
+        ? `[redigido, ${v.length} caracteres]`
+        : v;
+  }
+  return clone;
 }
 
 async function postJson(url: string, body: unknown, token?: string) {
@@ -88,12 +118,15 @@ export async function bambuLogin(
   }
 
   if (res.json?.accessToken) {
+    const jwtPayload = decodeJwtPayload(res.json.accessToken);
+    const uid = extractUid(res.json) ?? extractUidFromJwtPayload(jwtPayload);
     return {
       ok: true,
       accessToken: res.json.accessToken,
       refreshToken: res.json.refreshToken ?? null,
       expiresAt: null,
-      uid: extractUid(res.json) ?? decodeUidFromAccessToken(res.json.accessToken),
+      uid,
+      ...(uid == null ? { debugLoginJson: redactTokens(res.json), debugJwtPayload: jwtPayload } : {}),
     };
   }
 
@@ -120,12 +153,15 @@ export async function bambuLoginWithCode(
     return { ok: false, status: res.status, body: res.text.slice(0, 500) };
   }
   if (res.json?.accessToken) {
+    const jwtPayload = decodeJwtPayload(res.json.accessToken);
+    const uid = extractUid(res.json) ?? extractUidFromJwtPayload(jwtPayload);
     return {
       ok: true,
       accessToken: res.json.accessToken,
       refreshToken: res.json.refreshToken ?? null,
       expiresAt: null,
-      uid: extractUid(res.json) ?? decodeUidFromAccessToken(res.json.accessToken),
+      uid,
+      ...(uid == null ? { debugLoginJson: redactTokens(res.json), debugJwtPayload: jwtPayload } : {}),
     };
   }
   return { ok: false, status: 200, body: res.text.slice(0, 500) };

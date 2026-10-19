@@ -160,6 +160,7 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
 export default function FarmPage() {
   const user = useAuthStore((s) => s.user);
   const farm = useBambuFarm(user?.id);
+  const [showUidDebug, setShowUidDebug] = useState(false);
 
   const printing = farm.bambuDevices.filter((d) => d.online && d.progressPercent != null).length;
   const online = farm.bambuDevices.filter((d) => d.online).length;
@@ -203,6 +204,42 @@ export default function FarmPage() {
           >
             Desconectar agora
           </button>
+        </div>
+      ) : null}
+
+      {farm.bambuUidDebug ? (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <p className="font-semibold">
+            O login funcionou, mas não achei o campo certo com o uid — isso aqui é o JSON real que a Bambu
+            respondeu (sem o token em si). Manda um print dessa caixa aberta que eu ajusto certeiro.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowUidDebug((v) => !v)}
+            className="mt-1.5 text-[11px] font-semibold text-amber-300 hover:text-amber-100"
+          >
+            {showUidDebug ? "▾ esconder JSON" : "▸ ver JSON do login"}
+          </button>
+          {showUidDebug ? (
+            <div className="mt-2 space-y-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-300/80">
+                  Resposta do login
+                </p>
+                <pre className="mt-1 max-h-56 overflow-auto rounded-lg bg-slate-950/80 p-2 text-[10px] leading-snug text-amber-100/90">
+                  {JSON.stringify(farm.bambuUidDebug.loginJson, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-300/80">
+                  Dentro do token (JWT)
+                </p>
+                <pre className="mt-1 max-h-56 overflow-auto rounded-lg bg-slate-950/80 p-2 text-[10px] leading-snug text-amber-100/90">
+                  {JSON.stringify(farm.bambuUidDebug.jwtPayload, null, 2)}
+                </pre>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
