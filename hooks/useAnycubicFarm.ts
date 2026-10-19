@@ -10,8 +10,11 @@ export type AnycubicDeviceUI = {
   online: boolean;
   /** Vem do REST (getPrinters) — confiável mesmo sem o MQTT confirmar nada nesse ciclo. */
   restIsPrinting: boolean;
-  /** Vem do MQTT — null quando o poll desse ciclo não confirmou nada. */
+  /** printing: true/false já considera o print_status do projeto (REST, /work/project/getProjects)
+   * — funciona em qualquer modo, com ou sem MQTT. null só quando nem isso veio. */
   printing: boolean | null;
+  /** print_status cru do projeto (1=Printing, 2=Complete, 3=Cancelled... ver ANYCUBIC_PRINT_STATUS). */
+  printStatusRaw: number | null;
   progressPercent: number | null;
   remainingMinutes: number | null;
   elapsedMinutes: number | null;

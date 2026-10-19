@@ -199,10 +199,12 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
 
 function AnycubicCard({ d }: { d: AnycubicDeviceUI }) {
   const [showRaw, setShowRaw] = useState(false);
-  // MQTT confirmou dado rico (progresso) nesse ciclo — mais confiável que o REST sozinho.
-  const printingRich = d.online && d.progressPercent != null;
-  const pollFailed = d.online && !printingRich && d.pollDebug != null && (d.pollDebug.messagesReceived ?? 0) === 0;
-  const restOnlyPrinting = d.online && !printingRich && !pollFailed && (d.printing ?? d.restIsPrinting);
+  // d.printing já vem do print_status do projeto via REST (/work/project/getProjects) — dá
+  // certo em qualquer modo (web ou slicer), não depende mais só do MQTT confirmar algo.
+  const printingRich = d.online && d.printing === true;
+  // Só relevante no modo slicer, quando nem o MQTT nem o REST do projeto trouxeram nada.
+  const pollFailed =
+    d.online && d.printing == null && d.pollDebug != null && (d.pollDebug.messagesReceived ?? 0) === 0;
 
   return (
     <div className="glass-panel flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
@@ -217,7 +219,7 @@ function AnycubicCard({ d }: { d: AnycubicDeviceUI }) {
           }`}
         >
           {d.online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-          {!d.online ? "offline" : printingRich || restOnlyPrinting ? "imprimindo" : "ociosa"}
+          {!d.online ? "offline" : printingRich ? "imprimindo" : "ociosa"}
         </span>
       </div>
 
@@ -247,13 +249,6 @@ function AnycubicCard({ d }: { d: AnycubicDeviceUI }) {
               <Layers className="h-3 w-3" /> camada {d.layerNum} / {d.totalLayerNum}
             </p>
           ) : null}
-        </div>
-      ) : restOnlyPrinting ? (
-        <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-2 text-[11px] text-cyan-200">
-          <p className="font-semibold">🖨️ Imprimindo agora</p>
-          <p className="mt-0.5 text-cyan-200/70">
-            Confirmado pela Anycubic — progresso/tempo/camada ainda não vieram do MQTT nesse ciclo.
-          </p>
         </div>
       ) : pollFailed ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">

@@ -180,6 +180,78 @@ export async function anycubicListDevices(
   };
 }
 
+/** print_status do projeto (não confundir com o device_status/is_printing da impressora) —
+ * confirmado no enums.py do projeto de referência (AnycubicPrintStatus). */
+export const ANYCUBIC_PRINT_STATUS = {
+  PRINTING: 1,
+  COMPLETE: 2,
+  CANCELLED: 3,
+  DOWNLOADING: 4,
+  CHECKING: 5,
+  PREHEATING: 6,
+  SLICING: 7,
+  LEVELING: 9,
+} as const;
+
+export type AnycubicProjectInfo = {
+  progressPercent: number | null;
+  remainingMinutes: number | null;
+  elapsedMinutes: number | null;
+  layerNum: number | null;
+  totalLayerNum: number | null;
+  fileName: string | null;
+  printStatus: number | null;
+};
+
+function numOrNull(v: unknown): number | null {
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * GET /work/project/getProjects — dá progresso/tempo/camada direto via REST, SEM precisar
+ * de MQTT (nem do token do Slicer Next). Confirmado no projeto de referência
+ * (data_models/project.py `from_list_json`): a API não filtra por impressora na query, então
+ * busca a lista inteira (paginada) e pega o 1º projeto cujo printer_id bate com o nosso —
+ * mesmo critério usado lá (`get_latest_project`), "primeiro da lista", não necessariamente
+ * o mais recente por timestamp.
+ */
+export async function anycubicLatestProjectForPrinter(
+  sessionToken: string,
+  printerId: string,
+  mode: AnycubicAuthMode,
+): Promise<
+  | { ok: true; project: AnycubicProjectInfo | null; rawJson: unknown }
+  | { ok: false; status: number; body: string }
+> {
+  const res = await apiFetch("/work/project/getProjects", {
+    sessionToken,
+    mode,
+    query: { page: "1", limit: "50" },
+  });
+  if (!res.ok) return { ok: false, status: res.status, body: res.text.slice(0, 500) };
+  if (res.json?.code != null && Number(res.json.code) !== 1) {
+    return { ok: false, status: res.status, body: res.text.slice(0, 500) };
+  }
+  const list = Array.isArray(res.json?.data) ? res.json.data : [];
+  const match = list.find((p: any) => String(p.printer_id) === String(printerId));
+  if (!match) return { ok: true, project: null, rawJson: res.json };
+  return {
+    ok: true,
+    project: {
+      progressPercent: numOrNull(match.progress),
+      remainingMinutes: numOrNull(match.remain_time),
+      elapsedMinutes: numOrNull(match.print_time),
+      layerNum: numOrNull(match.settings?.curr_layer),
+      totalLayerNum: numOrNull(match.settings?.total_layers),
+      fileName: typeof match.gcode_name === "string" ? match.gcode_name : null,
+      printStatus: numOrNull(match.print_status),
+    },
+    rawJson: res.json,
+  };
+}
+
 /** Senha da conexão MQTT: o slicer access token, criptografado com RSA (PKCS#1 v1.5) usando
  * a chave pública do certificado CA da Anycubic, depois em base64 — confirmado no projeto
  * open-source de referência (fica junto do cert "AnycubicSlicer" usado no mTLS). */
