@@ -4,7 +4,45 @@ import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useBambuFarm, type BambuDeviceUI } from "@/hooks/useBambuFarm";
 import { useAnycubicFarm, type AnycubicDeviceUI } from "@/hooks/useAnycubicFarm";
-import { Thermometer, Layers, Clock, Wifi, WifiOff, RefreshCw, FileBox, TriangleAlert } from "lucide-react";
+import { Thermometer, Layers, Clock, RefreshCw, FileBox, TriangleAlert, ChevronDown } from "lucide-react";
+
+type CardTone = "printing" | "idle" | "offline" | "warn";
+
+/** Cor do card muda pelo STATUS (não por impressora aleatória) — assim dá pra bater o olho
+ * na grade inteira e achar quem precisa de atenção, sem ler cada card um por um. */
+const TONE_CLASSES: Record<
+  CardTone,
+  { border: string; bg: string; text: string; dot: string; ring: string }
+> = {
+  printing: {
+    border: "border-cyan-500/60",
+    bg: "bg-gradient-to-b from-cyan-500/10 to-slate-950/60",
+    text: "text-cyan-300",
+    dot: "bg-cyan-400",
+    ring: "shadow-[0_0_0_1px_rgba(34,211,238,0.25),0_0_20px_-4px_rgba(34,211,238,0.35)]",
+  },
+  idle: {
+    border: "border-slate-700",
+    bg: "bg-slate-900/50",
+    text: "text-slate-300",
+    dot: "bg-emerald-400",
+    ring: "",
+  },
+  offline: {
+    border: "border-slate-800",
+    bg: "bg-slate-950/50",
+    text: "text-slate-600",
+    dot: "bg-slate-600",
+    ring: "",
+  },
+  warn: {
+    border: "border-amber-500/50",
+    bg: "bg-amber-500/5",
+    text: "text-amber-300",
+    dot: "bg-amber-400",
+    ring: "",
+  },
+};
 
 function formatRemaining(minutes: number | null | undefined): string {
   if (minutes == null) return "—";
@@ -46,7 +84,7 @@ function isActivelyPrinting(d: BambuDeviceUI): boolean {
 }
 
 function PrinterCard({ d }: { d: BambuDeviceUI }) {
-  const [showRaw, setShowRaw] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const hasRichData = d.online && d.progressPercent != null;
   // FINISH/FAILED/IDLE = já não tá imprimindo mais, mesmo com progresso/camada ainda
   // presentes no último report — card volta pro visual de ociosa, não fica travado em
@@ -63,133 +101,112 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
   // confiança — uso isso como sinal básico de "imprimindo" enquanto o MQTT não emplaca.
   // Ignorado quando o MQTT já confirmou terminal nesse mesmo ciclo (mais recente que o REST).
   const restConfirmedPrinting = d.online && !printing && !terminal && d.restPrintStatus === "RUNNING";
+
+  const tone: CardTone = !d.online ? "offline" : printing || restConfirmedPrinting ? "printing" : pollFailed ? "warn" : "idle";
+  const t = TONE_CLASSES[tone];
+  const failReason = !d.pollDebug
+    ? null
+    : d.pollDebug.error
+      ? `Erro MQTT: ${d.pollDebug.error}`
+      : d.pollDebug.timedOut && !d.pollDebug.connected
+        ? "Não conectou no MQTT da Bambu a tempo."
+        : d.pollDebug.timedOut && d.pollDebug.connected && !d.pollDebug.subscribed
+          ? "Conectou mas não conseguiu se inscrever no tópico."
+          : d.pollDebug.timedOut
+            ? `Conectou, mas não chegou mensagem com dado de impressão em 6s (${d.pollDebug.messagesReceived} msg).`
+            : "Motivo desconhecido.";
+
   return (
-    <div className="glass-panel flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold text-slate-50">{d.name}</p>
-          {d.model ? <p className="text-[11px] text-slate-500">{d.model}</p> : null}
+    <div className={`flex flex-col overflow-hidden rounded-xl border-2 transition ${t.border} ${t.bg} ${t.ring}`}>
+      <div className="flex aspect-square flex-col p-2.5">
+        <div className="flex items-start justify-between gap-1">
+          <p className="truncate text-[13px] font-bold leading-tight text-slate-50">{d.name}</p>
+          <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${t.dot}`} title={d.online ? "online" : "offline"} />
         </div>
-        <span
-          className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-            d.online ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-500"
-          }`}
-        >
-          {d.online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-          {statusLabel(d)}
-        </span>
-      </div>
+        <p className="truncate text-[10px] font-medium uppercase tracking-wide text-slate-500">{d.model ?? ""}</p>
 
-      {d.fileName ? (
-        <p className="flex items-center gap-1.5 truncate text-xs text-slate-300" title={d.fileName}>
-          <FileBox className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
-          {d.fileName}
-        </p>
-      ) : null}
+        <div className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center">
+          {printing ? (
+            <>
+              <p className={`text-3xl font-black tabular-nums ${t.text}`}>{d.progressPercent}%</p>
+              <p className="flex items-center gap-1 text-[11px] font-semibold text-slate-300">
+                <Clock className="h-3 w-3" /> {formatRemaining(d.remainingMinutes)}
+              </p>
+            </>
+          ) : restConfirmedPrinting ? (
+            <p className={`text-base font-extrabold ${t.text}`}>imprimindo</p>
+          ) : pollFailed ? (
+            <>
+              <TriangleAlert className="h-6 w-6 text-amber-400" />
+              <p className="text-[10px] font-semibold text-amber-300">status incerto</p>
+            </>
+          ) : (
+            <p className="text-sm font-bold text-slate-400">{statusLabel(d)}</p>
+          )}
+        </div>
 
-      {printing ? (
-        <div>
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" /> falta {formatRemaining(d.remainingMinutes)}
-            </span>
-            <span className="font-semibold text-slate-200">{d.progressPercent}%</span>
-          </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-800">
+        {printing ? (
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
             <div
               className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500"
               style={{ width: `${Math.max(0, Math.min(100, d.progressPercent ?? 0))}%` }}
             />
           </div>
+        ) : null}
+
+        {d.nozzleTemper != null || d.bedTemper != null ? (
+          <div className="mt-1.5 flex items-center justify-between text-[12px] font-bold text-slate-300">
+            {d.nozzleTemper != null ? (
+              <span className="flex items-center gap-0.5">
+                <Thermometer className="h-3 w-3 text-rose-400" />
+                {d.nozzleTemper.toFixed(0)}°
+              </span>
+            ) : (
+              <span />
+            )}
+            {d.bedTemper != null ? (
+              <span className="flex items-center gap-0.5">
+                <Thermometer className="h-3 w-3 text-amber-400" />
+                {d.bedTemper.toFixed(0)}°
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center justify-center gap-1 border-t border-slate-800/80 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-900/60 hover:text-cyan-300"
+      >
+        <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
+
+      {expanded ? (
+        <div className="space-y-1.5 border-t border-slate-800/80 bg-slate-950/60 p-2.5 text-[11px]">
+          {d.fileName ? (
+            <p className="flex items-center gap-1.5 truncate text-slate-300" title={d.fileName}>
+              <FileBox className="h-3 w-3 shrink-0 text-cyan-400" />
+              {d.fileName}
+            </p>
+          ) : null}
           {d.layerNum != null && d.totalLayerNum != null ? (
-            <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500">
+            <p className="flex items-center gap-1 text-slate-500">
               <Layers className="h-3 w-3" /> camada {d.layerNum} / {d.totalLayerNum}
             </p>
           ) : null}
-        </div>
-      ) : restConfirmedPrinting ? (
-        <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-2 text-[11px] text-cyan-200">
-          <p className="font-semibold">🖨️ Imprimindo agora</p>
-          <p className="mt-0.5 text-cyan-200/70">
-            Confirmado pela Bambu — progresso/tempo/temperatura ainda não disponíveis aqui (dado mais rico
-            depende de uma conexão que ainda não emplacou, ver aviso no topo da página).
-          </p>
-        </div>
-      ) : pollFailed ? (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
-          <p className="flex items-center gap-1 font-semibold">
-            <TriangleAlert className="h-3 w-3 shrink-0" /> Não consegui confirmar o status ao vivo
-          </p>
-          <p className="mt-0.5 text-amber-200/80">
-            {d.pollDebug?.error
-              ? `Erro MQTT: ${d.pollDebug.error}`
-              : d.pollDebug?.timedOut && !d.pollDebug.connected
-                ? "Não conectou no MQTT da Bambu a tempo."
-                : d.pollDebug?.timedOut && d.pollDebug.connected && !d.pollDebug.subscribed
-                  ? "Conectou mas não conseguiu se inscrever no tópico."
-                  : d.pollDebug?.timedOut
-                    ? `Conectou, mas não chegou mensagem com dado de impressão em 6s (${d.pollDebug.messagesReceived} msg recebida(s) sem esse dado).`
-                    : "Motivo desconhecido — manda esse card pro suporte."}
-          </p>
-        </div>
-      ) : (
-        <div>
-          <p className="text-xs text-slate-500">{d.online ? "Sem impressão ativa." : "Impressora fora do ar."}</p>
+          {d.chamberTemper != null ? <p className="text-slate-500">Câmara {d.chamberTemper.toFixed(0)}°</p> : null}
+          {pollFailed && failReason ? <p className="text-amber-300/90">{failReason}</p> : null}
           {terminal ? (
-            <p className="mt-0.5 text-[10px] text-slate-600">
+            <p className="text-slate-600">
               Última impressão: {(d.printStatus ?? "").toUpperCase() === "FAILED" ? "falhou" : "concluída"}
             </p>
           ) : null}
-          {d.online && pollConfirmed && d.printStatus && !terminal ? (
-            <p className="mt-0.5 text-[10px] text-slate-600">status bruto da Bambu: "{d.printStatus}"</p>
+          {d.statusUpdatedAt ? (
+            <p className="text-slate-600">Atualizado {new Date(d.statusUpdatedAt).toLocaleTimeString("pt-BR")}</p>
           ) : null}
-        </div>
-      )}
-
-      {d.nozzleTemper != null || d.bedTemper != null || d.chamberTemper != null ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-800 pt-2 text-[11px] text-slate-400">
-          {d.nozzleTemper != null ? (
-            <span className="flex items-center gap-1">
-              <Thermometer className="h-3 w-3 text-rose-400" />
-              Bico {d.nozzleTemper.toFixed(0)}°
-              {d.nozzleTargetTemper != null ? `/${d.nozzleTargetTemper.toFixed(0)}°` : ""}
-            </span>
-          ) : null}
-          {d.bedTemper != null ? (
-            <span className="flex items-center gap-1">
-              <Thermometer className="h-3 w-3 text-amber-400" />
-              Mesa {d.bedTemper.toFixed(0)}°
-              {d.bedTargetTemper != null ? `/${d.bedTargetTemper.toFixed(0)}°` : ""}
-            </span>
-          ) : null}
-          {d.chamberTemper != null ? (
-            <span className="flex items-center gap-1">
-              <Thermometer className="h-3 w-3 text-slate-400" />
-              Câmara {d.chamberTemper.toFixed(0)}°
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
-      {d.statusUpdatedAt ? (
-        <p className="text-[10px] text-slate-600">
-          Atualizado {new Date(d.statusUpdatedAt).toLocaleTimeString("pt-BR")}
-        </p>
-      ) : null}
-
-      {d.raw != null ? (
-        <div className="border-t border-slate-800 pt-2">
-          <button
-            type="button"
-            onClick={() => setShowRaw((v) => !v)}
-            className="text-[10px] font-semibold text-slate-500 hover:text-cyan-300"
-          >
-            {showRaw ? "▾ esconder dado bruto" : "▸ ver dado bruto"}
-          </button>
-          {showRaw ? (
-            <pre className="mt-1.5 max-h-48 overflow-auto rounded-lg bg-slate-900/80 p-2 text-[10px] leading-snug text-slate-400">
-              {JSON.stringify(d.raw, null, 2)}
-            </pre>
+          {d.raw != null ? (
+            <RawDataToggle raw={d.raw} />
           ) : null}
         </div>
       ) : null}
@@ -197,8 +214,28 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
   );
 }
 
+function RawDataToggle({ raw }: { raw: unknown }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setShow((v) => !v)}
+        className="font-semibold text-slate-600 hover:text-cyan-300"
+      >
+        {show ? "▾ esconder dado bruto" : "▸ ver dado bruto"}
+      </button>
+      {show ? (
+        <pre className="mt-1.5 max-h-48 overflow-auto rounded-lg bg-slate-900/80 p-2 text-[10px] leading-snug text-slate-400">
+          {JSON.stringify(raw, null, 2)}
+        </pre>
+      ) : null}
+    </div>
+  );
+}
+
 function AnycubicCard({ d }: { d: AnycubicDeviceUI }) {
-  const [showRaw, setShowRaw] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   // d.printing já vem do print_status do projeto via REST (/work/project/getProjects) — dá
   // certo em qualquer modo (web ou slicer), não depende mais só do MQTT confirmar algo.
   const printingRich = d.online && d.printing === true;
@@ -206,106 +243,100 @@ function AnycubicCard({ d }: { d: AnycubicDeviceUI }) {
   const pollFailed =
     d.online && d.printing == null && d.pollDebug != null && (d.pollDebug.messagesReceived ?? 0) === 0;
 
+  const tone: CardTone = !d.online ? "offline" : printingRich ? "printing" : pollFailed ? "warn" : "idle";
+  const t = TONE_CLASSES[tone];
+  const failReason = !d.pollDebug
+    ? null
+    : d.pollDebug.error
+      ? `Erro MQTT: ${d.pollDebug.error}`
+      : d.pollDebug.timedOut && !d.pollDebug.connected
+        ? "Não conectou no MQTT da Anycubic a tempo."
+        : d.pollDebug.timedOut && d.pollDebug.connected && !d.pollDebug.subscribed
+          ? "Conectou mas não conseguiu se inscrever no tópico."
+          : "Conectou, mas não chegou nenhuma mensagem nesse ciclo.";
+
   return (
-    <div className="glass-panel flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold text-slate-50">{d.name}</p>
-          {d.model ? <p className="text-[11px] text-slate-500">{d.model}</p> : null}
+    <div className={`flex flex-col overflow-hidden rounded-xl border-2 transition ${t.border} ${t.bg} ${t.ring}`}>
+      <div className="flex aspect-square flex-col p-2.5">
+        <div className="flex items-start justify-between gap-1">
+          <p className="truncate text-[13px] font-bold leading-tight text-slate-50">{d.name}</p>
+          <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${t.dot}`} title={d.online ? "online" : "offline"} />
         </div>
-        <span
-          className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-            d.online ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-500"
-          }`}
-        >
-          {d.online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-          {!d.online ? "offline" : printingRich ? "imprimindo" : "ociosa"}
-        </span>
-      </div>
+        <p className="truncate text-[10px] font-medium uppercase tracking-wide text-slate-500">{d.model ?? ""}</p>
 
-      {d.fileName ? (
-        <p className="flex items-center gap-1.5 truncate text-xs text-slate-300" title={d.fileName}>
-          <FileBox className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
-          {d.fileName}
-        </p>
-      ) : null}
+        <div className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center">
+          {printingRich ? (
+            <>
+              <p className={`text-3xl font-black tabular-nums ${t.text}`}>{d.progressPercent}%</p>
+              <p className="flex items-center gap-1 text-[11px] font-semibold text-slate-300">
+                <Clock className="h-3 w-3" /> {formatRemaining(d.remainingMinutes)}
+              </p>
+            </>
+          ) : pollFailed ? (
+            <>
+              <TriangleAlert className="h-6 w-6 text-amber-400" />
+              <p className="text-[10px] font-semibold text-amber-300">status incerto</p>
+            </>
+          ) : (
+            <p className="text-sm font-bold text-slate-400">{d.online ? "ociosa" : "offline"}</p>
+          )}
+        </div>
 
-      {printingRich ? (
-        <div>
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" /> falta {formatRemaining(d.remainingMinutes)}
-            </span>
-            <span className="font-semibold text-slate-200">{d.progressPercent}%</span>
-          </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-800">
+        {printingRich ? (
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
             <div
               className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500"
               style={{ width: `${Math.max(0, Math.min(100, d.progressPercent ?? 0))}%` }}
             />
           </div>
+        ) : null}
+
+        {d.nozzleTemper != null || d.bedTemper != null ? (
+          <div className="mt-1.5 flex items-center justify-between text-[12px] font-bold text-slate-300">
+            {d.nozzleTemper != null ? (
+              <span className="flex items-center gap-0.5">
+                <Thermometer className="h-3 w-3 text-rose-400" />
+                {d.nozzleTemper.toFixed(0)}°
+              </span>
+            ) : (
+              <span />
+            )}
+            {d.bedTemper != null ? (
+              <span className="flex items-center gap-0.5">
+                <Thermometer className="h-3 w-3 text-amber-400" />
+                {d.bedTemper.toFixed(0)}°
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center justify-center gap-1 border-t border-slate-800/80 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-900/60 hover:text-cyan-300"
+      >
+        <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
+
+      {expanded ? (
+        <div className="space-y-1.5 border-t border-slate-800/80 bg-slate-950/60 p-2.5 text-[11px]">
+          {d.fileName ? (
+            <p className="flex items-center gap-1.5 truncate text-slate-300" title={d.fileName}>
+              <FileBox className="h-3 w-3 shrink-0 text-cyan-400" />
+              {d.fileName}
+            </p>
+          ) : null}
           {d.layerNum != null && d.totalLayerNum != null ? (
-            <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500">
+            <p className="flex items-center gap-1 text-slate-500">
               <Layers className="h-3 w-3" /> camada {d.layerNum} / {d.totalLayerNum}
             </p>
           ) : null}
-        </div>
-      ) : pollFailed ? (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
-          <p className="flex items-center gap-1 font-semibold">
-            <TriangleAlert className="h-3 w-3 shrink-0" /> Não consegui confirmar o status ao vivo
-          </p>
-          <p className="mt-0.5 text-amber-200/80">
-            {d.pollDebug?.error
-              ? `Erro MQTT: ${d.pollDebug.error}`
-              : d.pollDebug?.timedOut && !d.pollDebug.connected
-                ? "Não conectou no MQTT da Anycubic a tempo."
-                : d.pollDebug?.timedOut && d.pollDebug.connected && !d.pollDebug.subscribed
-                  ? "Conectou mas não conseguiu se inscrever no tópico."
-                  : "Conectou, mas não chegou nenhuma mensagem nesse ciclo (impressora ociosa pode demorar mais pra publicar algo)."}
-          </p>
-        </div>
-      ) : (
-        <p className="text-xs text-slate-500">{d.online ? "Sem impressão ativa." : "Impressora fora do ar."}</p>
-      )}
-
-      {d.nozzleTemper != null || d.bedTemper != null ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-800 pt-2 text-[11px] text-slate-400">
-          {d.nozzleTemper != null ? (
-            <span className="flex items-center gap-1">
-              <Thermometer className="h-3 w-3 text-rose-400" />
-              Bico {d.nozzleTemper.toFixed(0)}°
-            </span>
+          {pollFailed && failReason ? <p className="text-amber-300/90">{failReason}</p> : null}
+          {d.statusUpdatedAt ? (
+            <p className="text-slate-600">Atualizado {new Date(d.statusUpdatedAt).toLocaleTimeString("pt-BR")}</p>
           ) : null}
-          {d.bedTemper != null ? (
-            <span className="flex items-center gap-1">
-              <Thermometer className="h-3 w-3 text-amber-400" />
-              Mesa {d.bedTemper.toFixed(0)}°
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
-      {d.statusUpdatedAt ? (
-        <p className="text-[10px] text-slate-600">
-          Atualizado {new Date(d.statusUpdatedAt).toLocaleTimeString("pt-BR")}
-        </p>
-      ) : null}
-
-      {d.raw != null ? (
-        <div className="border-t border-slate-800 pt-2">
-          <button
-            type="button"
-            onClick={() => setShowRaw((v) => !v)}
-            className="text-[10px] font-semibold text-slate-500 hover:text-cyan-300"
-          >
-            {showRaw ? "▾ esconder dado bruto" : "▸ ver dado bruto"}
-          </button>
-          {showRaw ? (
-            <pre className="mt-1.5 max-h-48 overflow-auto rounded-lg bg-slate-900/80 p-2 text-[10px] leading-snug text-slate-400">
-              {JSON.stringify(d.raw, null, 2)}
-            </pre>
-          ) : null}
+          {d.raw != null ? <RawDataToggle raw={d.raw} /> : null}
         </div>
       ) : null}
     </div>
@@ -322,7 +353,10 @@ function AnycubicSection() {
     <div className="space-y-3 border-t border-slate-800 pt-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-slate-100">Anycubic Kobra X</h2>
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-orange-300">
+            Anycubic
+          </span>
+          <h2 className="mt-1.5 text-base font-semibold text-slate-100">Kobra X</h2>
           <p className="mt-0.5 text-xs text-slate-500">
             Experimental de verdade — engenharia reversa de um projeto da comunidade, nunca testado ao vivo.
             Login é diferente do resto: precisa extrair um token do Anycubic Slicer Next (ver instruções abaixo).
@@ -402,7 +436,7 @@ function AnycubicSection() {
           <p className="text-sm text-slate-500">Conectado, mas nenhuma impressora encontrada na conta.</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
               {ac.devices.map((d) => (
                 <AnycubicCard key={d.devId} d={d} />
               ))}
@@ -645,7 +679,10 @@ export default function FarmPage() {
           <p className="text-sm text-slate-500">Conectado, mas nenhuma impressora encontrada na conta.</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-cyan-300">
+              Bambu Lab
+            </span>
+            <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
               {farm.bambuDevices.map((d) => (
                 <PrinterCard key={d.devId} d={d} />
               ))}
