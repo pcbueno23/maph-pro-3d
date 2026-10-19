@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useBambuFarm, type BambuDeviceUI } from "@/hooks/useBambuFarm";
 import { useAnycubicFarm, type AnycubicDeviceUI } from "@/hooks/useAnycubicFarm";
-import { Thermometer, Layers, Clock, RefreshCw, FileBox, TriangleAlert, ChevronDown } from "lucide-react";
+import { Thermometer, Layers, Clock, RefreshCw, TriangleAlert, ChevronDown } from "lucide-react";
 
 type CardTone = "printing" | "idle" | "offline" | "warn";
 
@@ -124,6 +124,11 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
           <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${t.dot}`} title={d.online ? "online" : "offline"} />
         </div>
         <p className="truncate text-[10px] font-medium uppercase tracking-wide text-slate-500">{d.model ?? ""}</p>
+        {d.fileName ? (
+          <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-400" title={d.fileName}>
+            {d.fileName}
+          </p>
+        ) : null}
 
         <div className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center">
           {printing ? (
@@ -184,12 +189,6 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
 
       {expanded ? (
         <div className="space-y-1.5 border-t border-slate-800/80 bg-slate-950/60 p-2.5 text-[11px]">
-          {d.fileName ? (
-            <p className="flex items-center gap-1.5 truncate text-slate-300" title={d.fileName}>
-              <FileBox className="h-3 w-3 shrink-0 text-cyan-400" />
-              {d.fileName}
-            </p>
-          ) : null}
           {d.layerNum != null && d.totalLayerNum != null ? (
             <p className="flex items-center gap-1 text-slate-500">
               <Layers className="h-3 w-3" /> camada {d.layerNum} / {d.totalLayerNum}
@@ -263,6 +262,11 @@ function AnycubicCard({ d }: { d: AnycubicDeviceUI }) {
           <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${t.dot}`} title={d.online ? "online" : "offline"} />
         </div>
         <p className="truncate text-[10px] font-medium uppercase tracking-wide text-slate-500">{d.model ?? ""}</p>
+        {d.fileName ? (
+          <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-400" title={d.fileName}>
+            {d.fileName}
+          </p>
+        ) : null}
 
         <div className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center">
           {printingRich ? (
@@ -321,12 +325,6 @@ function AnycubicCard({ d }: { d: AnycubicDeviceUI }) {
 
       {expanded ? (
         <div className="space-y-1.5 border-t border-slate-800/80 bg-slate-950/60 p-2.5 text-[11px]">
-          {d.fileName ? (
-            <p className="flex items-center gap-1.5 truncate text-slate-300" title={d.fileName}>
-              <FileBox className="h-3 w-3 shrink-0 text-cyan-400" />
-              {d.fileName}
-            </p>
-          ) : null}
           {d.layerNum != null && d.totalLayerNum != null ? (
             <p className="flex items-center gap-1 text-slate-500">
               <Layers className="h-3 w-3" /> camada {d.layerNum} / {d.totalLayerNum}
