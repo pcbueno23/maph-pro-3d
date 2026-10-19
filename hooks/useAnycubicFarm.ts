@@ -36,7 +36,7 @@ export type AnycubicDeviceUI = {
 
 /** Mesmo padrão de hooks/useBambuFarm.ts — conta Anycubic (Kobra X), login via token
  * extraído do Anycubic Slicer Next (processo manual, fora do SaaS). */
-export function useAnycubicFarm(userId: string | undefined, pollMs = 15_000) {
+export function useAnycubicFarm(userId: string | undefined, pollMs = 3 * 60_000) {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [devices, setDevices] = useState<AnycubicDeviceUI[]>([]);
   const [loading, setLoading] = useState(false);

@@ -41,10 +41,9 @@ export type BambuDeviceUI = {
 };
 
 /** Toda a lógica de conectar/consultar a conta Bambu Lab — extraída de app/impressoras
- * pra ser reaproveitada também no painel de farm dedicado (app/farm). Poll a cada 15s:
- * a rota /api/bambu/devices já faz o MQTT ao vivo por trás a cada chamada (ver seu
- * comentário), não depende mais só do cron diário. */
-export function useBambuFarm(userId: string | undefined, pollMs = 15_000) {
+ * pra ser reaproveitada também no painel de farm dedicado (app/farm). Atualiza sozinho ao
+ * entrar na página e depois a cada 3min — o botão "Atualizar" força na hora quando quiser. */
+export function useBambuFarm(userId: string | undefined, pollMs = 3 * 60_000) {
   const [bambuConnected, setBambuConnected] = useState<boolean | null>(null);
   const [bambuDevices, setBambuDevices] = useState<BambuDeviceUI[]>([]);
   /** false = a conta está sem o "uid" salvo (login antigo, antes desse dado existir) —
