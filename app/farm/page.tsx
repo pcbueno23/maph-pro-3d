@@ -19,7 +19,9 @@ function statusLabel(d: BambuDeviceUI): string {
   const map: Record<string, string> = {
     RUNNING: "imprimindo",
     PAUSE: "pausada",
-    FINISH: "finalizada",
+    // "FINISH" confirmado ao vivo (19/10/2026) — impressora terminou e está livre, por
+    // isso vira "ociosa" igual quem nunca imprimiu, não um status à parte.
+    FINISH: "ociosa",
     FAILED: "falhou",
     IDLE: "ociosa",
     PREPARE: "preparando",
@@ -44,7 +46,12 @@ function isActivelyPrinting(d: BambuDeviceUI): boolean {
 
 function PrinterCard({ d }: { d: BambuDeviceUI }) {
   const [showRaw, setShowRaw] = useState(false);
-  const printing = d.online && d.progressPercent != null;
+  const hasRichData = d.online && d.progressPercent != null;
+  // FINISH/FAILED/IDLE = já não tá imprimindo mais, mesmo com progresso/camada ainda
+  // presentes no último report — card volta pro visual de ociosa, não fica travado em
+  // "100% concluído" pra sempre (ver statusLabel pro mesmo critério no selinho).
+  const terminal = hasRichData && TERMINAL_STATUSES.has((d.printStatus ?? "").toUpperCase());
+  const printing = hasRichData && !terminal;
   // messagesWithPrint > 0 = a Bambu de fato respondeu com dado de impressão (mesmo que
   // seja "parada" de verdade) — confio no "sem impressão ativa" nesse caso. Se vier 0,
   // o poll MQTT desse ciclo não conseguiu confirmar nada, e "sem impressão ativa" seria
@@ -53,7 +60,8 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
   const pollFailed = d.online && !printing && d.pollDebug != null && !pollConfirmed;
   // Confirmado ao vivo: o endpoint de listagem (REST, sem MQTT/uid) já diz "RUNNING" com
   // confiança — uso isso como sinal básico de "imprimindo" enquanto o MQTT não emplaca.
-  const restConfirmedPrinting = d.online && !printing && d.restPrintStatus === "RUNNING";
+  // Ignorado quando o MQTT já confirmou terminal nesse mesmo ciclo (mais recente que o REST).
+  const restConfirmedPrinting = d.online && !printing && !terminal && d.restPrintStatus === "RUNNING";
   return (
     <div className="glass-panel flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
       <div className="flex items-start justify-between gap-2">
@@ -126,7 +134,12 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
       ) : (
         <div>
           <p className="text-xs text-slate-500">{d.online ? "Sem impressão ativa." : "Impressora fora do ar."}</p>
-          {d.online && pollConfirmed && d.printStatus ? (
+          {terminal ? (
+            <p className="mt-0.5 text-[10px] text-slate-600">
+              Última impressão: {(d.printStatus ?? "").toUpperCase() === "FAILED" ? "falhou" : "concluída"}
+            </p>
+          ) : null}
+          {d.online && pollConfirmed && d.printStatus && !terminal ? (
             <p className="mt-0.5 text-[10px] text-slate-600">status bruto da Bambu: "{d.printStatus}"</p>
           ) : null}
         </div>
