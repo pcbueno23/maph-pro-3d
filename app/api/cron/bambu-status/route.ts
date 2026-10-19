@@ -48,12 +48,15 @@ export async function GET(req: NextRequest) {
       continue;
     }
     for (const device of devicesResult.devices) {
-      const report = await pollBambuDeviceOnce(
+      const { report, debug } = await pollBambuDeviceOnce(
         account.region ?? "global",
         account.uid,
         account.access_token,
         device.devId,
       );
+      if (!report) {
+        console.error(`[cron/bambu-status] poll sem dado pra ${device.devId}:`, JSON.stringify(debug));
+      }
 
       await admin.from("bambu_device_status").upsert(
         {

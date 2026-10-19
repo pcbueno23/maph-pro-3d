@@ -20,6 +20,17 @@ export type BambuDeviceUI = {
   totalLayerNum?: number | null;
   fileName?: string | null;
   statusUpdatedAt?: string | null;
+  /** Diagnóstico do poll MQTT desse ciclo (null quando nem tentou, ex.: sem uid salvo —
+   * precisa reconectar a conta). Usado pra diferenciar "realmente parada" de "não consegui
+   * confirmar o status ao vivo" na tela — ver app/farm/page.tsx. */
+  pollDebug?: {
+    connected: boolean;
+    subscribed: boolean;
+    messagesReceived: number;
+    messagesWithPrint: number;
+    error: string | null;
+    timedOut: boolean;
+  } | null;
 };
 
 /** Toda a lógica de conectar/consultar a conta Bambu Lab — extraída de app/impressoras

@@ -2,7 +2,7 @@
 
 import { useAuthStore } from "@/store/authStore";
 import { useBambuFarm, type BambuDeviceUI } from "@/hooks/useBambuFarm";
-import { Thermometer, Layers, Clock, Wifi, WifiOff, RefreshCw, FileBox } from "lucide-react";
+import { Thermometer, Layers, Clock, Wifi, WifiOff, RefreshCw, FileBox, TriangleAlert } from "lucide-react";
 
 function formatRemaining(minutes: number | null | undefined): string {
   if (minutes == null) return "—";
@@ -28,6 +28,12 @@ function statusLabel(d: BambuDeviceUI): string {
 
 function PrinterCard({ d }: { d: BambuDeviceUI }) {
   const printing = d.online && d.progressPercent != null;
+  // messagesWithPrint > 0 = a Bambu de fato respondeu com dado de impressão (mesmo que
+  // seja "parada" de verdade) — confio no "sem impressão ativa" nesse caso. Se vier 0,
+  // o poll MQTT desse ciclo não conseguiu confirmar nada, e "sem impressão ativa" seria
+  // uma mentira — mostro o motivo em vez disso.
+  const pollConfirmed = (d.pollDebug?.messagesWithPrint ?? 0) > 0;
+  const pollFailed = d.online && !printing && d.pollDebug != null && !pollConfirmed;
   return (
     <div className="glass-panel flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
       <div className="flex items-start justify-between gap-2">
@@ -71,6 +77,23 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
               <Layers className="h-3 w-3" /> camada {d.layerNum} / {d.totalLayerNum}
             </p>
           ) : null}
+        </div>
+      ) : pollFailed ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
+          <p className="flex items-center gap-1 font-semibold">
+            <TriangleAlert className="h-3 w-3 shrink-0" /> Não consegui confirmar o status ao vivo
+          </p>
+          <p className="mt-0.5 text-amber-200/80">
+            {d.pollDebug?.error
+              ? `Erro MQTT: ${d.pollDebug.error}`
+              : d.pollDebug?.timedOut && !d.pollDebug.connected
+                ? "Não conectou no MQTT da Bambu a tempo."
+                : d.pollDebug?.timedOut && d.pollDebug.connected && !d.pollDebug.subscribed
+                  ? "Conectou mas não conseguiu se inscrever no tópico."
+                  : d.pollDebug?.timedOut
+                    ? `Conectou, mas não chegou mensagem com dado de impressão em 6s (${d.pollDebug.messagesReceived} msg recebida(s) sem esse dado).`
+                    : "Motivo desconhecido — manda esse card pro suporte."}
+          </p>
         </div>
       ) : (
         <p className="text-xs text-slate-500">{d.online ? "Sem impressão ativa." : "Impressora fora do ar."}</p>

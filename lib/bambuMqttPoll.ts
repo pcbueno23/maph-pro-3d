@@ -32,14 +32,41 @@ export type BambuReport = {
   raw: unknown;
 };
 
+export type BambuPollDebug = {
+  /** Chegou a autenticar e abrir a conexão MQTT. Se vier false, o problema é
+   * credencial/rede/porta bloqueada — não chega nem a pedir o status. */
+  connected: boolean;
+  /** Inscreveu no tópico de report com sucesso (depois de conectar). */
+  subscribed: boolean;
+  /** Quantas mensagens chegaram no tópico, não importa o conteúdo. */
+  messagesReceived: number;
+  /** Quantas dessas mensagens tinham o bloco "print" (dado de impressão de verdade). */
+  messagesWithPrint: number;
+  /** Mensagem de erro do cliente MQTT, quando teve. */
+  error: string | null;
+  /** Bateu o timeout sem nunca achar uma mensagem com "print". */
+  timedOut: boolean;
+};
+
+export type BambuPollResult = {
+  report: BambuReport | null;
+  debug: BambuPollDebug;
+};
+
 export async function pollBambuDeviceOnce(
   region: string,
   uid: string,
   accessToken: string,
   devId: string,
   timeoutMs = 6000,
-): Promise<BambuReport | null> {
+): Promise<BambuPollResult> {
   return new Promise((resolve) => {
+    let connected = false;
+    let subscribed = false;
+    let messagesReceived = 0;
+    let messagesWithPrint = 0;
+    let errorMsg: string | null = null;
+
     const client = mqtt.connect({
       host: mqttHost(region),
       port: 8883,
@@ -53,18 +80,27 @@ export async function pollBambuDeviceOnce(
     });
 
     let done = false;
-    const finish = (result: BambuReport | null) => {
+    const finish = (report: BambuReport | null, timedOut = false) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
       client.end(true);
-      resolve(result);
+      resolve({
+        report,
+        debug: { connected, subscribed, messagesReceived, messagesWithPrint, error: errorMsg, timedOut },
+      });
     };
 
-    const timer = setTimeout(() => finish(null), timeoutMs);
+    const timer = setTimeout(() => finish(null, true), timeoutMs);
 
     client.on("connect", () => {
-      client.subscribe(`device/${devId}/report`, () => {
+      connected = true;
+      client.subscribe(`device/${devId}/report`, (err) => {
+        if (err) {
+          errorMsg = `falha ao inscrever no tópico de report: ${err.message}`;
+          return;
+        }
+        subscribed = true;
         client.publish(
           `device/${devId}/request`,
           JSON.stringify({ pushing: { sequence_id: "0", command: "pushall" } }),
@@ -73,10 +109,12 @@ export async function pollBambuDeviceOnce(
     });
 
     client.on("message", (_topic, payload) => {
+      messagesReceived++;
       try {
         const msg = JSON.parse(payload.toString("utf8"));
         const print = msg?.print;
         if (!print) return; // espera uma mensagem com dado de verdade
+        messagesWithPrint++;
         finish({
           printStatus: print.gcode_state ?? null,
           progressPercent: typeof print.mc_percent === "number" ? print.mc_percent : null,
@@ -96,6 +134,9 @@ export async function pollBambuDeviceOnce(
       }
     });
 
-    client.on("error", () => finish(null));
+    client.on("error", (err) => {
+      errorMsg = err?.message ?? String(err);
+      finish(null);
+    });
   });
 }

@@ -38,20 +38,30 @@ export async function GET(req: NextRequest) {
 
   // Poll MQTT ao vivo de cada impressora, em paralelo — sem isso, "status ao vivo"
   // ficava preso no que o cron diário capturou (até 24h desatualizado).
-  const reports = account.uid
+  const uid = account.uid;
+  const polls = uid
     ? await Promise.all(
         result.devices.map((d) =>
-          pollBambuDeviceOnce(account.region ?? "global", account.uid, account.access_token, d.devId),
+          pollBambuDeviceOnce(account.region ?? "global", uid, account.access_token, d.devId),
         ),
       )
-    : result.devices.map(() => null);
-  const reportByDevId = new Map(result.devices.map((d, i) => [d.devId, reports[i]] as const));
+    : result.devices.map(() => ({ report: null, debug: null }));
+  for (let i = 0; i < result.devices.length; i++) {
+    const { report, debug } = polls[i];
+    if (!report && debug) {
+      console.error(
+        `[bambu/devices] poll sem dado pra ${result.devices[i].devId} (${result.devices[i].name}):`,
+        JSON.stringify(debug),
+      );
+    }
+  }
+  const pollByDevId = new Map(result.devices.map((d, i) => [d.devId, polls[i]] as const));
 
   const now = new Date().toISOString();
   if (result.devices.length > 0) {
     await admin.from("bambu_device_status").upsert(
       result.devices.map((d) => {
-        const report = reportByDevId.get(d.devId);
+        const report = pollByDevId.get(d.devId)?.report;
         return {
           user_id: auth.user.id,
           dev_id: d.devId,
@@ -71,7 +81,8 @@ export async function GET(req: NextRequest) {
   }
 
   const devices = result.devices.map((d) => {
-    const report = reportByDevId.get(d.devId);
+    const poll = pollByDevId.get(d.devId);
+    const report = poll?.report;
     return {
       ...d,
       printStatus: report?.printStatus ?? null,
@@ -86,6 +97,8 @@ export async function GET(req: NextRequest) {
       totalLayerNum: report?.totalLayerNum ?? null,
       fileName: report?.fileName ?? null,
       statusUpdatedAt: now,
+      // Diagnóstico do poll MQTT desse ciclo — null só quando nem tentou (sem uid salvo).
+      pollDebug: poll?.debug ?? null,
     };
   });
 
