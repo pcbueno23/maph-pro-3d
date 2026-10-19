@@ -61,5 +61,6 @@ export async function POST(req: NextRequest) {
     uidMissing: result.uid == null,
     debugLoginJson: result.debugLoginJson,
     debugJwtPayload: result.debugJwtPayload,
+    uidLookupDebug: result.debugUidLookup,
   });
 }

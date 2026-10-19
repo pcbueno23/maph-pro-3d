@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUserSession, getSupabaseServiceRole } from "@/lib/adminApiAuth";
-import { bambuListDevices } from "@/lib/bambuCloud";
+import { bambuListDevices, fetchUidFromAccountService, type UidLookupAttempt } from "@/lib/bambuCloud";
 import { pollBambuDeviceOnce } from "@/lib/bambuMqttPoll";
 
 export const dynamic = "force-dynamic";
@@ -36,9 +36,23 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // Conta já conectada sem uid salvo (login antigo) — tenta achar agora com o token que
+  // já temos, sem precisar o usuário desconectar/reconectar de novo. Se achar, grava no
+  // banco de uma vez (autocorreção); se não achar, guarda o diagnóstico pra mostrar na tela.
+  let uid = account.uid;
+  let uidLookupDebug: UidLookupAttempt[] | undefined;
+  if (!uid) {
+    const lookup = await fetchUidFromAccountService(account.region ?? "global", account.access_token);
+    if (lookup.uid) {
+      uid = lookup.uid;
+      await admin.from("bambu_cloud_accounts").update({ uid }).eq("user_id", auth.user.id);
+    } else {
+      uidLookupDebug = lookup.debug;
+    }
+  }
+
   // Poll MQTT ao vivo de cada impressora, em paralelo — sem isso, "status ao vivo"
   // ficava preso no que o cron diário capturou (até 24h desatualizado).
-  const uid = account.uid;
   const polls = uid
     ? await Promise.all(
         result.devices.map((d) =>
@@ -114,8 +128,9 @@ export async function GET(req: NextRequest) {
     ok: true,
     devices,
     accountHasUid: Boolean(uid),
-    // Só manda o JSON cru da lista de impressoras quando falta o uid — é dado de
-    // diagnóstico, não precisa ir em toda chamada normal.
+    // Só manda dado de diagnóstico quando ainda falta o uid — não precisa ir em toda
+    // chamada normal (a cada 15s).
     devicesRawJson: uid ? undefined : result.rawJson,
+    uidLookupDebug,
   });
 }

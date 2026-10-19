@@ -175,6 +175,7 @@ export default function FarmPage() {
   const farm = useBambuFarm(user?.id);
   const [showUidDebug, setShowUidDebug] = useState(false);
   const [showDevicesRawJson, setShowDevicesRawJson] = useState(false);
+  const [showUidLookup, setShowUidLookup] = useState(false);
 
   const printing = farm.bambuDevices.filter(
     (d) => d.online && (d.progressPercent != null || d.restPrintStatus === "RUNNING"),
@@ -205,21 +206,48 @@ export default function FarmPage() {
       </div>
 
       {farm.bambuConnected && !farm.accountHasUid ? (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-          <p className="flex items-center gap-2">
-            <TriangleAlert className="h-4 w-4 shrink-0" />
-            Sua conta Bambu Lab foi conectada antes de eu ativar o monitoramento ao vivo — falta um dado
-            (uid) que só o login grava. Por isso nenhum card consegue confirmar status de impressão.
-            Desconecta e conecta de novo que resolve.
-          </p>
-          <button
-            type="button"
-            onClick={() => void farm.handleBambuDisconnect()}
-            disabled={farm.bambuLoading}
-            className="shrink-0 rounded-lg border border-amber-500/40 px-3 py-1.5 font-semibold text-amber-100 hover:bg-amber-500/20 disabled:opacity-60"
-          >
-            Desconectar agora
-          </button>
+        <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <div className="flex items-center justify-between gap-3">
+            <p className="flex items-center gap-2">
+              <TriangleAlert className="h-4 w-4 shrink-0" />
+              Ainda não achei o uid da sua conta — já tentei 3 jeitos diferentes, nenhum bateu.
+              Progresso/temperatura/tempo continuam indisponíveis (o "imprimindo agora" básico já funciona,
+              só isso que falta).
+            </p>
+            <button
+              type="button"
+              onClick={() => void farm.handleBambuDisconnect()}
+              disabled={farm.bambuLoading}
+              className="shrink-0 rounded-lg border border-amber-500/40 px-3 py-1.5 font-semibold text-amber-100 hover:bg-amber-500/20 disabled:opacity-60"
+            >
+              Desconectar agora
+            </button>
+          </div>
+          {farm.uidLookupDebug && farm.uidLookupDebug.length > 0 ? (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowUidLookup((v) => !v)}
+                className="text-[11px] font-semibold text-amber-300 hover:text-amber-100"
+              >
+                {showUidLookup ? "▾ esconder tentativas" : "▸ ver o que cada endpoint respondeu"}
+              </button>
+              {showUidLookup ? (
+                <div className="mt-2 space-y-2">
+                  {farm.uidLookupDebug.map((attempt, i) => (
+                    <div key={i}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-300/80">
+                        {attempt.endpoint} — status {attempt.status}
+                      </p>
+                      <pre className="mt-1 max-h-40 overflow-auto rounded-lg bg-slate-950/80 p-2 text-[10px] leading-snug text-amber-100/90">
+                        {attempt.body || "(corpo vazio)"}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

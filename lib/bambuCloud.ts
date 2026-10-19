@@ -16,6 +16,8 @@ function baseUrl(region: string): string {
   return REGION_BASE[region] ?? REGION_BASE.global;
 }
 
+export type UidLookupAttempt = { endpoint: string; status: number; body: string };
+
 export type BambuLoginResult =
   | {
       ok: true;
@@ -27,6 +29,9 @@ export type BambuLoginResult =
        * ver o formato real que a Bambu respondeu (token em si nunca aparece aqui). */
       debugLoginJson?: unknown;
       debugJwtPayload?: unknown;
+      /** Tentativas feitas no endpoint separado de conta (3ª via) — uma entrada por
+       * endpoint testado, com status e corpo da resposta. */
+      debugUidLookup?: UidLookupAttempt[];
     }
   | { ok: true; needsVerification: true }
   | { ok: false; status: number; body: string };
@@ -83,6 +88,43 @@ function redactTokens(json: any): any {
   return clone;
 }
 
+/**
+ * 3ª tentativa de achar o uid — chamando endpoints separados de "conta"/perfil com o
+ * token já obtido no login, técnica usada pela integração open-source do Home Assistant
+ * (ha-bambulab): o uid não vem no login nem na listagem de impressoras porque fica num
+ * serviço de conta à parte ("design-user-service"). Primeira vez testando isso contra
+ * um token real — se também falhar, guarda status/corpo de cada tentativa pra diagnóstico
+ * em vez de simplesmente desistir calada.
+ */
+export async function fetchUidFromAccountService(
+  region: string,
+  accessToken: string,
+): Promise<{ uid: string | null; debug: UidLookupAttempt[] }> {
+  const candidates = ["/v1/design-user-service/my/preference", "/v1/user-service/my/profile"];
+  const debug: UidLookupAttempt[] = [];
+  for (const path of candidates) {
+    try {
+      const res = await fetch(`${baseUrl(region)}${path}`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+      const text = await res.text();
+      debug.push({ endpoint: path, status: res.status, body: text.slice(0, 500) });
+      if (!res.ok) continue;
+      let json: any = null;
+      try {
+        json = text ? JSON.parse(text) : null;
+      } catch {
+        continue;
+      }
+      const uid = extractUid(json);
+      if (uid != null) return { uid, debug };
+    } catch (err: any) {
+      debug.push({ endpoint: path, status: 0, body: `erro de rede: ${err?.message ?? String(err)}` });
+    }
+  }
+  return { uid: null, debug };
+}
+
 async function postJson(url: string, body: unknown, token?: string) {
   const res = await fetch(url, {
     method: "POST",
@@ -119,14 +161,22 @@ export async function bambuLogin(
 
   if (res.json?.accessToken) {
     const jwtPayload = decodeJwtPayload(res.json.accessToken);
-    const uid = extractUid(res.json) ?? extractUidFromJwtPayload(jwtPayload);
+    let uid = extractUid(res.json) ?? extractUidFromJwtPayload(jwtPayload);
+    let uidLookupDebug: UidLookupAttempt[] | undefined;
+    if (uid == null) {
+      const lookup = await fetchUidFromAccountService(region, res.json.accessToken);
+      uid = lookup.uid;
+      uidLookupDebug = lookup.debug;
+    }
     return {
       ok: true,
       accessToken: res.json.accessToken,
       refreshToken: res.json.refreshToken ?? null,
       expiresAt: null,
       uid,
-      ...(uid == null ? { debugLoginJson: redactTokens(res.json), debugJwtPayload: jwtPayload } : {}),
+      ...(uid == null
+        ? { debugLoginJson: redactTokens(res.json), debugJwtPayload: jwtPayload, debugUidLookup: uidLookupDebug }
+        : {}),
     };
   }
 
@@ -154,14 +204,22 @@ export async function bambuLoginWithCode(
   }
   if (res.json?.accessToken) {
     const jwtPayload = decodeJwtPayload(res.json.accessToken);
-    const uid = extractUid(res.json) ?? extractUidFromJwtPayload(jwtPayload);
+    let uid = extractUid(res.json) ?? extractUidFromJwtPayload(jwtPayload);
+    let uidLookupDebug: UidLookupAttempt[] | undefined;
+    if (uid == null) {
+      const lookup = await fetchUidFromAccountService(region, res.json.accessToken);
+      uid = lookup.uid;
+      uidLookupDebug = lookup.debug;
+    }
     return {
       ok: true,
       accessToken: res.json.accessToken,
       refreshToken: res.json.refreshToken ?? null,
       expiresAt: null,
       uid,
-      ...(uid == null ? { debugLoginJson: redactTokens(res.json), debugJwtPayload: jwtPayload } : {}),
+      ...(uid == null
+        ? { debugLoginJson: redactTokens(res.json), debugJwtPayload: jwtPayload, debugUidLookup: uidLookupDebug }
+        : {}),
     };
   }
   return { ok: false, status: 200, body: res.text.slice(0, 500) };
