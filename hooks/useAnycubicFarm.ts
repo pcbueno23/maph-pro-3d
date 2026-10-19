@@ -41,6 +41,12 @@ export function useAnycubicFarm(userId: string | undefined, pollMs = 15_000) {
   const [email, setEmail] = useState("");
   const [slicerAccessToken, setSlicerAccessToken] = useState("");
   const [devicesRawJson, setDevicesRawJson] = useState<unknown>(null);
+  /** Preenchido quando o login falha — payload do JWT do token colado + valores usados na
+   * assinatura da requisição, pra cruzar com a mensagem de erro da Anycubic. */
+  const [loginDebug, setLoginDebug] = useState<{
+    jwtPayload: unknown;
+    request: { appId: string; appVersion: string; deviceType: string; endpoint: string } | null;
+  } | null>(null);
 
   async function getAuthToken(): Promise<string | null> {
     if (!supabase) return null;
@@ -97,8 +103,10 @@ export function useAnycubicFarm(userId: string | undefined, pollMs = 15_000) {
       const data = await res.json();
       if (!res.ok) {
         setError(`${data.error ?? "Falha no login."} ${data.anycubicBody ? `(${data.anycubicBody})` : ""}`);
+        setLoginDebug({ jwtPayload: data.debugJwtPayload, request: data.debugRequest ?? null });
         return;
       }
+      setLoginDebug(null);
       setSlicerAccessToken("");
       await refreshDevices();
     } catch {
@@ -132,6 +140,7 @@ export function useAnycubicFarm(userId: string | undefined, pollMs = 15_000) {
     slicerAccessToken,
     setSlicerAccessToken,
     devicesRawJson,
+    loginDebug,
     refreshDevices,
     handleLogin,
     handleDisconnect,

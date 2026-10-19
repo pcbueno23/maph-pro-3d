@@ -28,7 +28,13 @@ export async function POST(req: NextRequest) {
   const result = await anycubicLoginWithSlicerToken(slicerAccessToken);
   if (!result.ok) {
     return NextResponse.json(
-      { error: "Falha ao trocar o token com a Anycubic.", anycubicStatus: result.status, anycubicBody: result.body },
+      {
+        error: "Falha ao trocar o token com a Anycubic.",
+        anycubicStatus: result.status,
+        anycubicBody: result.body,
+        debugJwtPayload: result.debugJwtPayload,
+        debugRequest: result.debugRequest,
+      },
       { status: 502 },
     );
   }

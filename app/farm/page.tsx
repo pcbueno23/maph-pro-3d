@@ -321,6 +321,7 @@ function AnycubicSection() {
   const user = useAuthStore((s) => s.user);
   const ac = useAnycubicFarm(user?.id);
   const [showRawJson, setShowRawJson] = useState(false);
+  const [showLoginDebug, setShowLoginDebug] = useState(false);
 
   return (
     <div className="space-y-3 border-t border-slate-800 pt-4">
@@ -346,9 +347,40 @@ function AnycubicSection() {
       </div>
 
       {ac.error ? (
-        <p className="whitespace-pre-wrap rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-          {ac.error}
-        </p>
+        <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          <p className="whitespace-pre-wrap">{ac.error}</p>
+          {ac.loginDebug ? (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowLoginDebug((v) => !v)}
+                className="text-[11px] font-semibold text-amber-300 hover:text-amber-100"
+              >
+                {showLoginDebug ? "▾ esconder diagnóstico" : "▸ ver diagnóstico do token"}
+              </button>
+              {showLoginDebug ? (
+                <div className="mt-2 space-y-2">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-300/80">
+                      Dentro do token colado (JWT)
+                    </p>
+                    <pre className="mt-1 max-h-48 overflow-auto rounded-lg bg-slate-950/80 p-2 text-[10px] leading-snug text-amber-100/90">
+                      {JSON.stringify(ac.loginDebug.jwtPayload, null, 2)}
+                    </pre>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-300/80">
+                      Valores usados pra assinar a requisição (sem o segredo)
+                    </p>
+                    <pre className="mt-1 max-h-32 overflow-auto rounded-lg bg-slate-950/80 p-2 text-[10px] leading-snug text-amber-100/90">
+                      {JSON.stringify(ac.loginDebug.request, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       {ac.devicesRawJson ? (

@@ -19,40 +19,76 @@ const BASE_URL = "https://cloud-universe.anycubic.com/p/p/workbench/api";
 const APP_ID = "f9b3528877c94d5c9c5af32245db46ef";
 const APP_SECRET = "0cf75926606049a3937f56b0373b99fb";
 const APP_VERSION_SLICER = "V3.0.0";
+const APP_VERSION_WEB = "1.0.0";
 const DEVICE_TYPE = "pcf"; // modo "slicer" — só esse modo dá acesso ao MQTT ao vivo
 const MQTT_APP_ID = "pcf";
 const AUTH_CN = "1";
+// O projeto de referência manda User-Agent de navegador só no modo web.
+const WEB_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
+
+/** "slicer": token do Slicer Next trocado por sessão (dá MQTT ao vivo). "web": XX-Token do
+ * localStorage de cloud-universe.anycubic.com — já é o token de sessão, sem troca e sem MQTT
+ * (confirmado em models/auth.py do WaresWichall/hass-anycubic_cloud: device_type "web",
+ * versão "1.0.0", supports_mqtt_login só pra slicer/android). */
+export type AnycubicAuthMode = "slicer" | "web";
+
+/** Token do site é um JWT ("eyJ...", 3 partes). */
+export function looksLikeAnycubicWebToken(token: string): boolean {
+  return token.startsWith("eyJ") && token.split(".").length === 3;
+}
 
 function md5Hex(input: string): string {
   return crypto.createHash("md5").update(input, "utf8").digest("hex");
 }
 
-function signedHeaders(sessionToken?: string): Record<string, string> {
+/** Decodifica só o payload do JWT, sem validar assinatura — usado pra diagnóstico quando o
+ * login falha (mesma técnica já usada em lib/bambuCloud.ts). */
+function decodeJwtPayload(token: string): any {
+  try {
+    const payloadB64 = token.split(".")[1];
+    if (!payloadB64) return null;
+    const normalized = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(Buffer.from(normalized, "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function signedHeaders(sessionToken?: string, mode: AnycubicAuthMode = "slicer"): Record<string, string> {
   // Nonce só precisa parecer um identificador único — o servidor não parece validar a
   // estrutura temporal do UUID v1 usado pelo projeto original, só usa como string opaca.
   const nonce = crypto.randomUUID();
   const timestamp = Date.now().toString();
-  const sigInput = `${APP_ID}${timestamp}${APP_VERSION_SLICER}${APP_SECRET}${nonce}${APP_ID}`;
+  const version = mode === "web" ? APP_VERSION_WEB : APP_VERSION_SLICER;
+  const sigInput = `${APP_ID}${timestamp}${version}${APP_SECRET}${nonce}${APP_ID}`;
   const signature = md5Hex(sigInput);
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "Xx-Device-Type": DEVICE_TYPE,
+    "Xx-Device-Type": mode === "web" ? "web" : DEVICE_TYPE,
     "Xx-Is-Cn": AUTH_CN,
     "Xx-Nonce": nonce,
     "Xx-Signature": signature,
     "Xx-Timestamp": timestamp,
-    "Xx-Version": APP_VERSION_SLICER,
+    "Xx-Version": version,
     "XX-LANGUAGE": "US",
   };
+  if (mode === "web") headers["User-Agent"] = WEB_USER_AGENT;
   if (sessionToken) headers["XX-Token"] = sessionToken;
   return headers;
 }
 
 async function apiFetch(
   path: string,
-  opts: { method?: string; body?: unknown; sessionToken?: string; query?: Record<string, string> } = {},
+  opts: {
+    method?: string;
+    body?: unknown;
+    sessionToken?: string;
+    query?: Record<string, string>;
+    mode?: AnycubicAuthMode;
+  } = {},
 ) {
-  const { method = "GET", body, sessionToken, query } = opts;
+  const { method = "GET", body, sessionToken, query, mode } = opts;
   let url = `${BASE_URL}${path}`;
   if (query) {
     const qs = new URLSearchParams(query).toString();
@@ -60,7 +96,7 @@ async function apiFetch(
   }
   const res = await fetch(url, {
     method,
-    headers: signedHeaders(sessionToken),
+    headers: signedHeaders(sessionToken, mode),
     body: body != null ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
@@ -75,18 +111,33 @@ async function apiFetch(
 
 export type AnycubicLoginResult =
   | { ok: true; sessionToken: string }
-  | { ok: false; status: number; body: string };
+  | {
+      ok: false;
+      status: number;
+      body: string;
+      /** Diagnóstico pra quando a troca falha — payload do JWT (sem validar assinatura) e
+       * os valores (não-secretos) usados pra assinar a requisição, pra cruzar com o erro. */
+      debugJwtPayload?: unknown;
+      debugRequest?: { appId: string; appVersion: string; deviceType: string; endpoint: string };
+    };
 
 /** Troca o access_token extraído do Anycubic Slicer Next por um token de sessão (XX-Token),
  * usado nas chamadas REST seguintes. */
 export async function anycubicLoginWithSlicerToken(slicerAccessToken: string): Promise<AnycubicLoginResult> {
-  const res = await apiFetch("/v3/public/loginWithAccessToken", {
+  const endpoint = "/v3/public/loginWithAccessToken";
+  const res = await apiFetch(endpoint, {
     method: "POST",
     body: { device_type: DEVICE_TYPE, access_token: slicerAccessToken },
   });
-  if (!res.ok) return { ok: false, status: res.status, body: res.text.slice(0, 500) };
+  const debugRequest = { appId: APP_ID, appVersion: APP_VERSION_SLICER, deviceType: DEVICE_TYPE, endpoint };
+  const debugJwtPayload = decodeJwtPayload(slicerAccessToken);
+  if (!res.ok) {
+    return { ok: false, status: res.status, body: res.text.slice(0, 500), debugJwtPayload, debugRequest };
+  }
   const token = res.json?.data?.token;
-  if (!token) return { ok: false, status: 200, body: res.text.slice(0, 500) };
+  if (!token) {
+    return { ok: false, status: 200, body: res.text.slice(0, 500), debugJwtPayload, debugRequest };
+  }
   return { ok: true, sessionToken: String(token) };
 }
 
@@ -103,9 +154,15 @@ export type AnycubicDevice = {
 
 export async function anycubicListDevices(
   sessionToken: string,
+  mode: AnycubicAuthMode = "slicer",
 ): Promise<{ ok: true; devices: AnycubicDevice[]; rawJson: unknown } | { ok: false; status: number; body: string }> {
-  const res = await apiFetch("/work/printer/getPrinters", { sessionToken });
+  const res = await apiFetch("/work/printer/getPrinters", { sessionToken, mode });
   if (!res.ok) return { ok: false, status: res.status, body: res.text.slice(0, 500) };
+  // A API responde HTTP 200 mesmo com token inválido — o erro vem em "code" (1 = sucesso),
+  // como no {"code":0,"msg":"Failed to get user info..."} da troca de token.
+  if (res.json?.code != null && Number(res.json.code) !== 1) {
+    return { ok: false, status: res.status, body: res.text.slice(0, 500) };
+  }
   const list = Array.isArray(res.json?.data) ? res.json.data : [];
   return {
     ok: true,
