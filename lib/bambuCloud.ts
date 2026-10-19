@@ -28,6 +28,31 @@ function extractUid(json: any): string | null {
   return raw != null ? String(raw) : null;
 }
 
+/**
+ * O login da Bambu normalmente NÃO devolve um campo "uid" solto — o uid vem embutido
+ * dentro do próprio accessToken (JWT), na claim "username" no formato "u_<uid>" (mesmo
+ * formato já usado como username da conexão MQTT em bambuMqttPoll.ts). Técnica documentada
+ * nos projetos open-source (pybambu decodifica o JWT do mesmo jeito) — mais confiável que
+ * tentar adivinhar o formato do JSON de resposta do login.
+ */
+function decodeUidFromAccessToken(accessToken: string): string | null {
+  try {
+    const payloadB64 = accessToken.split(".")[1];
+    if (!payloadB64) return null;
+    const normalized = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
+    const json = JSON.parse(Buffer.from(normalized, "base64").toString("utf8"));
+    const username = json?.username;
+    if (typeof username === "string") {
+      const match = username.match(/^u_(.+)$/);
+      return match ? match[1] : username;
+    }
+    const sub = json?.sub;
+    return sub != null ? String(sub) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function postJson(url: string, body: unknown, token?: string) {
   const res = await fetch(url, {
     method: "POST",
@@ -68,7 +93,7 @@ export async function bambuLogin(
       accessToken: res.json.accessToken,
       refreshToken: res.json.refreshToken ?? null,
       expiresAt: null,
-      uid: extractUid(res.json),
+      uid: extractUid(res.json) ?? decodeUidFromAccessToken(res.json.accessToken),
     };
   }
 
@@ -100,7 +125,7 @@ export async function bambuLoginWithCode(
       accessToken: res.json.accessToken,
       refreshToken: res.json.refreshToken ?? null,
       expiresAt: null,
-      uid: extractUid(res.json),
+      uid: extractUid(res.json) ?? decodeUidFromAccessToken(res.json.accessToken),
     };
   }
   return { ok: false, status: 200, body: res.text.slice(0, 500) };

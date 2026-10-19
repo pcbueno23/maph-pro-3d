@@ -102,5 +102,5 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ ok: true, devices });
+  return NextResponse.json({ ok: true, devices, accountHasUid: Boolean(uid) });
 }

@@ -163,6 +163,25 @@ export default function FarmPage() {
         ) : null}
       </div>
 
+      {farm.bambuConnected && !farm.accountHasUid ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <p className="flex items-center gap-2">
+            <TriangleAlert className="h-4 w-4 shrink-0" />
+            Sua conta Bambu Lab foi conectada antes de eu ativar o monitoramento ao vivo — falta um dado
+            (uid) que só o login grava. Por isso nenhum card consegue confirmar status de impressão.
+            Desconecta e conecta de novo que resolve.
+          </p>
+          <button
+            type="button"
+            onClick={() => void farm.handleBambuDisconnect()}
+            disabled={farm.bambuLoading}
+            className="shrink-0 rounded-lg border border-amber-500/40 px-3 py-1.5 font-semibold text-amber-100 hover:bg-amber-500/20 disabled:opacity-60"
+          >
+            Desconectar agora
+          </button>
+        </div>
+      ) : null}
+
       {farm.bambuConnected && farm.bambuDevices.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="glass-panel rounded-xl border border-slate-800 bg-slate-950/50 p-3">

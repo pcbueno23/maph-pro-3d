@@ -40,6 +40,9 @@ export type BambuDeviceUI = {
 export function useBambuFarm(userId: string | undefined, pollMs = 15_000) {
   const [bambuConnected, setBambuConnected] = useState<boolean | null>(null);
   const [bambuDevices, setBambuDevices] = useState<BambuDeviceUI[]>([]);
+  /** false = a conta está sem o "uid" salvo (login antigo, antes desse dado existir) —
+   * sem ele o poll MQTT ao vivo nem tenta rodar. Reconectar a conta resolve. */
+  const [accountHasUid, setAccountHasUid] = useState(true);
   const [bambuLoading, setBambuLoading] = useState(false);
   const [bambuError, setBambuError] = useState<string | null>(null);
   const [bambuEmail, setBambuEmail] = useState("");
@@ -72,6 +75,7 @@ export function useBambuFarm(userId: string | undefined, pollMs = 15_000) {
       }
       setBambuConnected(true);
       setBambuDevices(data.devices ?? []);
+      setAccountHasUid(data.accountHasUid !== false);
     } catch {
       setBambuError("Erro de rede ao falar com a Bambu Lab.");
     } finally {
@@ -164,6 +168,7 @@ export function useBambuFarm(userId: string | undefined, pollMs = 15_000) {
   return {
     bambuConnected,
     bambuDevices,
+    accountHasUid,
     bambuLoading,
     bambuError,
     bambuEmail,
