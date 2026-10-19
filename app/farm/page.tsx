@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useBambuFarm, type BambuDeviceUI } from "@/hooks/useBambuFarm";
+import { useAnycubicFarm, type AnycubicDeviceUI } from "@/hooks/useAnycubicFarm";
 import { Thermometer, Layers, Clock, Wifi, WifiOff, RefreshCw, FileBox, TriangleAlert } from "lucide-react";
 
 function formatRemaining(minutes: number | null | undefined): string {
@@ -192,6 +193,259 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function AnycubicCard({ d }: { d: AnycubicDeviceUI }) {
+  const [showRaw, setShowRaw] = useState(false);
+  // MQTT confirmou dado rico (progresso) nesse ciclo — mais confiável que o REST sozinho.
+  const printingRich = d.online && d.progressPercent != null;
+  const pollFailed = d.online && !printingRich && d.pollDebug != null && (d.pollDebug.messagesReceived ?? 0) === 0;
+  const restOnlyPrinting = d.online && !printingRich && !pollFailed && (d.printing ?? d.restIsPrinting);
+
+  return (
+    <div className="glass-panel flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-slate-50">{d.name}</p>
+          {d.model ? <p className="text-[11px] text-slate-500">{d.model}</p> : null}
+        </div>
+        <span
+          className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+            d.online ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-500"
+          }`}
+        >
+          {d.online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+          {!d.online ? "offline" : printingRich || restOnlyPrinting ? "imprimindo" : "ociosa"}
+        </span>
+      </div>
+
+      {d.fileName ? (
+        <p className="flex items-center gap-1.5 truncate text-xs text-slate-300" title={d.fileName}>
+          <FileBox className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
+          {d.fileName}
+        </p>
+      ) : null}
+
+      {printingRich ? (
+        <div>
+          <div className="flex items-center justify-between text-[11px] text-slate-400">
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" /> falta {formatRemaining(d.remainingMinutes)}
+            </span>
+            <span className="font-semibold text-slate-200">{d.progressPercent}%</span>
+          </div>
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-800">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500"
+              style={{ width: `${Math.max(0, Math.min(100, d.progressPercent ?? 0))}%` }}
+            />
+          </div>
+          {d.layerNum != null && d.totalLayerNum != null ? (
+            <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500">
+              <Layers className="h-3 w-3" /> camada {d.layerNum} / {d.totalLayerNum}
+            </p>
+          ) : null}
+        </div>
+      ) : restOnlyPrinting ? (
+        <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-2 text-[11px] text-cyan-200">
+          <p className="font-semibold">🖨️ Imprimindo agora</p>
+          <p className="mt-0.5 text-cyan-200/70">
+            Confirmado pela Anycubic — progresso/tempo/camada ainda não vieram do MQTT nesse ciclo.
+          </p>
+        </div>
+      ) : pollFailed ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
+          <p className="flex items-center gap-1 font-semibold">
+            <TriangleAlert className="h-3 w-3 shrink-0" /> Não consegui confirmar o status ao vivo
+          </p>
+          <p className="mt-0.5 text-amber-200/80">
+            {d.pollDebug?.error
+              ? `Erro MQTT: ${d.pollDebug.error}`
+              : d.pollDebug?.timedOut && !d.pollDebug.connected
+                ? "Não conectou no MQTT da Anycubic a tempo."
+                : d.pollDebug?.timedOut && d.pollDebug.connected && !d.pollDebug.subscribed
+                  ? "Conectou mas não conseguiu se inscrever no tópico."
+                  : "Conectou, mas não chegou nenhuma mensagem nesse ciclo (impressora ociosa pode demorar mais pra publicar algo)."}
+          </p>
+        </div>
+      ) : (
+        <p className="text-xs text-slate-500">{d.online ? "Sem impressão ativa." : "Impressora fora do ar."}</p>
+      )}
+
+      {d.nozzleTemper != null || d.bedTemper != null ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-800 pt-2 text-[11px] text-slate-400">
+          {d.nozzleTemper != null ? (
+            <span className="flex items-center gap-1">
+              <Thermometer className="h-3 w-3 text-rose-400" />
+              Bico {d.nozzleTemper.toFixed(0)}°
+            </span>
+          ) : null}
+          {d.bedTemper != null ? (
+            <span className="flex items-center gap-1">
+              <Thermometer className="h-3 w-3 text-amber-400" />
+              Mesa {d.bedTemper.toFixed(0)}°
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {d.statusUpdatedAt ? (
+        <p className="text-[10px] text-slate-600">
+          Atualizado {new Date(d.statusUpdatedAt).toLocaleTimeString("pt-BR")}
+        </p>
+      ) : null}
+
+      {d.raw != null ? (
+        <div className="border-t border-slate-800 pt-2">
+          <button
+            type="button"
+            onClick={() => setShowRaw((v) => !v)}
+            className="text-[10px] font-semibold text-slate-500 hover:text-cyan-300"
+          >
+            {showRaw ? "▾ esconder dado bruto" : "▸ ver dado bruto"}
+          </button>
+          {showRaw ? (
+            <pre className="mt-1.5 max-h-48 overflow-auto rounded-lg bg-slate-900/80 p-2 text-[10px] leading-snug text-slate-400">
+              {JSON.stringify(d.raw, null, 2)}
+            </pre>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function AnycubicSection() {
+  const user = useAuthStore((s) => s.user);
+  const ac = useAnycubicFarm(user?.id);
+  const [showRawJson, setShowRawJson] = useState(false);
+
+  return (
+    <div className="space-y-3 border-t border-slate-800 pt-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-slate-100">Anycubic Kobra X</h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Experimental de verdade — engenharia reversa de um projeto da comunidade, nunca testado ao vivo.
+            Login é diferente do resto: precisa extrair um token do Anycubic Slicer Next (ver instruções abaixo).
+          </p>
+        </div>
+        {ac.connected ? (
+          <button
+            type="button"
+            onClick={() => void ac.refreshDevices()}
+            disabled={ac.loading}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 disabled:opacity-60"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${ac.loading ? "animate-spin" : ""}`} />
+            Atualizar
+          </button>
+        ) : null}
+      </div>
+
+      {ac.error ? (
+        <p className="whitespace-pre-wrap rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          {ac.error}
+        </p>
+      ) : null}
+
+      {ac.devicesRawJson ? (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <p className="font-semibold">JSON real da lista de impressoras Anycubic.</p>
+          <button
+            type="button"
+            onClick={() => setShowRawJson((v) => !v)}
+            className="mt-1.5 text-[11px] font-semibold text-amber-300 hover:text-amber-100"
+          >
+            {showRawJson ? "▾ esconder JSON" : "▸ ver JSON"}
+          </button>
+          {showRawJson ? (
+            <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-slate-950/80 p-2 text-[10px] leading-snug text-amber-100/90">
+              {JSON.stringify(ac.devicesRawJson, null, 2)}
+            </pre>
+          ) : null}
+        </div>
+      ) : null}
+
+      {ac.connected === null ? (
+        <p className="text-sm text-slate-500">Verificando conexão...</p>
+      ) : ac.connected ? (
+        ac.devices.length === 0 ? (
+          <p className="text-sm text-slate-500">Conectado, mas nenhuma impressora encontrada na conta.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {ac.devices.map((d) => (
+                <AnycubicCard key={d.devId} d={d} />
+              ))}
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => void ac.handleDisconnect()}
+                disabled={ac.loading}
+                className="rounded-lg border border-slate-800 px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-900 disabled:opacity-60"
+              >
+                Desconectar conta Anycubic
+              </button>
+            </div>
+          </>
+        )
+      ) : (
+        <div className="glass-panel max-w-lg space-y-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+          <p className="text-sm font-semibold text-slate-100">Conectar Anycubic Kobra X</p>
+          <ol className="list-decimal space-y-1 pl-4 text-xs text-slate-400">
+            <li>No Windows, abra o Anycubic Slicer Next e faça login (deixe a tela da impressora aberta).</li>
+            <li>
+              Baixe os scripts{" "}
+              <code className="rounded bg-slate-900 px-1 py-0.5 text-[11px] text-cyan-300">
+                recover_slicer_token.ps1
+              </code>{" "}
+              e{" "}
+              <code className="rounded bg-slate-900 px-1 py-0.5 text-[11px] text-cyan-300">
+                recover_slicer_token.py
+              </code>{" "}
+              do projeto{" "}
+              <a
+                href="https://github.com/ljschmitt/hass-anycubic_cloud_v3/tree/master/scripts"
+                target="_blank"
+                rel="noreferrer"
+                className="text-cyan-400 underline hover:text-cyan-300"
+              >
+                hass-anycubic_cloud_v3
+              </a>{" "}
+              (os dois na mesma pasta) e rode o .ps1 no PowerShell.
+            </li>
+            <li>O token recuperado vai pro seu clipboard — cola ele no campo abaixo.</li>
+          </ol>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input
+              type="email"
+              placeholder="E-mail da conta Anycubic"
+              value={ac.email}
+              onChange={(e) => ac.setEmail(e.target.value)}
+              className="rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+            />
+            <input
+              type="text"
+              placeholder="Token recuperado do Slicer Next"
+              value={ac.slicerAccessToken}
+              onChange={(e) => ac.setSlicerAccessToken(e.target.value)}
+              className="rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => void ac.handleLogin()}
+            disabled={ac.loading || !ac.email || !ac.slicerAccessToken}
+            className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
+          >
+            {ac.loading ? "Conectando..." : "Conectar conta Anycubic"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -438,6 +692,8 @@ export default function FarmPage() {
           )}
         </div>
       )}
+
+      <AnycubicSection />
     </div>
   );
 }
