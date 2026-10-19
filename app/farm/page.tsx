@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useBambuFarm, type BambuDeviceUI } from "@/hooks/useBambuFarm";
 import { Thermometer, Layers, Clock, Wifi, WifiOff, RefreshCw, FileBox, TriangleAlert } from "lucide-react";
@@ -27,6 +28,7 @@ function statusLabel(d: BambuDeviceUI): string {
 }
 
 function PrinterCard({ d }: { d: BambuDeviceUI }) {
+  const [showRaw, setShowRaw] = useState(false);
   const printing = d.online && d.progressPercent != null;
   // messagesWithPrint > 0 = a Bambu de fato respondeu com dado de impressão (mesmo que
   // seja "parada" de verdade) — confio no "sem impressão ativa" nesse caso. Se vier 0,
@@ -96,7 +98,12 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
           </p>
         </div>
       ) : (
-        <p className="text-xs text-slate-500">{d.online ? "Sem impressão ativa." : "Impressora fora do ar."}</p>
+        <div>
+          <p className="text-xs text-slate-500">{d.online ? "Sem impressão ativa." : "Impressora fora do ar."}</p>
+          {d.online && pollConfirmed && d.printStatus ? (
+            <p className="mt-0.5 text-[10px] text-slate-600">status bruto da Bambu: "{d.printStatus}"</p>
+          ) : null}
+        </div>
       )}
 
       {d.nozzleTemper != null || d.bedTemper != null || d.chamberTemper != null ? (
@@ -128,6 +135,23 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
         <p className="text-[10px] text-slate-600">
           Atualizado {new Date(d.statusUpdatedAt).toLocaleTimeString("pt-BR")}
         </p>
+      ) : null}
+
+      {d.raw != null ? (
+        <div className="border-t border-slate-800 pt-2">
+          <button
+            type="button"
+            onClick={() => setShowRaw((v) => !v)}
+            className="text-[10px] font-semibold text-slate-500 hover:text-cyan-300"
+          >
+            {showRaw ? "▾ esconder dado bruto" : "▸ ver dado bruto"}
+          </button>
+          {showRaw ? (
+            <pre className="mt-1.5 max-h-48 overflow-auto rounded-lg bg-slate-900/80 p-2 text-[10px] leading-snug text-slate-400">
+              {JSON.stringify(d.raw, null, 2)}
+            </pre>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

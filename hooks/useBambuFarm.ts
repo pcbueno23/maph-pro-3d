@@ -31,6 +31,9 @@ export type BambuDeviceUI = {
     error: string | null;
     timedOut: boolean;
   } | null;
+  /** JSON bruto que a Bambu respondeu nesse ciclo (quando o poll recebeu alguma mensagem
+   * com dado de impressão) — mostrado num "ver bruto" no card pra depurar nomes de campo. */
+  raw?: unknown;
 };
 
 /** Toda a lógica de conectar/consultar a conta Bambu Lab — extraída de app/impressoras

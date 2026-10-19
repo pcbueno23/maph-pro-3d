@@ -99,6 +99,9 @@ export async function GET(req: NextRequest) {
       statusUpdatedAt: now,
       // Diagnóstico do poll MQTT desse ciclo — null só quando nem tentou (sem uid salvo).
       pollDebug: poll?.debug ?? null,
+      // JSON bruto que a Bambu respondeu nesse ciclo — pra conferir o campo certo quando
+      // algo não bate (ex.: valor vindo como texto em vez de número).
+      raw: report?.raw ?? null,
     };
   });
 
