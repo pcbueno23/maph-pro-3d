@@ -24,7 +24,9 @@ function statusLabel(d: BambuDeviceUI): string {
     IDLE: "ociosa",
     PREPARE: "preparando",
   };
-  return map[raw] ?? (d.printStatus ? d.printStatus.toLowerCase() : "conectada");
+  if (d.printStatus) return map[raw] ?? d.printStatus.toLowerCase();
+  if (d.restPrintStatus === "RUNNING") return "imprimindo";
+  return "conectada";
 }
 
 function PrinterCard({ d }: { d: BambuDeviceUI }) {
@@ -36,6 +38,9 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
   // uma mentira — mostro o motivo em vez disso.
   const pollConfirmed = (d.pollDebug?.messagesWithPrint ?? 0) > 0;
   const pollFailed = d.online && !printing && d.pollDebug != null && !pollConfirmed;
+  // Confirmado ao vivo: o endpoint de listagem (REST, sem MQTT/uid) já diz "RUNNING" com
+  // confiança — uso isso como sinal básico de "imprimindo" enquanto o MQTT não emplaca.
+  const restConfirmedPrinting = d.online && !printing && d.restPrintStatus === "RUNNING";
   return (
     <div className="glass-panel flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
       <div className="flex items-start justify-between gap-2">
@@ -79,6 +84,14 @@ function PrinterCard({ d }: { d: BambuDeviceUI }) {
               <Layers className="h-3 w-3" /> camada {d.layerNum} / {d.totalLayerNum}
             </p>
           ) : null}
+        </div>
+      ) : restConfirmedPrinting ? (
+        <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-2 text-[11px] text-cyan-200">
+          <p className="font-semibold">🖨️ Imprimindo agora</p>
+          <p className="mt-0.5 text-cyan-200/70">
+            Confirmado pela Bambu — progresso/tempo/temperatura ainda não disponíveis aqui (dado mais rico
+            depende de uma conexão que ainda não emplacou, ver aviso no topo da página).
+          </p>
         </div>
       ) : pollFailed ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
@@ -163,7 +176,9 @@ export default function FarmPage() {
   const [showUidDebug, setShowUidDebug] = useState(false);
   const [showDevicesRawJson, setShowDevicesRawJson] = useState(false);
 
-  const printing = farm.bambuDevices.filter((d) => d.online && d.progressPercent != null).length;
+  const printing = farm.bambuDevices.filter(
+    (d) => d.online && (d.progressPercent != null || d.restPrintStatus === "RUNNING"),
+  ).length;
   const online = farm.bambuDevices.filter((d) => d.online).length;
 
   return (

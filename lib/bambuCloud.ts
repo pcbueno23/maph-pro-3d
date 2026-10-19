@@ -172,6 +172,11 @@ export type BambuDevice = {
   name: string;
   online: boolean;
   model: string | null;
+  /** "RUNNING" | "SUCCESS" | outros — confirmado ao vivo (19/10/2026) nesse mesmo endpoint
+   * de listagem, sem precisar de MQTT/uid nenhum. "RUNNING" = imprimindo agora de verdade.
+   * Não dá progresso/temperatura/tempo (só o MQTT traria isso), mas é 100% confiável pro
+   * "está imprimindo ou não" enquanto o uid pro MQTT não é resolvido. */
+  restPrintStatus: string | null;
 };
 
 export async function bambuListDevices(
@@ -201,7 +206,8 @@ export async function bambuListDevices(
       devId: d.dev_id ?? d.devId ?? "",
       name: d.name ?? d.dev_name ?? "Impressora Bambu",
       online: Boolean(d.online ?? d.dev_online),
-      model: d.dev_model_name ?? d.model ?? null,
+      model: d.dev_product_name ?? d.dev_model_name ?? d.model ?? null,
+      restPrintStatus: d.print_status ?? null,
     })),
     // JSON cru dessa resposta — pode ter um campo de conta/uid que a extração de hoje
     // ignora porque só olha dentro de cada device. Usado só pra diagnóstico (ver app/farm).

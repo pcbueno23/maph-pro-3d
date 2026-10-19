@@ -97,6 +97,11 @@ export async function GET(req: NextRequest) {
       totalLayerNum: report?.totalLayerNum ?? null,
       fileName: report?.fileName ?? null,
       statusUpdatedAt: now,
+      // Confirmado ao vivo (19/10/2026): esse endpoint de listagem (sem MQTT/uid nenhum)
+      // já diz se está imprimindo ("RUNNING") ou não ("SUCCESS" etc.) — mais confiável que
+      // o MQTT hoje, que ainda depende do uid não resolvido. Vocabulário diferente do
+      // "printStatus" (gcode_state via MQTT), por isso campo separado.
+      restPrintStatus: d.restPrintStatus,
       // Diagnóstico do poll MQTT desse ciclo — null só quando nem tentou (sem uid salvo).
       pollDebug: poll?.debug ?? null,
       // JSON bruto que a Bambu respondeu nesse ciclo — pra conferir o campo certo quando

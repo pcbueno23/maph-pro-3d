@@ -20,6 +20,10 @@ export type BambuDeviceUI = {
   totalLayerNum?: number | null;
   fileName?: string | null;
   statusUpdatedAt?: string | null;
+  /** "RUNNING" | "SUCCESS" | etc — vem do endpoint de listagem (REST), sem precisar de
+   * MQTT/uid. Confiável pro "está imprimindo ou não" mesmo quando o resto (progresso,
+   * temperatura, tempo) ainda não está disponível. */
+  restPrintStatus?: string | null;
   /** Diagnóstico do poll MQTT desse ciclo (null quando nem tentou, ex.: sem uid salvo —
    * precisa reconectar a conta). Usado pra diferenciar "realmente parada" de "não consegui
    * confirmar o status ao vivo" na tela — ver app/farm/page.tsx. */
