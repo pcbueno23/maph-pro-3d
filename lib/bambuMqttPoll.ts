@@ -18,7 +18,17 @@ export type BambuReport = {
   progressPercent: number | null;
   remainingMinutes: number | null;
   nozzleTemper: number | null;
+  nozzleTargetTemper: number | null;
   bedTemper: number | null;
+  bedTargetTemper: number | null;
+  chamberTemper: number | null;
+  /** Camada atual/total — layer_num e total_layer_num, bem documentados no ecossistema
+   * (Home Assistant bambu_lab, pybambu). Não arrisco decodificar stg_cur (código numérico
+   * de "etapa") porque a tabela de códigos varia por firmware e eu não tenho como confirmar
+   * contra uma impressora real — melhor mostrar só o que dá pra confiar. */
+  layerNum: number | null;
+  totalLayerNum: number | null;
+  fileName: string | null;
   raw: unknown;
 };
 
@@ -72,7 +82,13 @@ export async function pollBambuDeviceOnce(
           progressPercent: typeof print.mc_percent === "number" ? print.mc_percent : null,
           remainingMinutes: typeof print.mc_remaining_time === "number" ? print.mc_remaining_time : null,
           nozzleTemper: typeof print.nozzle_temper === "number" ? print.nozzle_temper : null,
+          nozzleTargetTemper: typeof print.nozzle_target_temper === "number" ? print.nozzle_target_temper : null,
           bedTemper: typeof print.bed_temper === "number" ? print.bed_temper : null,
+          bedTargetTemper: typeof print.bed_target_temper === "number" ? print.bed_target_temper : null,
+          chamberTemper: typeof print.chamber_temper === "number" ? print.chamber_temper : null,
+          layerNum: typeof print.layer_num === "number" ? print.layer_num : null,
+          totalLayerNum: typeof print.total_layer_num === "number" ? print.total_layer_num : null,
+          fileName: print.subtask_name || print.gcode_file || null,
           raw: msg,
         });
       } catch {

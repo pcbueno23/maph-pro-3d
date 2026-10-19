@@ -21,6 +21,7 @@ import {
   FileSpreadsheet,
   Sparkles,
   Boxes,
+  Factory,
 } from "lucide-react";
 
 export type NavLinkItem = {
@@ -66,6 +67,7 @@ export const navGroups: NavGroup[] = [
       { href: "/inventory", label: "Peças produzidas", icon: Layers },
       { href: "/ordens", label: "Ordens de produção", icon: Printer },
       { href: "/impressoras", label: "Impressoras", icon: Printer },
+      { href: "/farm", label: "Painel de Farm", icon: Factory },
       { href: "/insumos", label: "Insumos", icon: FlaskConical },
       { href: "/prompts-impressao", label: "Prompts IA — Impressão 3D", icon: Sparkles },
       { href: "/biblioteca-3d", label: "Biblioteca de Modelos 3D", icon: Boxes },

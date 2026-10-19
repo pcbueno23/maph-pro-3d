@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
+import { useBambuFarm } from "@/hooks/useBambuFarm";
 import type { Printer, PrinterMaintenanceLog, PrinterStatus, Product, ProductionOrder } from "@/types";
 import {
   addMaintenanceLog,
@@ -75,147 +77,9 @@ function toDraft(p?: Printer | null): DraftPrinter {
   };
 }
 
-type BambuDeviceUI = {
-  devId: string;
-  name: string;
-  online: boolean;
-  model: string | null;
-  printStatus?: string | null;
-  progressPercent?: number | null;
-  remainingMinutes?: number | null;
-  nozzleTemper?: number | null;
-  bedTemper?: number | null;
-  statusUpdatedAt?: string | null;
-};
-
 export default function ImpressorasPage() {
   const user = useAuthStore((s) => s.user);
-
-  const [bambuConnected, setBambuConnected] = useState<boolean | null>(null); // null = ainda checando
-  const [bambuDevices, setBambuDevices] = useState<BambuDeviceUI[]>([]);
-  const [bambuLoading, setBambuLoading] = useState(false);
-  const [bambuError, setBambuError] = useState<string | null>(null);
-  const [bambuEmail, setBambuEmail] = useState("");
-  const [bambuPassword, setBambuPassword] = useState("");
-  const [bambuNeedsCode, setBambuNeedsCode] = useState(false);
-  const [bambuCode, setBambuCode] = useState("");
-
-  async function getAuthToken(): Promise<string | null> {
-    if (!supabase) return null;
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ?? null;
-  }
-
-  async function refreshBambuDevices() {
-    const token = await getAuthToken();
-    if (!token) return;
-    setBambuLoading(true);
-    setBambuError(null);
-    try {
-      const res = await fetch("/api/bambu/devices", { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (res.status === 404) {
-        setBambuConnected(false);
-        return;
-      }
-      if (!res.ok) {
-        setBambuError(data.error ?? "Falha ao buscar impressoras Bambu Lab.");
-        setBambuConnected(true);
-        return;
-      }
-      setBambuConnected(true);
-      setBambuDevices(data.devices ?? []);
-    } catch {
-      setBambuError("Erro de rede ao falar com a Bambu Lab.");
-    } finally {
-      setBambuLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!user) return;
-    void refreshBambuDevices();
-    // O cron do Vercel atualiza a cada ~5min — repolir aqui só refaz a leitura
-    // do banco (rápido) e da lista de impressoras, pra pegar a atualização
-    // sem precisar dar F5.
-    const interval = window.setInterval(() => void refreshBambuDevices(), 45_000);
-    return () => window.clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  async function handleBambuLogin() {
-    const token = await getAuthToken();
-    if (!token || !bambuEmail || !bambuPassword) return;
-    setBambuLoading(true);
-    setBambuError(null);
-    try {
-      const res = await fetch("/api/bambu/login", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: bambuEmail, password: bambuPassword }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setBambuError(`${data.error ?? "Falha no login."} ${data.bambuBody ? `(${data.bambuBody})` : ""}`);
-        return;
-      }
-      if (data.needsVerification) {
-        setBambuNeedsCode(true);
-        setBambuError("A Bambu Lab mandou um código de verificação pro seu e-mail — digita ele abaixo.");
-        return;
-      }
-      setBambuPassword("");
-      await refreshBambuDevices();
-    } catch {
-      setBambuError("Erro de rede ao falar com a Bambu Lab.");
-    } finally {
-      setBambuLoading(false);
-    }
-  }
-
-  async function handleBambuVerify() {
-    const token = await getAuthToken();
-    if (!token || !bambuEmail || !bambuCode) return;
-    setBambuLoading(true);
-    setBambuError(null);
-    try {
-      const res = await fetch("/api/bambu/verify", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: bambuEmail, code: bambuCode }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setBambuError(`${data.error ?? "Código inválido."} ${data.bambuBody ? `(${data.bambuBody})` : ""}`);
-        return;
-      }
-      setBambuNeedsCode(false);
-      setBambuCode("");
-      await refreshBambuDevices();
-    } catch {
-      setBambuError("Erro de rede ao falar com a Bambu Lab.");
-    } finally {
-      setBambuLoading(false);
-    }
-  }
-
-  async function handleBambuDisconnect() {
-    const token = await getAuthToken();
-    if (!token) return;
-    setBambuLoading(true);
-    try {
-      await fetch("/api/bambu/disconnect", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setBambuConnected(false);
-      setBambuDevices([]);
-      setBambuEmail("");
-      setBambuNeedsCode(false);
-    } finally {
-      setBambuLoading(false);
-    }
-  }
+  const farm = useBambuFarm(user?.id);
   const { settings, updateSettings } = useSettingsStore();
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
@@ -455,141 +319,22 @@ export default function ImpressorasPage() {
         </button>
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold text-slate-50">Bambu Lab — status ao vivo</p>
-            <p className="mt-0.5 text-xs text-slate-400">
-              Conecta sua conta Bambu Cloud pra ver progresso e temperatura direto aqui. Recurso
-              experimental — se der erro, me manda a mensagem que aparece.
-            </p>
-          </div>
-          {bambuConnected ? (
-            <button
-              type="button"
-              onClick={() => void handleBambuDisconnect()}
-              disabled={bambuLoading}
-              className="shrink-0 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-900 disabled:opacity-60"
-            >
-              Desconectar
-            </button>
-          ) : null}
-        </div>
-
-        {bambuError ? (
-          <p className="mt-3 whitespace-pre-wrap rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-            {bambuError}
+      <Link
+        href="/farm"
+        className="glass-panel flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm transition hover:border-cyan-500/30"
+      >
+        <div>
+          <p className="text-sm font-semibold text-slate-50">Bambu Lab — status ao vivo</p>
+          <p className="mt-0.5 text-xs text-slate-400">
+            {farm.bambuConnected && farm.bambuDevices.length > 0
+              ? `${farm.bambuDevices.length} impressora(s) conectada(s) — ver tempo restante, temperatura e camada de cada uma.`
+              : "Conecta sua conta Bambu Cloud e acompanha progresso, temperatura e camada ao vivo."}
           </p>
-        ) : null}
-
-        {bambuConnected === null ? (
-          <p className="mt-3 text-xs text-slate-500">Verificando conexão...</p>
-        ) : bambuConnected ? (
-          bambuDevices.length === 0 ? (
-            <p className="mt-3 text-xs text-slate-500">
-              Conectado, mas nenhuma impressora encontrada na conta.
-            </p>
-          ) : (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {bambuDevices.map((d) => (
-                <div key={d.devId} className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-slate-100">{d.name}</p>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        d.online ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-500"
-                      }`}
-                    >
-                      {d.online ? "online" : "offline"}
-                    </span>
-                  </div>
-                  {d.model ? <p className="mt-1 text-[11px] text-slate-500">{d.model}</p> : null}
-                  {d.progressPercent != null ? (
-                    <div className="mt-2">
-                      <div className="flex items-center justify-between text-[11px] text-slate-400">
-                        <span>{d.printStatus ?? "Imprimindo"}</span>
-                        <span className="font-semibold text-slate-200">{d.progressPercent}%</span>
-                      </div>
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-800">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500"
-                          style={{ width: `${Math.max(0, Math.min(100, d.progressPercent))}%` }}
-                        />
-                      </div>
-                      {d.remainingMinutes != null ? (
-                        <p className="mt-1 text-[10px] text-slate-500">
-                          {d.remainingMinutes} min restante(s)
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {d.nozzleTemper != null || d.bedTemper != null ? (
-                    <p className="mt-2 text-[11px] text-slate-400">
-                      🔥 Bico {d.nozzleTemper != null ? `${d.nozzleTemper.toFixed(0)}°C` : "—"} · Mesa{" "}
-                      {d.bedTemper != null ? `${d.bedTemper.toFixed(0)}°C` : "—"}
-                    </p>
-                  ) : null}
-                  {d.statusUpdatedAt ? (
-                    <p className="mt-1 text-[10px] text-slate-600">
-                      Atualizado {new Date(d.statusUpdatedAt).toLocaleTimeString("pt-BR")}
-                    </p>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )
-        ) : (
-          <div className="mt-3 space-y-2">
-            {!bambuNeedsCode ? (
-              <>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <input
-                    type="email"
-                    placeholder="E-mail da conta Bambu Lab"
-                    value={bambuEmail}
-                    onChange={(e) => setBambuEmail(e.target.value)}
-                    className="rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                  />
-                  <input
-                    type="password"
-                    placeholder="Senha"
-                    value={bambuPassword}
-                    onChange={(e) => setBambuPassword(e.target.value)}
-                    className="rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void handleBambuLogin()}
-                  disabled={bambuLoading || !bambuEmail || !bambuPassword}
-                  className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
-                >
-                  {bambuLoading ? "Conectando..." : "Conectar conta Bambu Lab"}
-                </button>
-              </>
-            ) : (
-              <>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="Código recebido por e-mail"
-                  value={bambuCode}
-                  onChange={(e) => setBambuCode(e.target.value)}
-                  className="w-full max-w-xs rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => void handleBambuVerify()}
-                  disabled={bambuLoading || !bambuCode}
-                  className="ml-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-neon-cyan transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-60"
-                >
-                  {bambuLoading ? "Confirmando..." : "Confirmar código"}
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+        </div>
+        <span className="shrink-0 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950">
+          Abrir painel de farm →
+        </span>
+      </Link>
 
       {!canUseSupabase ? (
         <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300">
