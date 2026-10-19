@@ -29,6 +29,19 @@ function statusLabel(d: BambuDeviceUI): string {
   return "conectada";
 }
 
+const TERMINAL_STATUSES = new Set(["FINISH", "FAILED", "IDLE"]);
+
+/** "Imprimindo agora" de verdade — não conta quem já chegou a 100%/finalizou (gcode_state
+ * FINISH/FAILED/IDLE), só porque o progresso ainda aparece no card. */
+function isActivelyPrinting(d: BambuDeviceUI): boolean {
+  if (!d.online) return false;
+  if (d.progressPercent != null) {
+    const raw = (d.printStatus ?? "").toUpperCase();
+    return !TERMINAL_STATUSES.has(raw);
+  }
+  return d.restPrintStatus === "RUNNING";
+}
+
 function PrinterCard({ d }: { d: BambuDeviceUI }) {
   const [showRaw, setShowRaw] = useState(false);
   const printing = d.online && d.progressPercent != null;
@@ -177,9 +190,7 @@ export default function FarmPage() {
   const [showDevicesRawJson, setShowDevicesRawJson] = useState(false);
   const [showUidLookup, setShowUidLookup] = useState(false);
 
-  const printing = farm.bambuDevices.filter(
-    (d) => d.online && (d.progressPercent != null || d.restPrintStatus === "RUNNING"),
-  ).length;
+  const printing = farm.bambuDevices.filter(isActivelyPrinting).length;
   const online = farm.bambuDevices.filter((d) => d.online).length;
 
   return (
