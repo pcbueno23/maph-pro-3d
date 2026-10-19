@@ -379,17 +379,16 @@ function AnycubicSection() {
       ) : null}
 
       {ac.devicesRawJson ? (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-          <p className="font-semibold">JSON real da lista de impressoras Anycubic.</p>
+        <div>
           <button
             type="button"
             onClick={() => setShowRawJson((v) => !v)}
-            className="mt-1.5 text-[11px] font-semibold text-amber-300 hover:text-amber-100"
+            className="text-[10px] font-semibold text-slate-600 hover:text-cyan-300"
           >
-            {showRawJson ? "▾ esconder JSON" : "▸ ver JSON"}
+            {showRawJson ? "▾ esconder JSON da lista de impressoras" : "▸ ver JSON da lista de impressoras"}
           </button>
           {showRawJson ? (
-            <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-slate-950/80 p-2 text-[10px] leading-snug text-amber-100/90">
+            <pre className="mt-1.5 max-h-72 overflow-auto rounded-lg bg-slate-900/80 p-2 text-[10px] leading-snug text-slate-400">
               {JSON.stringify(ac.devicesRawJson, null, 2)}
             </pre>
           ) : null}
