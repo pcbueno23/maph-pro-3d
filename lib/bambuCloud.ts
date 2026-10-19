@@ -177,7 +177,10 @@ export type BambuDevice = {
 export async function bambuListDevices(
   region: string,
   accessToken: string,
-): Promise<{ ok: true; devices: BambuDevice[] } | { ok: false; status: number; body: string }> {
+): Promise<
+  | { ok: true; devices: BambuDevice[]; rawJson: unknown }
+  | { ok: false; status: number; body: string }
+> {
   const res = await fetch(`${baseUrl(region)}/v1/iot-service/api/user/bind`, {
     headers: { authorization: `Bearer ${accessToken}` },
   });
@@ -200,5 +203,8 @@ export async function bambuListDevices(
       online: Boolean(d.online ?? d.dev_online),
       model: d.dev_model_name ?? d.model ?? null,
     })),
+    // JSON cru dessa resposta — pode ter um campo de conta/uid que a extração de hoje
+    // ignora porque só olha dentro de cada device. Usado só pra diagnóstico (ver app/farm).
+    rawJson: json,
   };
 }

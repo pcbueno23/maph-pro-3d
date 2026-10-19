@@ -105,5 +105,12 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ ok: true, devices, accountHasUid: Boolean(uid) });
+  return NextResponse.json({
+    ok: true,
+    devices,
+    accountHasUid: Boolean(uid),
+    // Só manda o JSON cru da lista de impressoras quando falta o uid — é dado de
+    // diagnóstico, não precisa ir em toda chamada normal.
+    devicesRawJson: uid ? undefined : result.rawJson,
+  });
 }

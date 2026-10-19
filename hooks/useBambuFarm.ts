@@ -56,6 +56,9 @@ export function useBambuFarm(userId: string | undefined, pollMs = 15_000) {
    * Bambu respondeu (token redigido), pra diagnosticar o nome certo do campo em vez de
    * continuar adivinhando. Null quando não há nada pra mostrar. */
   const [bambuUidDebug, setBambuUidDebug] = useState<{ loginJson: unknown; jwtPayload: unknown } | null>(null);
+  /** JSON bruto da lista de impressoras (só vem preenchido quando a conta está sem uid) —
+   * pode ter um campo de conta que a extração de hoje ignora. */
+  const [devicesRawJson, setDevicesRawJson] = useState<unknown>(null);
 
   async function getAuthToken(): Promise<string | null> {
     if (!supabase) return null;
@@ -83,6 +86,7 @@ export function useBambuFarm(userId: string | undefined, pollMs = 15_000) {
       setBambuConnected(true);
       setBambuDevices(data.devices ?? []);
       setAccountHasUid(data.accountHasUid !== false);
+      setDevicesRawJson(data.devicesRawJson ?? null);
     } catch {
       setBambuError("Erro de rede ao falar com a Bambu Lab.");
     } finally {
@@ -196,6 +200,7 @@ export function useBambuFarm(userId: string | undefined, pollMs = 15_000) {
     bambuCode,
     setBambuCode,
     bambuUidDebug,
+    devicesRawJson,
     refreshBambuDevices,
     handleBambuLogin,
     handleBambuVerify,

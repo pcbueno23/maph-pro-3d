@@ -161,6 +161,7 @@ export default function FarmPage() {
   const user = useAuthStore((s) => s.user);
   const farm = useBambuFarm(user?.id);
   const [showUidDebug, setShowUidDebug] = useState(false);
+  const [showDevicesRawJson, setShowDevicesRawJson] = useState(false);
 
   const printing = farm.bambuDevices.filter((d) => d.online && d.progressPercent != null).length;
   const online = farm.bambuDevices.filter((d) => d.online).length;
@@ -204,6 +205,26 @@ export default function FarmPage() {
           >
             Desconectar agora
           </button>
+        </div>
+      ) : null}
+
+      {farm.devicesRawJson ? (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <p className="font-semibold">
+            JSON real da lista de impressoras (pode ter um campo de conta/uid que eu ainda não estou lendo).
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowDevicesRawJson((v) => !v)}
+            className="mt-1.5 text-[11px] font-semibold text-amber-300 hover:text-amber-100"
+          >
+            {showDevicesRawJson ? "▾ esconder JSON" : "▸ ver JSON da lista de impressoras"}
+          </button>
+          {showDevicesRawJson ? (
+            <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-slate-950/80 p-2 text-[10px] leading-snug text-amber-100/90">
+              {JSON.stringify(farm.devicesRawJson, null, 2)}
+            </pre>
+          ) : null}
         </div>
       ) : null}
 
