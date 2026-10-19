@@ -27,7 +27,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Nenhuma conta Anycubic conectada." }, { status: 404 });
   }
 
-  const result = await anycubicListDevices(account.session_token);
+  // slicer_access_token vazio = conta conectada com o token do site (ver login/route.ts):
+  // REST funciona, MQTT não.
+  const isWebMode = !account.slicer_access_token;
+  const result = await anycubicListDevices(account.session_token, isWebMode ? "web" : "slicer");
   if (!result.ok) {
     return NextResponse.json(
       {
@@ -39,11 +42,13 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const polls = await Promise.all(
-    result.devices.map((d) =>
-      pollAnycubicDeviceOnce(account.email, account.slicer_access_token, d.devId, d.machineType),
-    ),
-  );
+  const polls = isWebMode
+    ? result.devices.map(() => null)
+    : await Promise.all(
+        result.devices.map((d) =>
+          pollAnycubicDeviceOnce(account.email, account.slicer_access_token, d.devId, d.machineType),
+        ),
+      );
   const pollByDevId = new Map(result.devices.map((d, i) => [d.devId, polls[i]] as const));
 
   const now = new Date().toISOString();

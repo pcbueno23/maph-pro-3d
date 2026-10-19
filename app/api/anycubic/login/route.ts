@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUserSession, getSupabaseServiceRole } from "@/lib/adminApiAuth";
-import { anycubicLoginWithSlicerToken } from "@/lib/anycubicCloud";
+import {
+  anycubicListDevices,
+  anycubicLoginWithSlicerToken,
+  looksLikeAnycubicWebToken,
+} from "@/lib/anycubicCloud";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +27,33 @@ export async function POST(req: NextRequest) {
   const slicerAccessToken = body.slicerAccessToken?.trim();
   if (!email || !slicerAccessToken) {
     return NextResponse.json({ error: "E-mail e token do Slicer Next são obrigatórios." }, { status: 400 });
+  }
+
+  // Token do site (XX-Token do localStorage) já é o token de sessão — só valida listando as
+  // impressoras. Guardado com slicer_access_token vazio, que é o que marca o modo "web" (sem
+  // MQTT) na rota de devices. Se a validação falhar, cai na troca normal do Slicer abaixo.
+  if (looksLikeAnycubicWebToken(slicerAccessToken)) {
+    const webCheck = await anycubicListDevices(slicerAccessToken, "web");
+    if (webCheck.ok) {
+      const admin = getSupabaseServiceRole();
+      if (!admin) {
+        return NextResponse.json({ error: "Supabase não configurado no servidor." }, { status: 500 });
+      }
+      const { error } = await admin.from("anycubic_cloud_accounts").upsert(
+        {
+          user_id: auth.user.id,
+          email,
+          slicer_access_token: "",
+          session_token: slicerAccessToken,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true, authMode: "web" });
+    }
   }
 
   const result = await anycubicLoginWithSlicerToken(slicerAccessToken);
