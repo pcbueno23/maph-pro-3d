@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useBambuFarm, type BambuDeviceUI } from "@/hooks/useBambuFarm";
 import { useAnycubicFarm, type AnycubicDeviceUI } from "@/hooks/useAnycubicFarm";
+import {
+  BAMBU_TERMINAL_STATUSES as TERMINAL_STATUSES,
+  isBambuActivelyPrinting as isActivelyPrinting,
+} from "@/lib/farmStatus";
 import { Thermometer, Layers, Clock, RefreshCw, TriangleAlert, ChevronDown } from "lucide-react";
 
 type CardTone = "printing" | "idle" | "offline" | "warn";
@@ -68,19 +72,6 @@ function statusLabel(d: BambuDeviceUI): string {
   if (d.printStatus) return map[raw] ?? d.printStatus.toLowerCase();
   if (d.restPrintStatus === "RUNNING") return "imprimindo";
   return "conectada";
-}
-
-const TERMINAL_STATUSES = new Set(["FINISH", "FAILED", "IDLE"]);
-
-/** "Imprimindo agora" de verdade — não conta quem já chegou a 100%/finalizou (gcode_state
- * FINISH/FAILED/IDLE), só porque o progresso ainda aparece no card. */
-function isActivelyPrinting(d: BambuDeviceUI): boolean {
-  if (!d.online) return false;
-  if (d.progressPercent != null) {
-    const raw = (d.printStatus ?? "").toUpperCase();
-    return !TERMINAL_STATUSES.has(raw);
-  }
-  return d.restPrintStatus === "RUNNING";
 }
 
 function PrinterCard({ d }: { d: BambuDeviceUI }) {

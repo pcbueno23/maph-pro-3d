@@ -37,6 +37,9 @@ import {
 } from "@/lib/supabaseProduction";
 import { fetchUserProducts } from "@/lib/supabaseProducts";
 import { fetchUserInventory } from "@/lib/supabaseUserData";
+import { useBambuFarm } from "@/hooks/useBambuFarm";
+import { useAnycubicFarm } from "@/hooks/useAnycubicFarm";
+import { isBambuActivelyPrinting, isAnycubicActivelyPrinting } from "@/lib/farmStatus";
 import {
   PRODUCTION_ORDER_STATUS_COLORS,
   PRODUCTION_ORDER_STATUS_DISPLAY_ORDER,
@@ -121,6 +124,11 @@ function orderCreatedLocalDayStart(order: ProductionOrder): Date {
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const { sales, hydrateFromStorage } = useSalesStore();
+  // Mesma conexão ao vivo do Painel de Farm (app/farm) — só pra ligar "Imprimindo agora" e
+  // "Status das impressoras" ao dado real da nuvem quando conectado. Não mexe em
+  // custo/depreciação: isso continua vindo só da tabela "printers" (registro manual).
+  const farm = useBambuFarm(user?.id);
+  const ac = useAnycubicFarm(user?.id);
 
   const [range, setRange] = useState<RangeOption>("7d");
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
@@ -435,6 +443,16 @@ export default function DashboardPage() {
     () => orders.filter((o) => o.status === "printing").length,
     [orders],
   );
+
+  // Dado ao vivo da nuvem (Bambu Lab + Anycubic), quando pelo menos uma conta estiver
+  // conectada — preferido sobre o status manual das ordens, que depende do usuário
+  // atualizar na mão. Ver app/farm/page.tsx pro mesmo critério usado lá.
+  const farmConnected = farm.bambuConnected === true || ac.connected === true;
+  const farmOnlineCount =
+    farm.bambuDevices.filter((d) => d.online).length + ac.devices.filter((d) => d.online).length;
+  const farmPrintingCount =
+    farm.bambuDevices.filter(isBambuActivelyPrinting).length +
+    ac.devices.filter(isAnycubicActivelyPrinting).length;
 
   const lowStockSupplies = useMemo(() => {
     return supplies.filter((s) => {
@@ -769,10 +787,23 @@ export default function DashboardPage() {
                 Imprimindo agora
               </p>
               <div className="mt-2 flex items-center justify-between">
-                <p className="text-lg font-semibold text-slate-50">{printingNowCount}</p>
+                <p className="text-lg font-semibold text-slate-50">
+                  {farmConnected ? farmPrintingCount : printingNowCount}
+                </p>
                 <Printer className="h-5 w-5 text-violet-400" />
               </div>
-              <p className="mt-1 text-[10px] text-slate-500">Status “em impressão”</p>
+              <p className="mt-1 text-[10px] text-slate-500">
+                {farmConnected ? (
+                  <>
+                    Ao vivo (nuvem) ·{" "}
+                    <Link href="/farm" className="text-cyan-400 hover:underline">
+                      ver farm →
+                    </Link>
+                  </>
+                ) : (
+                  "Status “em impressão”"
+                )}
+              </p>
             </div>
             <div
               className={`rounded-2xl border p-3 ${
@@ -855,8 +886,18 @@ export default function DashboardPage() {
                 Total cadastradas:{" "}
                 <span className="font-semibold text-slate-300">{printers.length}</span>
               </p>
-              <Link href="/impressoras" className="mt-1 inline-block text-[10px] text-cyan-400 hover:underline">
-                Gerenciar impressoras →
+              {farmConnected ? (
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Ao vivo (nuvem): <span className="font-semibold text-cyan-300">{farmOnlineCount} online</span>
+                  {" · "}
+                  <span className="font-semibold text-cyan-300">{farmPrintingCount} imprimindo</span>
+                </p>
+              ) : null}
+              <Link href="/farm" className="mt-1 inline-block text-[10px] text-cyan-400 hover:underline">
+                {farmConnected ? "Ver painel de farm →" : "Conectar Bambu/Anycubic →"}
+              </Link>
+              <Link href="/impressoras" className="mt-1 block text-[10px] text-cyan-400 hover:underline">
+                Gerenciar impressoras cadastradas →
               </Link>
             </div>
 
