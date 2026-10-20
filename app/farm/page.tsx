@@ -341,9 +341,7 @@ function AnycubicCard({ d }: { d: AnycubicDeviceUI }) {
   );
 }
 
-function AnycubicSection() {
-  const user = useAuthStore((s) => s.user);
-  const ac = useAnycubicFarm(user?.id);
+function AnycubicSection({ ac }: { ac: ReturnType<typeof useAnycubicFarm> }) {
   const [showRawJson, setShowRawJson] = useState(false);
   const [showLoginDebug, setShowLoginDebug] = useState(false);
 
@@ -508,15 +506,38 @@ function AnycubicSection() {
   );
 }
 
+type NextToFinish = { name: string; remainingMinutes: number; brand: string };
+
 export default function FarmPage() {
   const user = useAuthStore((s) => s.user);
   const farm = useBambuFarm(user?.id);
+  const ac = useAnycubicFarm(user?.id);
   const [showUidDebug, setShowUidDebug] = useState(false);
   const [showDevicesRawJson, setShowDevicesRawJson] = useState(false);
   const [showUidLookup, setShowUidLookup] = useState(false);
 
-  const printing = farm.bambuDevices.filter(isActivelyPrinting).length;
-  const online = farm.bambuDevices.filter((d) => d.online).length;
+  const bambuPrinting = farm.bambuDevices.filter(isActivelyPrinting).length;
+  const bambuOnline = farm.bambuDevices.filter((d) => d.online).length;
+  const anycubicOnline = ac.devices.filter((d) => d.online).length;
+  const anycubicPrinting = ac.devices.filter((d) => d.online && d.printing === true).length;
+
+  // Junção das duas marcas — uma visão só do farm inteiro, não separada por fabricante.
+  const totalPrinters = farm.bambuDevices.length + ac.devices.length;
+  const totalOnline = bambuOnline + anycubicOnline;
+  const totalPrinting = bambuPrinting + anycubicPrinting;
+  const totalIdle = totalOnline - totalPrinting;
+
+  const nextToFinish: NextToFinish | null = [
+    ...farm.bambuDevices
+      .filter((d) => isActivelyPrinting(d) && d.remainingMinutes != null)
+      .map((d) => ({ name: d.name, remainingMinutes: d.remainingMinutes as number, brand: "Bambu Lab" })),
+    ...ac.devices
+      .filter((d) => d.online && d.printing === true && d.remainingMinutes != null)
+      .map((d) => ({ name: d.name, remainingMinutes: d.remainingMinutes as number, brand: "Anycubic" })),
+  ].reduce<NextToFinish | null>(
+    (best, cur) => (best == null || cur.remainingMinutes < best.remainingMinutes ? cur : best),
+    null,
+  );
 
   return (
     <div className="space-y-4">
@@ -524,19 +545,23 @@ export default function FarmPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">Painel de Farm</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Monitoramento ao vivo das suas Bambu Lab — tempo restante, temperatura e camada de cada uma, direto
-            daqui, não importa em qual ambiente elas estejam (usa a conta Bambu Cloud, não rede local).
+            Monitoramento ao vivo de todas as impressoras do farm (Bambu Lab + Anycubic) — tempo restante,
+            temperatura e camada de cada uma, direto daqui, não importa em qual ambiente estejam (usa a nuvem,
+            não rede local).
           </p>
         </div>
-        {farm.bambuConnected ? (
+        {farm.bambuConnected || ac.connected ? (
           <button
             type="button"
-            onClick={() => void farm.refreshBambuDevices()}
-            disabled={farm.bambuLoading}
+            onClick={() => {
+              if (farm.bambuConnected) void farm.refreshBambuDevices();
+              if (ac.connected) void ac.refreshDevices();
+            }}
+            disabled={farm.bambuLoading || ac.loading}
             className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 disabled:opacity-60"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${farm.bambuLoading ? "animate-spin" : ""}`} />
-            Atualizar
+            <RefreshCw className={`h-3.5 w-3.5 ${farm.bambuLoading || ac.loading ? "animate-spin" : ""}`} />
+            Atualizar tudo
           </button>
         ) : null}
       </div>
@@ -643,23 +668,36 @@ export default function FarmPage() {
         </div>
       ) : null}
 
-      {farm.bambuConnected && farm.bambuDevices.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {totalPrinters > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div className="glass-panel rounded-xl border border-slate-800 bg-slate-950/50 p-3">
             <p className="text-[10px] uppercase tracking-wide text-slate-500">Impressoras</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-50">{farm.bambuDevices.length}</p>
+            <p className="mt-0.5 text-lg font-bold text-slate-50">{totalPrinters}</p>
           </div>
           <div className="glass-panel rounded-xl border border-slate-800 bg-slate-950/50 p-3">
             <p className="text-[10px] uppercase tracking-wide text-emerald-400">Online</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-50">{online}</p>
+            <p className="mt-0.5 text-lg font-bold text-slate-50">{totalOnline}</p>
           </div>
           <div className="glass-panel rounded-xl border border-slate-800 bg-slate-950/50 p-3">
             <p className="text-[10px] uppercase tracking-wide text-cyan-400">Imprimindo agora</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-50">{printing}</p>
+            <p className="mt-0.5 text-lg font-bold text-slate-50">{totalPrinting}</p>
           </div>
           <div className="glass-panel rounded-xl border border-slate-800 bg-slate-950/50 p-3">
             <p className="text-[10px] uppercase tracking-wide text-slate-500">Ociosas</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-50">{online - printing}</p>
+            <p className="mt-0.5 text-lg font-bold text-slate-50">{totalIdle}</p>
+          </div>
+          <div className="glass-panel col-span-2 rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-3 sm:col-span-1">
+            <p className="text-[10px] uppercase tracking-wide text-cyan-400">Próxima a terminar</p>
+            {nextToFinish ? (
+              <>
+                <p className="mt-0.5 truncate text-sm font-bold text-slate-50" title={nextToFinish.name}>
+                  {nextToFinish.name}
+                </p>
+                <p className="text-xs font-semibold text-cyan-300">{formatRemaining(nextToFinish.remainingMinutes)}</p>
+              </>
+            ) : (
+              <p className="mt-0.5 text-lg font-bold text-slate-600">—</p>
+            )}
           </div>
         </div>
       ) : null}
@@ -754,7 +792,7 @@ export default function FarmPage() {
         </div>
       )}
 
-      <AnycubicSection />
+      <AnycubicSection ac={ac} />
     </div>
   );
 }
