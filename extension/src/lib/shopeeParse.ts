@@ -101,6 +101,17 @@ export function parseItemNode(node: any): ParsedItem {
       "sold",
       "global_sold",
     ]);
+  // Confirmado ao vivo (23/10/2026) que o caminho de sempre vem vazio pra TODO mundo, não
+  // só item patrocinado — virou mistério de verdade. Em vez de tentar mais um caminho no
+  // escuro, despeja o node inteiro cru (só quando não resolveu) direto no mini-card, pra
+  // caçar onde o dado foi parar sem precisar de mais uma rodada de print/diagnóstico.
+  const soldDebugDump = (): string | null => {
+    try {
+      return JSON.stringify(node);
+    } catch {
+      return null;
+    }
+  };
 
   return {
     itemId: String(pick(node, ["itemid", "item_id", "item_data.itemid"]) ?? "") || null,
@@ -161,9 +172,9 @@ export function parseItemNode(node: any): ParsedItem {
     // vinham todos vazios na busca até essa correção.
     sold: soldResolved,
     // Debug visual direto no mini-card (sem precisar abrir o diagnóstico) — só preenchido
-    // quando "sold" não resolveu, pra ver na hora se o campo de texto veio vazio (a própria
-    // Shopee não mandou esse dado pra esse item) ou se nenhum caminho bateu (nome errado).
-    soldDebugRaw: soldResolved != null ? null : `sold_count.text=${JSON.stringify(soldTextRaw)}`,
+    // quando "sold" não resolveu. Dump do node inteiro, não só do campo esperado, porque já
+    // confirmamos que o campo de sempre vem vazio pra todo mundo — precisa caçar no resto.
+    soldDebugRaw: soldResolved != null ? null : soldDebugDump(),
     // "Últimos 30 dias" direto da Shopee — mesma pegadinha do historical_sold_count:
     // confirmado ao vivo (17/10/2026) que "monthly_sold_count" (número) vem 0 mesmo em
     // item com "monthly_sold_count_text": "105 Vendido/Mês" — texto tentado ANTES do

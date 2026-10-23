@@ -365,8 +365,10 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean)
   rows.className = `${MINI_CARD_CLASS}-rows`;
   rows.appendChild(row("Vendidos", "📦", card.sold != null ? String(card.sold) : "—"));
   if (card.sold == null && card.soldDebugRaw) {
-    const debugRow = document.createElement("div");
-    debugRow.style.cssText = "padding: 2px 0 6px; font-size: 9.5px; color: var(--mp3d-muted); word-break: break-all;";
+    const debugRow = document.createElement("pre");
+    debugRow.style.cssText =
+      "margin: 2px 0 6px; padding: 4px; max-height: 70px; overflow: auto; font-size: 8.5px; line-height: 1.3; " +
+      "color: var(--mp3d-muted); white-space: pre-wrap; word-break: break-all; background: rgba(0,0,0,0.25); border-radius: 4px; user-select: text;";
     debugRow.textContent = card.soldDebugRaw;
     rows.appendChild(debugRow);
   }
