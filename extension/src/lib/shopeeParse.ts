@@ -135,8 +135,17 @@ export function parseItemNode(node: any): ParsedItem {
     // (mesma pegadinha que o pdp/get_pc já tinha, ver parsePdpGetPc). Por isso o
     // texto é tentado ANTES do número aqui — não quebra os outros endpoints porque
     // eles não têm esse campo de texto (pick só "acha" o que existir de fato).
+    // Em search_items, confirmado ao vivo (23/10/2026) que o caminho é outro:
+    // "item_card_displayed_asset.sold_count.text" (não "item_card_display_sold_count",
+    // que vem null nesse endpoint) — por isso "Vendidos"/"vendas por dia"/"campeões"
+    // vinham todos vazios na busca até essa correção.
     sold:
-      parseDisplayCount(pick(node, ["item_card_display_sold_count.historical_sold_count_text"])) ??
+      parseDisplayCount(
+        pick(node, [
+          "item_card_display_sold_count.historical_sold_count_text",
+          "item_card_displayed_asset.sold_count.text", // search_items
+        ]),
+      ) ??
       pick<number>(node, [
         "item_basic.historical_sold",
         "item_data.item_card_display_sold_count.historical_sold_count",
