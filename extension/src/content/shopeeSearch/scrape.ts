@@ -40,6 +40,11 @@ export type SearchDebugInfo = {
   rawJsonWhenEmpty: unknown;
   /** Preenchido quando itens foram encontrados — o 1º item cru, pra achar os nomes de campo certos. */
   rawFirstEntry: unknown;
+  /** 1º item ORGÂNICO (não patrocinado) cru — o 1º item da lista costuma ser um anúncio
+   * patrocinado, que pode legitimamente vir com campos vazios (ex.: vendido oculto) só por
+   * ser "Ad" — esse aqui serve de 2ª amostra pra não confundir "campo vazio nesse item
+   * específico" com "campo com nome errado pra todo mundo". */
+  rawOrganicEntry: unknown;
 };
 
 /**
@@ -107,12 +112,13 @@ export function watchSearchItems(
 
   const stop = onCapture("searchItems", (capture) => {
     capturesReceived += 1;
-    const { items, rawJson, rawFirstEntry } = parseSearchItems(capture.json);
+    const { items, rawJson, rawFirstEntry, rawOrganicEntry } = parseSearchItems(capture.json);
     onDebug({
       capturesReceived,
       itemsFoundLastCapture: items.length,
       rawJsonWhenEmpty: items.length === 0 ? rawJson : null,
       rawFirstEntry,
+      rawOrganicEntry,
     });
 
     for (const item of items) {

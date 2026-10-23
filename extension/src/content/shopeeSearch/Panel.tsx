@@ -338,8 +338,14 @@ export function Panel({
                   )}
                   {searchDebug.rawFirstEntry != null && (
                     <RawJsonBlock
-                      label="1º item bruto (pra ajustar os nomes de campo)"
+                      label="1º item bruto (quase sempre um anúncio patrocinado — pode ter campo vazio só por ser 'Ad')"
                       value={searchDebug.rawFirstEntry}
+                    />
+                  )}
+                  {searchDebug.rawOrganicEntry != null && (
+                    <RawJsonBlock
+                      label="1º item ORGÂNICO bruto (não patrocinado — melhor amostra pra conferir campo vazio de verdade)"
+                      value={searchDebug.rawOrganicEntry}
                     />
                   )}
                 </>

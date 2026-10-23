@@ -249,19 +249,26 @@ export type SearchItemsParseResult = {
   items: ParsedItem[];
   /** JSON bruto completo da resposta — pra debug quando `items` vem vazio (path "items"/"data.items" errado). */
   rawJson: unknown;
-  /** O 1º item, ainda cru — pra debug de nomes de campo quando os itens vêm, mas algum valor não bate. */
+  /** O 1º item, ainda cru — pra debug de nomes de campo quando os itens vêm, mas algum valor não bate. O 1º
+   * resultado costuma ser um anúncio patrocinado ("Ad"), que pode ter campos vazios só por ser patrocinado
+   * (ex.: vendido oculto) — por isso `rawOrganicEntry` abaixo serve de 2ª amostra pra comparar. */
   rawFirstEntry: unknown;
+  /** 1º item ORGÂNICO (não patrocinado) da lista, cru — identificado por ter `item_basic` preenchido (os
+   * patrocinados vêm com `item_basic: null`, dado real em `item_data`/`item_card_displayed_asset`). Null
+   * quando a página só tem patrocinados na amostra capturada. */
+  rawOrganicEntry: unknown;
 };
 
 /** `search_items`: lista de resultados — cada entrada é orgânica ou patrocinada, `parseItemNode` cobre as duas. */
 export function parseSearchItems(json: unknown): SearchItemsParseResult {
   const items = pick<any[]>(json, ["items", "data.items"]) ?? [];
   if (items.length === 0) {
-    return { items: [], rawJson: json, rawFirstEntry: null };
+    return { items: [], rawJson: json, rawFirstEntry: null, rawOrganicEntry: null };
   }
   const rawFirstEntry = items[0];
+  const rawOrganicEntry = items.find((entry) => entry?.item_basic != null) ?? null;
   const parsed = items.map((entry) => parseItemNode(entry));
-  return { items: parsed, rawJson: json, rawFirstEntry };
+  return { items: parsed, rawJson: json, rawFirstEntry, rawOrganicEntry };
 }
 
 export type ShopRcmdItemsParseResult = SearchItemsParseResult & {
@@ -277,9 +284,10 @@ export function parseShopRcmdItems(json: unknown): ShopRcmdItemsParseResult {
   const items = pick<any[]>(json, ["data.centralize_item_card.item_cards"]) ?? [];
   const total = pick<number>(json, ["data.total"]);
   if (items.length === 0) {
-    return { items: [], rawJson: json, rawFirstEntry: null, total };
+    return { items: [], rawJson: json, rawFirstEntry: null, rawOrganicEntry: null, total };
   }
   const rawFirstEntry = items[0];
+  const rawOrganicEntry = items.find((entry) => entry?.item_basic != null) ?? null;
   const parsed = items.map((entry) => parseItemNode(entry));
-  return { items: parsed, rawJson: json, rawFirstEntry, total };
+  return { items: parsed, rawJson: json, rawFirstEntry, rawOrganicEntry, total };
 }
