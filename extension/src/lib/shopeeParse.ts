@@ -40,6 +40,11 @@ export type ParsedItem = {
   sellerName: string | null;
   sellerLocation: string | null;
   isInternational: boolean;
+  /** Valor cru (pra debug visual direto no card, sem precisar abrir o diagnóstico) dos
+   * campos de "vendido" tentados — string descrevendo o que cada caminho tinha, ou null
+   * quando nenhum caminho sequer existia no node. Só preenchido quando `sold` veio null,
+   * pra não poluir o card quando já está tudo certo. */
+  soldDebugRaw: string | null;
 };
 
 function normalizePrice(raw: unknown): number | null {
@@ -81,6 +86,21 @@ export function parseItemNode(node: any): ParsedItem {
     "item_data.item_rating.rating_count",
     "item_rating.rating_count",
   ]);
+
+  const soldTextRaw = pick(node, [
+    "item_card_display_sold_count.historical_sold_count_text",
+    "item_card_displayed_asset.sold_count.text", // search_items
+  ]);
+  const soldResolved =
+    parseDisplayCount(soldTextRaw) ??
+    pick<number>(node, [
+      "item_basic.historical_sold",
+      "item_data.item_card_display_sold_count.historical_sold_count",
+      "item_card_display_sold_count.historical_sold_count", // shop/rcmd_items
+      "historical_sold",
+      "sold",
+      "global_sold",
+    ]);
 
   return {
     itemId: String(pick(node, ["itemid", "item_id", "item_data.itemid"]) ?? "") || null,
@@ -139,21 +159,11 @@ export function parseItemNode(node: any): ParsedItem {
     // "item_card_displayed_asset.sold_count.text" (não "item_card_display_sold_count",
     // que vem null nesse endpoint) — por isso "Vendidos"/"vendas por dia"/"campeões"
     // vinham todos vazios na busca até essa correção.
-    sold:
-      parseDisplayCount(
-        pick(node, [
-          "item_card_display_sold_count.historical_sold_count_text",
-          "item_card_displayed_asset.sold_count.text", // search_items
-        ]),
-      ) ??
-      pick<number>(node, [
-        "item_basic.historical_sold",
-        "item_data.item_card_display_sold_count.historical_sold_count",
-        "item_card_display_sold_count.historical_sold_count", // shop/rcmd_items
-        "historical_sold",
-        "sold",
-        "global_sold",
-      ]),
+    sold: soldResolved,
+    // Debug visual direto no mini-card (sem precisar abrir o diagnóstico) — só preenchido
+    // quando "sold" não resolveu, pra ver na hora se o campo de texto veio vazio (a própria
+    // Shopee não mandou esse dado pra esse item) ou se nenhum caminho bateu (nome errado).
+    soldDebugRaw: soldResolved != null ? null : `sold_count.text=${JSON.stringify(soldTextRaw)}`,
     // "Últimos 30 dias" direto da Shopee — mesma pegadinha do historical_sold_count:
     // confirmado ao vivo (17/10/2026) que "monthly_sold_count" (número) vem 0 mesmo em
     // item com "monthly_sold_count_text": "105 Vendido/Mês" — texto tentado ANTES do

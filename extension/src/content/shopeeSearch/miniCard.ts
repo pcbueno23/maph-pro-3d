@@ -364,6 +364,12 @@ function buildMiniCard(card: EnrichedCard, isChampion: boolean, locked: boolean)
   const rows = document.createElement("div");
   rows.className = `${MINI_CARD_CLASS}-rows`;
   rows.appendChild(row("Vendidos", "📦", card.sold != null ? String(card.sold) : "—"));
+  if (card.sold == null && card.soldDebugRaw) {
+    const debugRow = document.createElement("div");
+    debugRow.style.cssText = "padding: 2px 0 6px; font-size: 9.5px; color: var(--mp3d-muted); word-break: break-all;";
+    debugRow.textContent = card.soldDebugRaw;
+    rows.appendChild(debugRow);
+  }
   rows.appendChild(
     row(
       "Vendas/dia",
