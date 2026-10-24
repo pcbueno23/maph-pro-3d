@@ -22,6 +22,12 @@ export type MarginParams = {
   impostoPercent: number; // ex. 5 (%)
   taxaFixa: number; // R$ por venda
   margemAlvoPercent: number; // ex. 20 (%)
+  /** Custo de Ads como % da venda (ex. 20 = ROAS ~5). 0 = não considerar Ads no cálculo. */
+  adsPercent: number;
+  /** Comissão de afiliado como % da venda. 0 = não vende por afiliado. */
+  afiliadoPercent: number;
+  /** Reserva para devolução/reembolso como % da venda. 0 = não reservar. */
+  devolucaoPercent: number;
   /** Preset aplicado como "Embalagem+outros" em linhas sem valor próprio preenchido
    * (0 = sem preset, cada linha fica em branco/0 como hoje). */
   embalagemPadrao: number;
@@ -34,6 +40,9 @@ export const DEFAULT_MARGIN_PARAMS: MarginParams = {
   impostoPercent: 5,
   taxaFixa: 4.5,
   margemAlvoPercent: 20,
+  adsPercent: 20,
+  afiliadoPercent: 2.5,
+  devolucaoPercent: 3,
   embalagemPadrao: 0,
   cupomTiers: [
     { min: 0, desconto: 0, label: "Sem cupom" },
@@ -72,6 +81,14 @@ export type ComputedMarginRow = MarginRow & {
   margemComRelampagoPct: number | null;
   clienteDevePagarParaMargemAlvo: number | null;
   precoPromocaoParaMargemAlvo: number | null;
+  /** true quando a meta de margem é matematicamente inviável com os custos atuais
+   * (comissão+transação+imposto+afiliado%+ads%+devolução%+margem alvo >= 100% do preço) —
+   * nesse caso clienteDevePagarParaMargemAlvo/precoPromocaoParaMargemAlvo vêm null. */
+  precoParaMargemAlvoInviavel: boolean;
+  /** Lucro real por unidade: lucro sem relâmpago já descontando Ads%, afiliado% e
+   * devolução% (os três só entram aqui e no preço p/ margem alvo — nunca no ROAS, que
+   * mede justamente o que o Ads% pode consumir). */
+  lucroReal: number | null;
   alerta: string;
   /** ROAS de equilíbrio (sem relâmpago): abaixo disso, o anúncio dá prejuízo mesmo com
    * a margem de contribuição atual. = 1 / margemSemRelampagoPct. Null se não dá pra
@@ -105,8 +122,47 @@ export function marginRowFullName(row: Pick<MarginRow, "produto" | "variacao">):
   return row.variacao ? `${row.produto} — ${row.variacao}` : row.produto;
 }
 
+/** Fórmula unificada de preço pra meta de margem: preço = custos fixos / (1 - custos %).
+ * Usada em /margem-shopee (sem faixa de preço — comissão/taxa fixa são % e R$ fixos vindos
+ * dos Parâmetros do usuário, então não precisa de iteração nenhuma pra resolver). Retorna
+ * "inviavel" quando a soma dos custos percentuais + margem alvo >= 100% do preço — nesse
+ * caso nenhum preço fecha a meta. */
+export function resolverPrecoParaMargem(p: {
+  custosFixos: number;
+  comissaoPercent: number;
+  taxaTransacaoPercent: number;
+  impostoPercent: number;
+  afiliadoPercent: number;
+  adsPercent: number;
+  devolucaoPercent: number;
+  margemAlvoPercent: number;
+}): number | "inviavel" {
+  const percentuaisSoma =
+    p.comissaoPercent +
+    p.taxaTransacaoPercent +
+    p.impostoPercent +
+    p.afiliadoPercent +
+    p.adsPercent +
+    p.devolucaoPercent +
+    p.margemAlvoPercent;
+  const divisor = 1 - percentuaisSoma / 100;
+  if (divisor <= 0) return "inviavel";
+  return p.custosFixos / divisor;
+}
+
 export function computeRow(row: MarginRow, params: MarginParams): ComputedMarginRow {
-  const feeRate = (params.comissaoPercent + params.taxaTransacaoPercent + params.impostoPercent) / 100;
+  // Base pra margem/ROAS: nunca inclui Ads% — ROAS mede justamente o que o Ads% pode
+  // consumir da margem de contribuição, então ele não pode estar dentro da própria conta.
+  const feeRateSemAds =
+    (params.comissaoPercent +
+      params.taxaTransacaoPercent +
+      params.impostoPercent +
+      params.afiliadoPercent +
+      params.devolucaoPercent) /
+    100;
+  // Base pro "Preço p/ margem alvo" e pro "Lucro real": aqui sim entra o Ads%.
+  const feeRateComAds = feeRateSemAds + params.adsPercent / 100;
+  const feeRate = feeRateSemAds;
   const embalagem = row.embalagemOutros ?? 0;
 
   const cupomSemRelampago = row.precoPromocaoRede != null ? cupomFor(row.precoPromocaoRede, params.cupomTiers) : null;
@@ -138,17 +194,38 @@ export function computeRow(row: MarginRow, params: MarginParams): ComputedMargin
   const margemComRelampagoPct =
     lucroComRelampago != null && clientePagaComRelampago ? lucroComRelampago / clientePagaComRelampago : null;
 
-  const divisor = 1 - feeRate - params.margemAlvoPercent / 100;
-  const clienteDevePagarParaMargemAlvo =
-    row.custoProducao != null && divisor > 0
-      ? (row.custoProducao + embalagem + params.taxaFixa) / divisor
-      : null;
+  let clienteDevePagarParaMargemAlvo: number | null = null;
+  let precoParaMargemAlvoInviavel = false;
+  if (row.custoProducao != null) {
+    const resultado = resolverPrecoParaMargem({
+      custosFixos: row.custoProducao + embalagem + params.taxaFixa,
+      comissaoPercent: params.comissaoPercent,
+      taxaTransacaoPercent: params.taxaTransacaoPercent,
+      impostoPercent: params.impostoPercent,
+      afiliadoPercent: params.afiliadoPercent,
+      adsPercent: params.adsPercent,
+      devolucaoPercent: params.devolucaoPercent,
+      margemAlvoPercent: params.margemAlvoPercent,
+    });
+    if (resultado === "inviavel") precoParaMargemAlvoInviavel = true;
+    else clienteDevePagarParaMargemAlvo = resultado;
+  }
   let precoPromocaoParaMargemAlvo: number | null = null;
   if (clienteDevePagarParaMargemAlvo != null) {
     const inner = cupomFor(clienteDevePagarParaMargemAlvo, params.cupomTiers) ?? 0;
     const outer = cupomFor(clienteDevePagarParaMargemAlvo + inner, params.cupomTiers) ?? 0;
     precoPromocaoParaMargemAlvo = clienteDevePagarParaMargemAlvo + outer;
   }
+
+  // Lucro real/un: lucro sem relâmpago já descontando Ads% (os outros custos % já estão
+  // em feeRateComAds). É diferente de lucroSemRelampago porque esse último nunca inclui Ads%.
+  const lucroReal =
+    row.custoProducao != null && clientePagaSemRelampago != null
+      ? clientePagaSemRelampago -
+        (clientePagaSemRelampago * feeRateComAds + params.taxaFixa) -
+        row.custoProducao -
+        embalagem
+      : null;
 
   // ROAS de equilíbrio e ROAS p/ margem alvo, a partir da margem de contribuição sem
   // relâmpago (já descontados custo, embalagem, comissão/transação/imposto e taxa fixa).
@@ -193,6 +270,8 @@ export function computeRow(row: MarginRow, params: MarginParams): ComputedMargin
     margemComRelampagoPct,
     clienteDevePagarParaMargemAlvo,
     precoPromocaoParaMargemAlvo,
+    precoParaMargemAlvoInviavel,
+    lucroReal,
     alerta,
     roasMinimo,
     roasParaMargemAlvo,
@@ -341,6 +420,12 @@ export async function parseMarginSheetXlsx(file: File): Promise<MarginSheetParse
         impostoPercent,
         taxaFixa,
         margemAlvoPercent,
+        // adsPercent/afiliadoPercent/devolucaoPercent também não existem no formato da
+        // planilha original — mesmo caso de embalagemPadrao: a página mescla com o valor
+        // atual do usuário antes de salvar, pra não resetar.
+        adsPercent: DEFAULT_MARGIN_PARAMS.adsPercent,
+        afiliadoPercent: DEFAULT_MARGIN_PARAMS.afiliadoPercent,
+        devolucaoPercent: DEFAULT_MARGIN_PARAMS.devolucaoPercent,
         // embalagemPadrao não existe no formato da planilha (é só um preset do app) —
         // a página mescla com o valor atual do usuário antes de salvar, pra não resetar.
         embalagemPadrao: DEFAULT_MARGIN_PARAMS.embalagemPadrao,
@@ -462,6 +547,7 @@ const DATA_HEADERS = [
   "Preço promoção p/ margem alvo",
   "Alerta",
   "Link do anúncio",
+  "Lucro real (R$)",
 ];
 
 const LEGEND_LINES = [
@@ -564,6 +650,7 @@ export function buildMarginSheetXlsxBlob(computedRows: ComputedMarginRow[], para
       numCell(`U${rowNum}`, r.precoPromocaoParaMargemAlvo, S.currency),
       strCell(`V${rowNum}`, r.alerta, S.text),
       strCell(`W${rowNum}`, r.link ?? "", S.text),
+      numCell(`X${rowNum}`, r.lucroReal, S.currency),
     ].join("");
     dataRowsXml += `<row r="${rowNum}">${cells}</row>`;
   });
@@ -580,7 +667,7 @@ export function buildMarginSheetXlsxBlob(computedRows: ComputedMarginRow[], para
 
   const sheet1Xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<dimension ref="A1:W${lastRow}"/>
+<dimension ref="A1:X${lastRow}"/>
 <sheetData>
 <row r="1">${strCell("A1", "Preço final ao cliente e margem por produto (1 unidade)", S.title)}</row>
 <row r="2">${strCell("A2", note, S.note)}</row>
@@ -607,7 +694,9 @@ ${mergeCellsXml()}
 <row r="6">${strCell("A6", "Imposto / tributação (%)", S.text)}${numCell("B6", params.impostoPercent / 100, S.text)}</row>
 <row r="7">${strCell("A7", "Taxa fixa por venda (R$)", S.text)}${numCell("B7", params.taxaFixa, S.text)}</row>
 <row r="8">${strCell("A8", "Margem alvo (% do preço final)", S.text)}${numCell("B8", params.margemAlvoPercent / 100, S.text)}</row>
-<row r="11">${strCell("A11", "Cupons de loja ativos (aplicados em 1 unidade)", S.text)}</row>
+<row r="9">${strCell("A9", "Custo de Ads (% da venda)", S.text)}${numCell("B9", params.adsPercent / 100, S.text)}</row>
+<row r="10">${strCell("A10", "Comissão de afiliado (% da venda)", S.text)}${numCell("B10", params.afiliadoPercent / 100, S.text)}</row>
+<row r="11">${strCell("A11", "Reserva para devolução (%)", S.text)}${numCell("B11", params.devolucaoPercent / 100, S.text)}</row>
 <row r="12">${strCell("A12", "Pedido mínimo (R$)", S.text)}${strCell("B12", "Desconto (R$)", S.text)}${strCell("C12", "Cupom", S.text)}</row>
 ${paramRows}
 </sheetData>
