@@ -37,6 +37,8 @@ const DEFAULT_INPUTS: ShopeeInputs = {
   markupPercent: 70,
   tributacaoPercent: 0,
   roasAlvo: 13,
+  afiliadoPercent: 2.5,
+  devolucaoPercent: 3,
   promocaoPercent: 15,
   cupomLojaPercent: 0,
   cupomMaxRS: 0,
@@ -148,6 +150,9 @@ export default function ShopeeCalculatorPage() {
   const [inputs, setInputs] = useState<ShopeeInputs>(() => activePreset?.inputs ?? DEFAULT_INPUTS);
   const [nomeProduto, setNomeProduto] = useState("");
   const [showKitPicker, setShowKitPicker] = useState(false);
+  // ROAS que a loja de fato sustenta hoje — informativo, só pra comparar com o ROAS
+  // alvo do preset carregado (não é salvo no preset nem afeta o cálculo).
+  const [roasRealLojaRef, setRoasRealLojaRef] = useState("");
 
   // Carrega o preset ativo assim que ele estiver disponível (ex.: sincronizou do Supabase
   // após o mount). Só uma vez, pra não sobrescrever edições feitas na sessão.
@@ -734,6 +739,45 @@ export default function ShopeeCalculatorPage() {
                   onChange={(v) => setNum("roasAlvo", v)}
                   step={0.1}
                 />
+                <InputField
+                  label="Comissão de afiliado (%)"
+                  value={inputs.afiliadoPercent}
+                  onChange={(v) => setNum("afiliadoPercent", v)}
+                  suffix="%"
+                  step={0.1}
+                  hint="Afiliado% = comissão de afiliados ÷ vendas totais da loja. 0% = não vende por afiliado."
+                />
+                <InputField
+                  label="Reserva p/ devolução (%)"
+                  value={inputs.devolucaoPercent}
+                  onChange={(v) => setNum("devolucaoPercent", v)}
+                  suffix="%"
+                  step={0.1}
+                />
+
+                <div className="sm:col-span-2">
+                  <InputField
+                    label="ROAS real da loja hoje (opcional, só pra comparar)"
+                    value={roasRealLojaRef === "" ? 0 : Number(roasRealLojaRef)}
+                    onChange={(v) => setRoasRealLojaRef(v > 0 ? String(v) : "")}
+                    step={0.1}
+                    hint="Preencha com o ROAS médio real da sua conta de Ads — se o ROAS alvo acima estiver maior que isso, aparece um aviso."
+                  />
+                  {roasRealLojaRef !== "" &&
+                    Number(roasRealLojaRef) > 0 &&
+                    inputs.roasAlvo > Number(roasRealLojaRef) && (
+                      <p className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-200/90">
+                        O ROAS alvo (x{inputs.roasAlvo.toFixed(1)}) está acima do que sua loja sustenta hoje
+                        (x{Number(roasRealLojaRef).toFixed(1)}) — o preço sugerido pode estar otimista demais.
+                      </p>
+                    )}
+                </div>
+
+                {inputs.modo === "margem" && inputs.metaLucroPercent === 0 && inputs.roasAlvo > 0 && (
+                  <div className="sm:col-span-2 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-2.5 text-xs text-rose-200">
+                    Margem 0% com Ads ativo gera prejuízo em toda venda atribuída.
+                  </div>
+                )}
 
                 {(inputs.modo === "margem" || inputs.modo === "precoTravado") && (
                   <div className="sm:col-span-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-200/90">

@@ -251,6 +251,10 @@ export default function ResultCard({
     custoCampanhas,
     custoAcelera,
     custoTaxaTransacao,
+    custoAfiliado,
+    custoDevolucao,
+    inviavel,
+    inviavelMotivo,
     roasMinimo,
     roasAlvoParaMargem,
     roasAlvo,
@@ -330,9 +334,21 @@ Geração feita via MAPH PRO SHOPEE.
           <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">
             Preço para Cadastrar na Shopee
           </p>
-          <p className="tabular-nums text-5xl font-black tracking-tight text-slate-50">
-            {formatBRL(precoCadastroSugerido)}
-          </p>
+          {inviavel ? (
+            <p className="tabular-nums text-3xl font-black tracking-tight text-rose-400">
+              {inviavelMotivo ?? "Inviável com esses custos"}
+            </p>
+          ) : (
+            <p className="tabular-nums text-5xl font-black tracking-tight text-slate-50">
+              {formatBRL(precoCadastroSugerido)}
+            </p>
+          )}
+          {inviavel && (
+            <p className="mt-1.5 text-[11px] text-rose-300">
+              Comissão + taxas + Ads% + afiliado% + devolução% + meta de margem já somam 100% do preço ou mais —
+              nenhum preço fecha essa meta. Reduza a meta de margem/ROAS alvo ou os outros custos.
+            </p>
+          )}
 
           <div className="mt-3 flex justify-center">
             <span
@@ -517,6 +533,8 @@ Geração feita via MAPH PRO SHOPEE.
             danger
           />
         )}
+        {custoAfiliado > 0 && <Row label="Comissão de afiliado" value={formatBRL(custoAfiliado)} danger />}
+        {custoDevolucao > 0 && <Row label="Reserva p/ devolução" value={formatBRL(custoDevolucao)} danger />}
         <Row
           label="Margem de Contribuição"
           value={formatBRL(margemContribuicao)}
