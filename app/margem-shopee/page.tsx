@@ -56,6 +56,13 @@ function margemTone(pct: number | null, alvo: number): string {
   if (pct < alvo / 100) return "text-amber-300";
   return "text-emerald-400";
 }
+/** Vermelho quando o ROAS que esse produto precisa bater pra fechar a margem alvo já
+ * passa do ROAS que a loja de fato sustenta (1 ÷ Ads%, dos Parâmetros) — ou seja, nem
+ * pagando o anúncio no ROAS médio real da loja esse produto fecha a meta. */
+function roasAlvoTone(roasNecessario: number | null, roasRealLoja: number | null): string {
+  if (roasNecessario == null || roasRealLoja == null) return "text-violet-300";
+  return roasNecessario > roasRealLoja ? "font-semibold text-rose-400" : "text-violet-300";
+}
 
 export default function MargemShopeePage() {
   const router = useRouter();
@@ -70,6 +77,7 @@ export default function MargemShopeePage() {
   const [showParams, setShowParams] = useState(false);
   const [savingCell, setSavingCell] = useState<string | null>(null);
   const [copiedPrompt, setCopiedPrompt] = useState<string | null>(null);
+  const [showOnlySemCusto, setShowOnlySemCusto] = useState(false);
 
   async function handleCopyPrompt(key: string, prompt: string) {
     try {
@@ -139,6 +147,14 @@ export default function MargemShopeePage() {
     [rows, params, productCostByName],
   );
 
+  const semCustoCount = useMemo(() => computedRows.filter((r) => r.custoProducao == null).length, [computedRows]);
+  const visibleRows = useMemo(
+    () => (showOnlySemCusto ? computedRows.filter((r) => r.custoProducao == null) : computedRows),
+    [computedRows, showOnlySemCusto],
+  );
+  // ROAS médio que a loja de fato sustenta hoje, pelo Ads% configurado nos Parâmetros.
+  const roasRealLoja = params.adsPercent > 0 ? 100 / params.adsPercent : null;
+
   async function handleImport(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -157,9 +173,16 @@ export default function MargemShopeePage() {
         return;
       }
       if (parsed.params) {
-        // embalagemPadrao não existe no formato da planilha (é só um preset do app) —
-        // preserva o que o usuário já tinha configurado em vez de resetar pra 0.
-        const merged: MarginParams = { ...parsed.params, embalagemPadrao: params.embalagemPadrao };
+        // embalagemPadrao/adsPercent/afiliadoPercent/devolucaoPercent não existem no
+        // formato da planilha (são presets do app) — preserva o que o usuário já tinha
+        // configurado em vez de resetar pro default.
+        const merged: MarginParams = {
+          ...parsed.params,
+          embalagemPadrao: params.embalagemPadrao,
+          adsPercent: params.adsPercent,
+          afiliadoPercent: params.afiliadoPercent,
+          devolucaoPercent: params.devolucaoPercent,
+        };
         await saveMarginParams(user.id, merged);
         setParams(merged);
       }
@@ -263,6 +286,21 @@ export default function MargemShopeePage() {
         <p className="rounded-lg border border-slate-800 bg-slate-900/50 px-2 py-2 text-xs text-slate-300">{importMsg}</p>
       )}
 
+      {rows.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowOnlySemCusto((v) => !v)}
+          className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
+            showOnlySemCusto
+              ? "border-amber-500/50 bg-amber-500/10 text-amber-200"
+              : "border-slate-800 bg-slate-900/50 text-slate-300 hover:border-amber-500/30 hover:text-amber-200"
+          }`}
+        >
+          {semCustoCount} de {computedRows.length} produtos sem custo
+          {showOnlySemCusto ? " — mostrando só esses (clique pra ver todos)" : " — clique pra filtrar"}
+        </button>
+      )}
+
       {showParams && (
         <div className="glass-panel rounded-2xl border border-slate-800 bg-slate-950/60 p-5">
           <p className="mb-3 text-sm font-semibold text-slate-100">Taxas, imposto e cupons (igual aba "Parâmetros" da planilha)</p>
@@ -277,10 +315,25 @@ export default function MargemShopeePage() {
               value={params.embalagemPadrao}
               onChange={(v) => handleParamChange({ embalagemPadrao: v })}
             />
+            <ParamField label="Custo de Ads (% da venda)" value={params.adsPercent} onChange={(v) => handleParamChange({ adsPercent: v })} />
+            <ParamField
+              label="Comissão de afiliado (% da venda)"
+              value={params.afiliadoPercent}
+              onChange={(v) => handleParamChange({ afiliadoPercent: v })}
+            />
+            <ParamField
+              label="Reserva p/ devolução (%)"
+              value={params.devolucaoPercent}
+              onChange={(v) => handleParamChange({ devolucaoPercent: v })}
+            />
           </div>
           <p className="mt-2 text-[11px] text-slate-500">
             Preenche automaticamente a coluna "Embalagem+outros" em linhas sem valor próprio
             (marcadas com o selo "preset" na tabela) — digitar um valor na linha sempre tem prioridade.
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Ads% = gasto de Ads ÷ vendas totais da loja (Informações Gerenciais). Afiliado% = comissão de
+            afiliados ÷ vendas totais da loja. Deixe em 0% pra não considerar um desses custos.
           </p>
           <p className="mb-2 mt-4 text-xs font-medium uppercase tracking-wide text-slate-500">Faixas de cupom da loja</p>
           <div className="space-y-1">
@@ -346,17 +399,27 @@ export default function MargemShopeePage() {
                   </th>
                   <th className="px-2 py-2 text-right font-medium">Preço p/ margem alvo</th>
                   <th className="px-2 py-2 text-right font-medium">Promoção p/ margem alvo</th>
+                  <th
+                    className="px-2 py-2 text-right font-medium"
+                    title="Lucro de verdade por unidade: já descontando Ads%, afiliado% e devolução%"
+                  >
+                    Lucro real/un
+                  </th>
                   <th className="px-2 py-2 font-medium">Alerta</th>
                   <th className="px-2 py-2 font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {computedRows.map((r) => {
+                {visibleRows.map((r) => {
                   const raw = rowsById.get(r.id) ?? r;
                   const pulledCusto = pulledCustoFor(raw);
                   const pulledEmbalagem = pulledEmbalagemFor(raw);
+                  const lucroRealNegativo = r.lucroReal != null && r.lucroReal < 0;
                   return (
-                  <tr key={r.id} className="border-b border-slate-800/60">
+                  <tr
+                    key={r.id}
+                    className={`border-b border-slate-800/60 ${lucroRealNegativo ? "bg-rose-500/10" : ""}`}
+                  >
                     <td className="sticky left-0 z-10 max-w-[160px] bg-slate-950 px-2 py-2 text-slate-200">
                       <span className="inline-flex max-w-full items-center gap-1">
                         <span className="truncate" title={r.produto}>
@@ -421,7 +484,16 @@ export default function MargemShopeePage() {
                       {formatPct(r.margemSemRelampagoPct)}
                     </td>
                     <td className="px-2 py-2 text-right text-violet-300">{formatRoas(r.roasMinimo)}</td>
-                    <td className="px-2 py-2 text-right text-violet-300">{formatRoas(r.roasParaMargemAlvo)}</td>
+                    <td
+                      className={`px-2 py-2 text-right ${roasAlvoTone(r.roasParaMargemAlvo, roasRealLoja)}`}
+                      title={
+                        r.roasParaMargemAlvo != null && roasRealLoja != null && r.roasParaMargemAlvo > roasRealLoja
+                          ? "Este produto não sustenta Ads nesse preço: subir preço, vender em kit ou tirar do anúncio."
+                          : undefined
+                      }
+                    >
+                      {formatRoas(r.roasParaMargemAlvo)}
+                    </td>
                     <td className="px-2 py-2 text-right text-blue-300">{formatBRL(r.precoRelampago)}</td>
                     <td className="px-2 py-2 text-right text-slate-200">{formatBRL(r.clientePagaComRelampago)}</td>
                     <td className="px-2 py-2 text-right text-slate-200">{formatBRL(r.lucroComRelampago)}</td>
@@ -429,9 +501,29 @@ export default function MargemShopeePage() {
                       {formatPct(r.margemComRelampagoPct)}
                     </td>
                     <td className="px-2 py-2 text-right text-violet-300">{formatRoas(r.roasMinimoComRelampago)}</td>
-                    <td className="px-2 py-2 text-right text-violet-300">{formatRoas(r.roasParaMargemAlvoComRelampago)}</td>
-                    <td className="px-2 py-2 text-right text-slate-300">{formatBRL(r.clienteDevePagarParaMargemAlvo)}</td>
+                    <td
+                      className={`px-2 py-2 text-right ${roasAlvoTone(r.roasParaMargemAlvoComRelampago, roasRealLoja)}`}
+                      title={
+                        r.roasParaMargemAlvoComRelampago != null &&
+                        roasRealLoja != null &&
+                        r.roasParaMargemAlvoComRelampago > roasRealLoja
+                          ? "Este produto não sustenta Ads nesse preço: subir preço, vender em kit ou tirar do anúncio."
+                          : undefined
+                      }
+                    >
+                      {formatRoas(r.roasParaMargemAlvoComRelampago)}
+                    </td>
+                    <td className="px-2 py-2 text-right text-slate-300">
+                      {r.precoParaMargemAlvoInviavel ? (
+                        <span className="text-rose-400">Inviável com esses custos</span>
+                      ) : (
+                        formatBRL(r.clienteDevePagarParaMargemAlvo)
+                      )}
+                    </td>
                     <td className="px-2 py-2 text-right text-slate-300">{formatBRL(r.precoPromocaoParaMargemAlvo)}</td>
+                    <td className={`px-2 py-2 text-right font-medium ${lucroRealNegativo ? "text-rose-400" : "text-emerald-300"}`}>
+                      {formatBRL(r.lucroReal)}
+                    </td>
                     <td className="max-w-[200px] px-2 py-2 text-rose-300">{r.alerta}</td>
                     <td className="px-2 py-2">
                       <button
