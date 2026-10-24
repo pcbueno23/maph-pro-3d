@@ -22,6 +22,10 @@ export type ShopeeInputs = {
   markupPercent: number;
   tributacaoPercent: number;
   roasAlvo: number;
+  /** Comissão de afiliado como % da venda (afiliado externo que indicou o pedido). 0 = não vende por afiliado. */
+  afiliadoPercent: number;
+  /** Reserva para devolução/reembolso como % da venda. 0 = não reservar. */
+  devolucaoPercent: number;
   promocaoPercent: number;
   /** Usado quando `cupomTiers` está vazio/ausente — cupom único, sem faixa de preço. */
   cupomLojaPercent: number;
@@ -60,6 +64,13 @@ export type ShopeeResult = {
   custoAcelera: number;
   /** Taxa de transação Shopee: 2% sobre (preço − cupom da loja pago pelo vendedor). */
   custoTaxaTransacao: number;
+  custoAfiliado: number;
+  custoDevolucao: number;
+  /** true quando a meta de margem é matematicamente inviável com os custos atuais
+   * (comissão+transação+imposto+afiliado%+ads%+devolução%+margem alvo >= 100% do preço) —
+   * só detectado no modo "margem" (o único com meta de % fechada). */
+  inviavel: boolean;
+  inviavelMotivo: string | null;
   /** ROAS de equilíbrio: abaixo disso a venda dá prejuízo (999 = sem dado suficiente). */
   roasMinimo: number;
   /** ROAS que você precisa bater na campanha pra, depois do custo do próprio anúncio, ainda
@@ -237,6 +248,8 @@ function derivar(precoFinal: number, inputs: ShopeeInputs, valorCupomRS: number)
     kitQtd,
     tributacaoPercent,
     roasAlvo,
+    afiliadoPercent,
+    devolucaoPercent,
     tipoVendedor,
     altaVolume,
     campanhasDestaque,
@@ -257,6 +270,8 @@ function derivar(precoFinal: number, inputs: ShopeeInputs, valorCupomRS: number)
   const valorTributacao = precoFinal * (tributacaoPercent / 100);
   const custoCampanhas = campanhasDestaque ? precoFinal * 0.035 : 0;
   const custoTaxaTransacao = Math.max(0, precoFinal - valorCupomRS) * (TAXA_TRANSACAO_PERCENT / 100);
+  const custoAfiliado = precoFinal * ((afiliadoPercent || 0) / 100);
+  const custoDevolucao = precoFinal * ((devolucaoPercent || 0) / 100);
   const valorAReceber = precoFinal - valorComissao;
   const custoAcelera = valorAReceber * (SHOPEE_ACELERA_RATES[shopeeAcelera] || 0);
 
@@ -267,7 +282,9 @@ function derivar(precoFinal: number, inputs: ShopeeInputs, valorCupomRS: number)
     valorTributacao +
     custoCampanhas +
     custoAcelera +
-    custoTaxaTransacao;
+    custoTaxaTransacao +
+    custoAfiliado +
+    custoDevolucao;
   const lucroLiquido = precoFinal - totalCustos;
   const margemReal = precoFinal > 0 ? (lucroLiquido / precoFinal) * 100 : 0;
 
@@ -281,13 +298,15 @@ function derivar(precoFinal: number, inputs: ShopeeInputs, valorCupomRS: number)
     custoCampanhas,
     custoAcelera,
     custoTaxaTransacao,
+    custoAfiliado,
+    custoDevolucao,
     totalCustos,
     lucroLiquido,
     margemReal,
   };
 }
 
-function resolverPorMargem(inputs: ShopeeInputs) {
+function resolverPorMargem(inputs: ShopeeInputs): { preco: number; inviavel: boolean } {
   const {
     fullCustoUnidade,
     valorCompra,
@@ -297,6 +316,8 @@ function resolverPorMargem(inputs: ShopeeInputs) {
     tributacaoPercent,
     metaLucroPercent,
     roasAlvo,
+    afiliadoPercent,
+    devolucaoPercent,
     tipoVendedor,
     altaVolume,
     campanhasDestaque,
@@ -310,21 +331,39 @@ function resolverPorMargem(inputs: ShopeeInputs) {
   const custoBase = unitCost * qtd + custoEnvio;
 
   let pF = custoBase * 2.8;
+  let percentualComissaoFinal = 0;
   for (let i = 0; i < 150; i++) {
-    const { valorComissao } = calcularComissaoShopee(pF, tipoVendedor, altaVolume);
+    const { percentual, valorComissao } = calcularComissaoShopee(pF, tipoVendedor, altaVolume);
+    percentualComissaoFinal = percentual;
     const ads = roasAlvo > 0 ? pF / roasAlvo : 0;
     const trib = pF * (tributacaoPercent / 100);
     const camp = campanhasDestaque ? pF * 0.035 : 0;
+    const afiliado = pF * ((afiliadoPercent || 0) / 100);
+    const devolucao = pF * ((devolucaoPercent || 0) / 100);
     const cupom = cupomValorPara(pF, inputs);
     const taxaTransacao = Math.max(0, pF - cupom) * (TAXA_TRANSACAO_PERCENT / 100);
     const rec = pF - valorComissao;
     const acel = rec * (SHOPEE_ACELERA_RATES[shopeeAcelera] || 0);
     const lucroAlvo = pF * (metaLucroPercent / 100);
-    const necessario = custoBase + valorComissao + ads + trib + camp + taxaTransacao + acel + lucroAlvo;
+    const necessario =
+      custoBase + valorComissao + ads + trib + camp + taxaTransacao + acel + afiliado + devolucao + lucroAlvo;
     if (Math.abs(necessario - pF) < 0.005) break;
     pF = necessario;
   }
-  return Math.ceil(pF) - 0.1;
+
+  // Inviável quando os custos percentuais (incl. margem alvo) já somam >= 100% do preço —
+  // nenhum preço fecha a meta nesse caso, não importa o quanto ele suba.
+  const percentTotal =
+    percentualComissaoFinal * 100 +
+    TAXA_TRANSACAO_PERCENT +
+    tributacaoPercent +
+    (afiliadoPercent || 0) +
+    (roasAlvo > 0 ? 100 / roasAlvo : 0) +
+    (devolucaoPercent || 0) +
+    metaLucroPercent;
+  const inviavel = !Number.isFinite(pF) || pF <= 0 || percentTotal >= 100;
+  const preco = Number.isFinite(pF) && pF > 0 ? Math.ceil(pF) - 0.1 : 0.01;
+  return { preco, inviavel };
 }
 
 /**
@@ -342,6 +381,8 @@ function resolverPorMarkup(inputs: ShopeeInputs) {
     tributacaoPercent,
     markupPercent,
     roasAlvo,
+    afiliadoPercent,
+    devolucaoPercent,
     tipoVendedor,
     altaVolume,
     campanhasDestaque,
@@ -360,11 +401,13 @@ function resolverPorMarkup(inputs: ShopeeInputs) {
     const ads = roasAlvo > 0 ? pF / roasAlvo : 0;
     const trib = pF * (tributacaoPercent / 100);
     const camp = campanhasDestaque ? pF * 0.035 : 0;
+    const afiliado = pF * ((afiliadoPercent || 0) / 100);
+    const devolucao = pF * ((devolucaoPercent || 0) / 100);
     const cupom = cupomValorPara(pF, inputs);
     const taxaTransacao = Math.max(0, pF - cupom) * (TAXA_TRANSACAO_PERCENT / 100);
     const rec = pF - valorComissao;
     const acel = rec * (SHOPEE_ACELERA_RATES[shopeeAcelera] || 0);
-    const custoOperacao = custoBase + valorComissao + ads + trib + camp + taxaTransacao + acel;
+    const custoOperacao = custoBase + valorComissao + ads + trib + camp + taxaTransacao + acel + afiliado + devolucao;
     const necessario = custoOperacao * (1 + (markupPercent || 0) / 100);
     if (Math.abs(necessario - pF) < 0.005) break;
     pF = necessario;
@@ -382,6 +425,8 @@ function resolverPorLucroRS(inputs: ShopeeInputs) {
     tributacaoPercent,
     metaLucroRS,
     roasAlvo,
+    afiliadoPercent,
+    devolucaoPercent,
     tipoVendedor,
     altaVolume,
     campanhasDestaque,
@@ -400,12 +445,14 @@ function resolverPorLucroRS(inputs: ShopeeInputs) {
     const ads = roasAlvo > 0 ? pF / roasAlvo : 0;
     const trib = pF * (tributacaoPercent / 100);
     const camp = campanhasDestaque ? pF * 0.035 : 0;
+    const afiliado = pF * ((afiliadoPercent || 0) / 100);
+    const devolucao = pF * ((devolucaoPercent || 0) / 100);
     const cupom = cupomValorPara(pF, inputs);
     const taxaTransacao = Math.max(0, pF - cupom) * (TAXA_TRANSACAO_PERCENT / 100);
     const rec = pF - valorComissao;
     const acel = rec * (SHOPEE_ACELERA_RATES[shopeeAcelera] || 0);
     const necessario =
-      custoBase + valorComissao + ads + trib + camp + taxaTransacao + acel + (metaLucroRS || 0);
+      custoBase + valorComissao + ads + trib + camp + taxaTransacao + acel + afiliado + devolucao + (metaLucroRS || 0);
     if (Math.abs(necessario - pF) < 0.005) break;
     pF = necessario;
   }
@@ -437,6 +484,7 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
   let cupomTierAtivoLabel: string | null = null;
   /** Cupom da loja em R$, no cenário de preço ativo — usado na taxa de transação. */
   let valorCupomRS = 0;
+  let inviavel = false;
 
   if (modo === "margem" || modo === "precoTravado") {
     // Margem: o preço final (e a margem) ficam garantidos na meta — o preço de
@@ -445,7 +493,14 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     // que o usuário digitou — "preço travado" é o preço final ao cliente (depois de
     // oferta relâmpago/desconto/cupom), não o preço de cadastro. O cadastro sobe pra
     // compensar os descontos e entregar esse preço final exato.
-    let precoFinalTarget = modo === "margem" ? resolverPorMargem(inputs) : inputs.precoTravado;
+    let precoFinalTarget: number;
+    if (modo === "margem") {
+      const resolvido = resolverPorMargem(inputs);
+      precoFinalTarget = resolvido.preco;
+      inviavel = resolvido.inviavel;
+    } else {
+      precoFinalTarget = inputs.precoTravado;
+    }
     if (!precoFinalTarget || precoFinalTarget <= 0) precoFinalTarget = 0.01;
 
     const { precoAntesCupom } = resolverPrecoAntesCupomGeral(precoFinalTarget, inputs);
@@ -527,10 +582,14 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     custoCampanhas,
     custoAcelera,
     custoTaxaTransacao,
+    custoAfiliado,
+    custoDevolucao,
     lucroLiquido,
     margemReal,
   } = custos;
 
+  // Base de custo completa pro ROAS: nunca inclui custoAds (é justamente o que está
+  // sendo resolvido), mas já desconta afiliado% e devolução% junto com o resto.
   const denominador =
     precoFinalSugerido -
     valorComissao -
@@ -538,7 +597,9 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     custoBase -
     custoCampanhas -
     custoAcelera -
-    custoTaxaTransacao;
+    custoTaxaTransacao -
+    custoAfiliado -
+    custoDevolucao;
   const roasMinimo = denominador > 0 ? precoFinalSugerido / denominador : 999;
 
   // ROAS que você precisa bater na campanha (Shopee Ads) pra, além de cobrir o próprio
@@ -558,6 +619,8 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     { label: "Anúncios (Ads)", valor: custoAds, cor: "#3b82f6" },
     { label: "Camp. Destaque", valor: custoCampanhas, cor: "#ec4899" },
     { label: "Shopee Acelera", valor: custoAcelera, cor: "#8b5cf6" },
+    { label: "Afiliados", valor: custoAfiliado, cor: "#14b8a6" },
+    { label: "Reserva p/ devolução", valor: custoDevolucao, cor: "#64748b" },
     {
       label: "Lucro líquido",
       valor: lucroLiquido > 0 ? lucroLiquido : 0,
@@ -626,6 +689,10 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
     custoCampanhas,
     custoAcelera,
     custoTaxaTransacao,
+    custoAfiliado,
+    custoDevolucao,
+    inviavel,
+    inviavelMotivo: inviavel ? "Inviável com esses custos" : null,
     roasMinimo,
     roasAlvoParaMargem,
     roasAlvo,

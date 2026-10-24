@@ -44,6 +44,8 @@ export default function ProductPromoForm({
       markupPercent: 70,
       tributacaoPercent: 0,
       roasAlvo: 0,
+      afiliadoPercent: 0,
+      devolucaoPercent: 0,
       promocaoPercent: descontoPercent,
       cupomLojaPercent: cupomPercent,
       cupomMaxRS,

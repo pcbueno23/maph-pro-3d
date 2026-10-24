@@ -351,6 +351,8 @@ const shopeeInputsSchema = z.object({
   markupPercent: z.number().default(70),
   tributacaoPercent: z.number().default(0),
   roasAlvo: z.number().default(13),
+  afiliadoPercent: z.number().default(2.5),
+  devolucaoPercent: z.number().default(3),
   promocaoPercent: z.number().default(15),
   cupomLojaPercent: z.number().default(0),
   cupomMaxRS: z.number().default(0),
