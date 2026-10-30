@@ -71,6 +71,90 @@ export const AI_SKILLS: AiSkill[] = [
       "Se o produto tiver variações com preços bem diferentes entre si, o Claude avisa quando a proporção passar perto do limite de 4x e sugere um ajuste.",
     ],
   },
+  {
+    id: "shopee-planilha-precos",
+    name: "Planilha Shopee de preços",
+    subtitle: "Preço, cupom e margem no layout do SaaS",
+    description:
+      "Gera a planilha de preços da loja Shopee (preço de cadastro, oferta relâmpago, cupom, preço final e margem) exatamente no layout fixo que este SaaS importa — mesmas abas, mesmos cabeçalhos, mesma ordem de colunas — pra você só subir o arquivo na tela de importação sem precisar ajustar nada.",
+    zipFileName: "shopee-planilha-precos.zip",
+    install: [],
+    usage: [
+      "Precisa do Claude com acesso ao navegador (extensão \"Claude in Chrome\") logado na Central do Vendedor, pra ler preços, ofertas e cupons ativos de cada anúncio. Se você já tem uma planilha anterior como modelo, pode anexar ela no chat em vez de deixar o Claude navegar do zero.",
+      "Peça em português normal, por exemplo: \"gera a planilha de preços da Shopee pra importar no SaaS\". O Claude coleta os anúncios, calcula e manda o .xlsx pronto pra importar.",
+      "No final ele avisa se alguma variação está violando as regras da Shopee (oferta acima de 48% ou proporção entre variações acima de 3,9x) sem mudar o layout da planilha.",
+    ],
+  },
+  {
+    id: "shopee-ads-raio-x",
+    name: "Raio-X do Shopee Ads",
+    subtitle: "ROAS real por produto, não o do painel",
+    description:
+      "Cruza cada campanha do Shopee Ads com as vendas totais reais do produto (não só as atribuídas pelo Ads) e classifica em Escalar, Manter, Ajustar ou Pausar, com o número exato de orçamento sugerido pra cada campanha.",
+    zipFileName: "shopee-ads-raio-x.zip",
+    install: [],
+    usage: [
+      "Precisa do Claude com acesso ao navegador (extensão \"Claude in Chrome\") logado na Central do Vendedor — ela lê as campanhas do Shopee Ads e as vendas de Informações Gerenciais.",
+      "Peça em português normal, por exemplo: \"faz um raio-x das minhas campanhas de Ads dos últimos 30 dias\". Ela pode perguntar o ROAS mínimo que você aceita antes de classificar.",
+      "Ela nunca altera orçamento sozinha — só aplica mudanças se você confirmar a lista campanha por campanha.",
+    ],
+  },
+  {
+    id: "shopee-padronizar-skus",
+    name: "Padronizar SKUs Shopee",
+    subtitle: "Códigos legíveis em vez de números soltos",
+    description:
+      "Revisa os SKUs dos seus anúncios e variações na Shopee e propõe um padrão legível (ex.: FAM2-DB-12-3F — produto, cor, tamanho, variante) em vez de código numérico, com tabela de conflitos e dicionário de abreviações da loja.",
+    zipFileName: "shopee-padronizar-skus.zip",
+    install: [],
+    usage: [
+      "Precisa do Claude com acesso ao navegador (extensão \"Claude in Chrome\") logado na Central do Vendedor pra ler os SKUs atuais de cada anúncio e variação.",
+      "Peça em português normal, por exemplo: \"padroniza os SKUs dos meus anúncios da Shopee\". Ela propõe a tabela (atual → novo) antes de mexer em qualquer coisa.",
+      "Ela avisa que trocar o SKU na Shopee pode quebrar vínculo com UpSeller, TikTok, Mercado Livre e o SaaS, então só aplica depois que você confirmar onde mais esse SKU é usado.",
+    ],
+  },
+  {
+    id: "shopee-para-mercado-livre",
+    name: "Shopee → Mercado Livre",
+    subtitle: "Copia anúncio adaptando às regras do ML",
+    description:
+      "Copia um anúncio (ou vários) da Shopee pro Mercado Livre — título, descrição, imagens, variações — já adaptando ao que o Mercado Livre exige (limite de caracteres, sem HTML na descrição, capa com fundo branco) e recalculando o preço pelas taxas do ML.",
+    zipFileName: "shopee-para-mercado-livre.zip",
+    install: [],
+    usage: [
+      "Precisa do Claude com acesso ao navegador (extensão \"Claude in Chrome\") logado nas duas contas (Shopee e Mercado Livre).",
+      "Peça em português normal, por exemplo: \"copia os meus 5 anúncios mais vendidos da Shopee pro Mercado Livre\". Ela confere antes se o anúncio já existe lá, pra não duplicar.",
+      "Publicar é mudança pública — ela sempre mostra o resumo (título, preço, capa) e só publica depois que você confirmar.",
+    ],
+  },
+  {
+    id: "shopee-para-tiktok-upseller",
+    name: "Shopee → TikTok Shop (UpSeller)",
+    subtitle: "Migra produtos validados sem duplicar",
+    description:
+      "Leva anúncios já validados na Shopee (boas vendas, pouca devolução) pro TikTok Shop usando o UpSeller, conferindo antes se o produto já existe lá pra nunca duplicar anúncio.",
+    zipFileName: "shopee-para-tiktok-upseller.zip",
+    install: [],
+    usage: [
+      "Precisa do Claude com acesso ao navegador (extensão \"Claude in Chrome\") logado na Shopee, no UpSeller (app.upseller.com) e no Seller Center do TikTok Shop.",
+      "Peça em português normal, por exemplo: \"migra pro TikTok os produtos da Shopee que estão vendendo bem\". Se você já rodou a skill de ROAS real ou de Devoluções, ela reaproveita esse resultado pra priorizar o que migrar.",
+      "Publicar no TikTok é mudança pública — ela sempre mostra o lote (produtos, preços, estoque) e só publica depois da sua confirmação.",
+    ],
+  },
+  {
+    id: "shopee-pesquisa-concorrentes",
+    name: "Pesquisa de Concorrentes Shopee",
+    subtitle: "Preço, vendas e oportunidades do nicho 3D",
+    description:
+      "Garimpa a Shopee por produtos impressos em 3D do seu nicho (decoração e papelaria — letreiros, organizadores, vasos modulares), compara os concorrentes mais vendidos e aponta lacunas de variação, reclamações recorrentes e faixa de preço pra oportunidades novas.",
+    zipFileName: "shopee-pesquisa-concorrentes.zip",
+    install: [],
+    usage: [
+      "Precisa do Claude com acesso ao navegador (extensão \"Claude in Chrome\") navegando em shopee.com.br — não precisa estar logado, é busca pública.",
+      "Peça em português normal, por exemplo: \"pesquisa concorrentes de vasos modulares de parede na Shopee\". Sem tema definido, ela usa os três temas prioritários já combinados: letreiros/nomes personalizados, organizadores de mesa e vasos modulares.",
+      "No final ela entrega um ranking dos temas por oportunidade e pode te passar pra skill de Precificação pra já testar se o preço de mercado fecha a conta com seus custos.",
+    ],
+  },
 ];
 
 export const DEFAULTS = {
