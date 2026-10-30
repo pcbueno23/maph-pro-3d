@@ -43,6 +43,34 @@ export const AI_SKILLS: AiSkill[] = [
       "Se quiser outro período, só pedir (ex: \"dos últimos 30 dias\") — o padrão é 14 dias completos, sem contar hoje.",
     ],
   },
+  {
+    id: "shopee-devolucoes",
+    name: "Análise de Devoluções Shopee",
+    subtitle: "Reembolsos, cancelamentos e custo real",
+    description:
+      "Levanta todas as devoluções, reembolsos e cancelamentos da loja na Central do Vendedor, separa cancelamento sem custo de devolução efetiva, apura quanto a Shopee cobrou de frete/estorno de cada caso e gera um PDF com produtos mais devolvidos, motivos, responsabilidade logística e prejuízo real.",
+    zipFileName: "shopee-devolucoes.zip",
+    install: [],
+    usage: [
+      "Precisa do Claude com acesso ao navegador (extensão \"Claude in Chrome\") logado na Central do Vendedor (seller.shopee.com.br) — a skill lê a lista de solicitações direto da tela. Em algum momento ela pode pedir pra você digitar a senha na página \"Minha Renda\" (ela mesma não digita senha).",
+      "Peça em português normal, por exemplo: \"analisa as devoluções da Shopee e me diz quanto isso custou\". O Claude ativa a skill sozinho, coleta os dados e manda o PDF.",
+      "Pode levar alguns minutos — ela precisa paginar a lista de solicitações e abrir pedido por pedido pra conferir frete e estorno.",
+    ],
+  },
+  {
+    id: "shopee-precificacao",
+    name: "Precificação Shopee — regras da plataforma",
+    subtitle: "Oferta relâmpago, variações e kits dentro do limite",
+    description:
+      "Aplica as regras da Shopee que evitam bloqueio de anúncio por 'desconto enganoso': desconto máximo de 50% na oferta relâmpago (usa até 48% de margem), proporção de até 4x entre a variação mais cara e a mais barata (usa até 3,9x) e preço de campanha sempre abaixo do menor preço dos últimos 7 dias daquela variação. Usada automaticamente sempre que o Claude monta uma tabela de preço de cadastro, desconto ou faixa de variações/kits pra Shopee.",
+    zipFileName: "shopee-precificacao.zip",
+    install: [],
+    usage: [
+      "Não precisa de navegador nem de nenhum acesso especial — é só um conjunto de regras que o Claude aplica sozinho.",
+      "Peça normalmente, por exemplo: \"monta a tabela de preço de cadastro e oferta relâmpago dos kits desse produto\". O Claude já calcula respeitando os três limites da Shopee.",
+      "Se o produto tiver variações com preços bem diferentes entre si, o Claude avisa quando a proporção passar perto do limite de 4x e sugere um ajuste.",
+    ],
+  },
 ];
 
 export const DEFAULTS = {
