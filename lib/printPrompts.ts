@@ -1,5 +1,5 @@
 /**
- * 20 prompts de diagnóstico/otimização de impressão 3D FDM, baseados no guia
+ * 40 prompts de diagnóstico/otimização de impressão 3D FDM, baseados no guia
  * "20 Prompts de IA para Otimizar Impressões 3D" que o usuário trouxe — mas
  * reescritos pro formato AGENTE (Claude Cowork com controle de tela), não pro
  * formato "preencha os campos manualmente" do PDF original.
@@ -43,7 +43,27 @@ export type PrintPromptCategory = {
     | "Wrench"
     | "Camera"
     | "SlidersHorizontal"
-    | "ArrowLeftRight";
+    | "ArrowLeftRight"
+    | "Target"
+    | "Cog"
+    | "Flame"
+    | "ShieldAlert"
+    | "Gauge"
+    | "Zap"
+    | "Hexagon"
+    | "CircleDashed"
+    | "Eraser"
+    | "Shuffle"
+    | "Droplets"
+    | "AlertTriangle"
+    | "Shapes"
+    | "Component"
+    | "Scissors"
+    | "Fingerprint"
+    | "Settings2"
+    | "ScanSearch"
+    | "Factory"
+    | "Timer";
   recognize: string[];
   prompt: string;
 };
@@ -809,5 +829,731 @@ ${AGENT_SAFETY_RULE}
 Regras: nunca copie velocidade, aceleração e retração de uma impressora pra outra sem adaptar; explique o porquê.
 
 Dica de ouro: Na dúvida, importe só a geometria e aplique o seu próprio perfil testado. É mais rápido do que caçar uma configuração errada herdada de outra máquina.`,
+  },
+  {
+    id: "precisao-dimensional",
+    number: 21,
+    title: "Calibrar precisão dimensional",
+    subtitle: "Tolerância / compensação XY",
+    icon: "Target",
+    recognize: [
+      "Furos saem menores que a medida do projeto",
+      "Encaixes ficam apertados demais ou com folga exagerada",
+      "Medida bate em alguns eixos e erra em outros",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como engenheiro especializado em precisão dimensional e compensação XY em impressão 3D FDM.
+
+O fatiador já está aberto na tela com o projeto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Material/filamento selecionado e fluxo (%) configurado.
+2. Compensação de contorno XY e compensação de furos, se já houver algum valor.
+3. Gerador de paredes (clássico/Arachne) e largura de linha externa.
+
+Só me pergunte o que não dá pra ver na tela:
+- Medidas reais tiradas com paquímetro: o que deveria medir X mm saiu com Y mm — separando furos, paredes externas e pinos/eixos.
+- Se o desvio é igual em todos os furos/encaixes ou varia de peça pra peça.
+
+O QUE EU QUERO:
+1. Diferencie se o erro é de escala geral, contração do material, compensação XY, compensação de furos ou efeito da primeira camada esmagada — com base nas medidas que eu passar.
+2. Calcule o valor de compensação necessário pra cada caso (contorno externo e furos são compensações diferentes, não aplique a mesma correção nos dois).
+3. Monte a tabela ANTES → DEPOIS só com os campos que devem mudar, com os valores que você leu na tela.
+4. Diga quando o problema é só no furo/encaixe e não deve mexer na medida externa da peça.
+5. Sugira um teste dimensional (peça com furos e pinos de tamanhos variados) e como medir o resultado.
+6. Monte uma sequência de calibração: o que corrigir primeiro e o que só ajustar depois de validar o anterior.
+7. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador.
+
+${AGENT_SAFETY_RULE}
+
+Regras: nunca aplique uma correção global quando o desvio for só em furos ou só em superfícies externas; mostre a conta de cada compensação.
+
+Dica de ouro: Furo e contorno externo encolhem de jeitos diferentes — corrigir os dois com o mesmo número quase sempre deixa um dos dois errado.`,
+  },
+  {
+    id: "roscas-funcionais",
+    number: 22,
+    title: "Criar roscas funcionais em FDM",
+    subtitle: "Roscas / encaixes mecânicos",
+    icon: "Cog",
+    recognize: [
+      "Rosca impressa não entra ou trava no meio do caminho",
+      "Rosca perde força depois de poucos usos",
+      "Rosca gira solta, sem segurar nada",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como projetista mecânico especializado em roscas impressas em FDM.
+
+O fatiador já está aberto na tela com o projeto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Material/filamento selecionado, número de paredes e altura de camada.
+2. Orientação atual da rosca no preview 3D (rosca na vertical, deitada, interna ou externa).
+3. Fluxo (%) e compensação de furos/contorno, se já configurados.
+
+Só me pergunte o que não dá pra ver na tela:
+- Diâmetro e passo da rosca (ou a referência: parafuso M6, tampa de garrafa PET, etc.).
+- Se é rosca interna, externa ou as duas (parafuso impresso + porca impressa).
+- Frequência de uso: aperta e solta uma vez, ou várias vezes (ex.: tampa reutilizável), e se é acionada à mão ou com chave de fenda/chave.
+
+O QUE EU QUERO:
+1. Recomende a geometria da rosca (diâmetro, passo, profundidade) pro diâmetro e material identificados.
+2. Dê a folga inicial recomendada pra teste (rosca interna geralmente precisa de mais folga que a externa) e como ajustar se travar ou ficar bamba.
+3. Monte a tabela ANTES → DEPOIS (número de paredes, altura de camada, orientação) com os valores que você leu na tela.
+4. Diga qual orientação de impressão dá mais resistência pra essa rosca e por quê.
+5. Avalie o desgaste esperado pro uso que eu descrevi e se vale reforçar com mais paredes ou um material diferente.
+6. Sugira um teste rápido: imprimir a rosca em 2-3 folgas diferentes pra eu escolher a que encaixa melhor.
+7. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador (e gire a peça se eu pedir mudança de orientação).
+
+${AGENT_SAFETY_RULE}
+
+Regras: priorize resistência ao torque sobre encaixe perfeito na primeira tentativa; avise se o diâmetro pedido for pequeno demais pro bico identificado.
+
+Dica de ouro: Rosca interna sempre precisa de mais folga que a externa — a mesma medida nas duas trava na certa.`,
+  },
+  {
+    id: "acabamento-topo-ironing",
+    number: 23,
+    title: "Melhorar acabamento da face superior",
+    subtitle: "Top surface / ironing",
+    icon: "Flame",
+    recognize: [
+      "Superfície de cima sai com marcas de linha ou ondulada",
+      "Letras e relevos no topo deixam 'cicatriz' atrás",
+      "Topo brilha diferente dependendo da área",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em acabamento de superfície superior (top surface) em impressão 3D FDM.
+
+O fatiador já está aberto na tela com o projeto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Espessura/camadas do topo, padrão de preenchimento do topo, fluxo do topo.
+2. Temperatura, velocidade do topo e ventoinha configuradas.
+3. Se o alisamento (ironing) está ligado e com quais parâmetros (fluxo, espaçamento, velocidade).
+
+Só me pergunte o que não dá pra ver na tela:
+- Onde exatamente aparecem as marcas (em toda a face, só perto de letras/relevos, só nas bordas) — com foto do topo com luz de lado, se eu tiver.
+- Se a peça tem textos ou relevos no topo que deixam "cicatriz" quando a linha passa por cima.
+
+O QUE EU QUERO:
+1. Identifique a origem mais provável das marcas (preenchimento insuficiente, fluxo errado, viagens sobre área visível, ironing mal configurado) a partir dos valores que você leu.
+2. Monte a tabela ANTES → DEPOIS (camadas de topo, padrão, fluxo, velocidade, ventoinha, ironing) com valores iniciais pro meu material e impressora.
+3. Priorize movimentos contínuos no topo e reduza deslocamentos passando por cima de áreas visíveis.
+4. Diga se vale ligar/ajustar o ironing nesse caso específico e quanto tempo isso acrescenta (o fatiador mostra a estimativa).
+5. Se houver texto/relevo no topo, sugira como evitar que a cicatriz da linha de ironing passe exatamente sobre ele.
+6. Sugira um teste rápido (placa plana de 40x40 mm) pra comparar antes e depois.
+7. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador.
+
+${AGENT_SAFETY_RULE}
+
+Regras: priorize acabamento uniforme sobre velocidade nessa face; avise se uma mudança for aumentar bastante o tempo total.
+
+Dica de ouro: Ironing resolve marca de linha, mas não resolve preenchimento insuficiente por baixo — garanta primeiro que o topo tem espessura suficiente.`,
+  },
+  {
+    id: "colisao-bico-travel",
+    number: 24,
+    title: "Evitar bico raspando na peça",
+    subtitle: "Colisões / travel / Z-hop",
+    icon: "ShieldAlert",
+    recognize: [
+      "Bico raspa no preenchimento ou nas paredes já impressas",
+      "Peça se solta da mesa durante um deslocamento do bico",
+      "Risco ou marca de arranhão na superfície lateral",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em diagnóstico de colisões entre bico e peça durante deslocamentos (travel) em impressão 3D FDM.
+
+O fatiador já está aberto na tela com o projeto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Fluxo (%), largura de linha e se há bordas/paredes que ficam mais altas que o esperado no preview 3D.
+2. Padrão e densidade de preenchimento, Z-hop (altura e tipo: normal/espiral), velocidade e altura de deslocamento.
+3. Se "evitar cruzar paredes/suporte" e detecção de colisão estão ligados (quando o fatiador tiver essa opção).
+
+Só me pergunte o que não dá pra ver na tela:
+- Em que altura/camada aproximada o bico está raspando, e se acontece sempre no mesmo lugar.
+- Se a peça já se soltou da mesa nalguma impressão anterior nesse mesmo lugar.
+
+O QUE EU QUERO:
+1. Liste as causas mais prováveis em ordem: excesso de fluxo levantando bordas, Z-hop insuficiente, rota de deslocamento passando sobre a peça, calibração mecânica (eixo Z preso ou offset errado).
+2. Monte a tabela ANTES → DEPOIS (Z-hop, fluxo, rota de deslocamento) com os valores que você leu na tela.
+3. Diga como verificar cada hipótese sem precisar refazer a impressão inteira (ex.: pausar em determinada altura e olhar).
+4. Avalie se o Z-hop em espiral reduz esse risco sem aumentar muito o tempo, no caso específico dessa peça.
+5. Se o problema for recorrente numa área da peça, sugira reorientar ou dividir a peça pra reduzir deslocamentos sobre ela.
+6. Diga o impacto de cada mudança no tempo total (o fatiador mostra a estimativa).
+7. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador.
+
+${AGENT_SAFETY_RULE}
+
+Regras: corrija primeiro a causa raiz (fluxo/bordas levantadas) antes de só aumentar o Z-hop pra "disfarçar"; não aumente o tempo de impressão sem necessidade.
+
+Dica de ouro: Bico raspando quase sempre é borda levantada por excesso de fluxo — resolver o fluxo evita o problema sem precisar de Z-hop alto em toda a impressão.`,
+  },
+  {
+    id: "retracao-pressure-advance",
+    number: 25,
+    title: "Ajustar retração e Pressure Advance",
+    subtitle: "Extrusão / controle de pressão",
+    icon: "Gauge",
+    recognize: [
+      "Cantos saem com bolha de material ou com falta de material",
+      "Fios e bolhas aparecem bem depois de um deslocamento",
+      "Mesma peça, resultado diferente em velocidades diferentes",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em controle de pressão de extrusão (retração e Pressure Advance/Linear Advance) em impressão 3D FDM.
+
+O fatiador já está aberto na tela. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Tipo de extrusora (direct drive ou bowden), comprimento e velocidade de retração atuais.
+2. Valor de Pressure Advance/Linear Advance salvo no perfil da impressora, se houver.
+3. Temperatura do bico e velocidade de impressão configuradas.
+
+Só me pergunte o que não dá pra ver na tela:
+- Onde exatamente aparece o excesso/falta de material: só nos cantos, só depois de deslocamentos longos, ou no corpo todo — com foto, se eu tiver.
+- Se o filamento está seco (há quanto tempo o rolo está aberto) — pra eu descartar umidade antes de calibrar pressão.
+
+O QUE EU QUERO:
+1. Diferencie se o defeito é de pressão (retração/PA) ou se é umidade/fluxo errado disfarçado de defeito de pressão.
+2. Monte a tabela ANTES → DEPOIS (retração, Pressure Advance, velocidade) com valores iniciais compatíveis com a extrusora e o filamento identificados.
+3. Indique o teste de calibração de Pressure Advance (padrão do fatiador, se tiver) e como ler o resultado na peça impressa.
+4. Defina a ordem certa dos ajustes: primeiro retração, depois Pressure Advance, nunca os dois ao mesmo tempo.
+5. Diga os limites seguros pra não causar entupimento ou falha de extrusão nessa extrusora.
+6. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador.
+
+${AGENT_SAFETY_RULE}
+
+Regras: não aumente retração além do seguro pra extrusora identificada; se a causa parecer umidade, avise antes de calibrar pressão.
+
+Dica de ouro: Calibre Pressure Advance só depois de garantir que a retração já está correta — um valor de retração errado faz qualquer calibração de PA dar número errado.`,
+  },
+  {
+    id: "velocidade-fluxo-volumetrico",
+    number: 26,
+    title: "Imprimir mais rápido com segurança",
+    subtitle: "Velocidade / fluxo volumétrico",
+    icon: "Zap",
+    recognize: [
+      "Impressões simples levam várias horas",
+      "Aumentar a velocidade manual piora a qualidade",
+      "Relatório do fatiador mostra tempo de viagem/preenchimento alto",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em otimização de velocidade e fluxo volumétrico em impressão 3D FDM.
+
+O fatiador já está aberto na tela com o projeto fatiado (ou fatie agora, se ainda não estiver). Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Tempo total estimado e, se disponível, a tabela de tempo por tipo de linha.
+2. Velocidades por recurso (parede, preenchimento, topo), aceleração, altura de camada e largura de linha.
+3. Vazão volumétrica máxima configurada pro filamento e tempo mínimo de camada.
+
+Só me pergunte o que não dá pra ver na tela:
+- Nada, em princípio — esses dados estão todos no fatiador. Só pergunte se precisar que eu confirme alguma leitura que o fatiador não mostrar direto.
+
+O QUE EU QUERO:
+1. Calcule se a velocidade atual já está limitada pela vazão volumétrica máxima (velocidade = vazão ÷ (altura x largura da linha)) e explique o que isso significa na prática.
+2. Identifique os principais limitadores de tempo (preenchimento, paredes, viagens, suporte) com os números reais do fatiador.
+3. Proponha três perfis — qualidade, equilibrado e produtividade — com os parâmetros de cada um (velocidade, aceleração, altura de camada, largura de linha).
+4. Estime o ganho de tempo de cada perfil só quando houver dados suficientes no fatiador pra calcular; não invente número sem base.
+5. Avise o que cada perfil sacrifica em qualidade, pra eu escolher com consciência.
+6. Mostre a comparação e peça minha confirmação de qual perfil eu quero. Só depois que eu confirmar, aplique os valores direto nos campos do fatiador e refatie pra eu ver o tempo real novo.
+
+${AGENT_SAFETY_RULE}
+
+Regras: não ultrapasse a vazão volumétrica máxima segura do filamento identificado; mostre sempre a conta.
+
+Dica de ouro: Se a camada mais alta não reduziu o tempo, o gargalo é a vazão do filamento, não a altura de camada — aumentar ainda mais a camada só piora a qualidade sem ganhar velocidade.`,
+  },
+  {
+    id: "melhor-preenchimento",
+    number: 27,
+    title: "Escolher o melhor preenchimento",
+    subtitle: "Infill / resistência / consumo",
+    icon: "Hexagon",
+    recognize: [
+      "Peça gasta mais filamento do que parece justificável",
+      "Peça fraca mesmo com preenchimento alto",
+      "Dúvida entre vários padrões de preenchimento do fatiador",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em preenchimento (infill) em impressão 3D FDM, equilibrando resistência, consumo e tempo.
+
+O fatiador já está aberto na tela com o projeto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Padrão e densidade de preenchimento atuais, número de paredes, camadas de topo/fundo.
+2. Peso e tempo estimado da peça.
+3. Padrões de preenchimento disponíveis nesse fatiador específico (Gyroid, Grid, Cubic, Cross Hatch, Honeycomb etc.).
+
+Só me pergunte o que não dá pra ver na tela:
+- Finalidade da peça: decorativa, funcional leve ou funcional com carga — e, se funcional, em que direção vem o esforço.
+
+O QUE EU QUERO:
+1. Recomende o padrão de preenchimento pra essa finalidade e geometria, comparando as opções disponíveis nesse fatiador (resistência direcional, tempo de impressão, ruído/vibração).
+2. Recomende a densidade considerando o uso informado, sem inflar além do necessário.
+3. Monte a tabela ANTES → DEPOIS (padrão, densidade, paredes, camadas de topo/fundo) com os valores que você leu na tela.
+4. Compare peso e tempo estimado antes e depois (usando o cálculo do próprio fatiador).
+5. Avise quando mais paredes resolveriam melhor que mais preenchimento (caso de peça funcional).
+6. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador e refatie pra eu ver peso e tempo reais.
+
+${AGENT_SAFETY_RULE}
+
+Regras: justifique a densidade escolhida com o uso real da peça, não com um número padrão; mostre sempre peso e tempo antes/depois.
+
+Dica de ouro: Pra resistência mecânica, mais paredes normalmente rende mais que aumentar a densidade do preenchimento — preenchimento alto demais só pesa e demora mais.`,
+  },
+  {
+    id: "vase-mode-paredes-finas",
+    number: 28,
+    title: "Otimizar peças para modo espiral",
+    subtitle: "Vase mode / paredes finas",
+    icon: "CircleDashed",
+    recognize: [
+      "Parede fica frágil e racha ao apertar levemente",
+      "Peça sai torta ou com ondulação na espiral",
+      "Base da peça desloca ou solta no começo da impressão",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em impressão em modo espiral (vase mode) e paredes finas em FDM.
+
+O fatiador já está aberto na tela com o projeto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Se o modo espiral/vase está ativado e as configurações associadas (suavizar entrada/saída, remover costuras internas).
+2. Largura de extrusão, altura de camada, velocidade e fluxo configurados.
+3. Ventoinha e estabilidade da base no preview 3D (base plana e larga o suficiente, ou pequena/instável).
+
+Só me pergunte o que não dá pra ver na tela:
+- Descrição da peça (ex.: vaso, luminária, porta-objetos) e se ela vai receber algum peso ou líquido.
+- Se a geometria é continuamente fechada (sem furos, sem partes separadas) — confirme olhando o preview, mas pergunte se eu quiser adicionar algum furo/alça depois.
+
+O QUE EU QUERO:
+1. Verifique se a geometria é compatível com modo espiral (contorno único, contínuo, sem furos) a partir do preview 3D.
+2. Monte a tabela ANTES → DEPOIS (largura de extrusão, altura de camada, velocidade, fluxo, resfriamento) pro meu material, com os valores que você leu na tela.
+3. Diga como reforçar a base (camadas sólidas iniciais antes de entrar em espiral) pra não desplacar no começo.
+4. Avise os limites de altura de camada e velocidade do bico identificado pra manter paredes uniformes.
+5. Se a peça tiver detalhes que não funcionam em espiral (furos, alças separadas), diga como tratar essas partes.
+6. Sugira um teste rápido (cilindro simples de 60 mm de altura) pra validar a configuração antes de imprimir a peça final.
+7. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador.
+
+${AGENT_SAFETY_RULE}
+
+Regras: não aumente a largura de extrusão além do que o bico identificado suporta; priorize estabilidade da base.
+
+Dica de ouro: Poucas camadas sólidas no fundo (3 a 5) antes de entrar no modo espiral evitam que a peça solte da mesa logo no início.`,
+  },
+  {
+    id: "marcas-suporte-interface",
+    number: 29,
+    title: "Reduzir marcas de suportes",
+    subtitle: "Support / interface",
+    icon: "Eraser",
+    recognize: [
+      "Superfície fica marcada ou áspera depois de remover o suporte",
+      "Suporte é difícil de arrancar sem estragar a peça",
+      "Pontos de contato do suporte aparecem como pintinhas",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em configuração de suportes em impressão 3D FDM, com foco em acabamento das superfícies apoiadas.
+
+O fatiador já está aberto na tela com o projeto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Tipo de suporte configurado (normal/árvore/orgânico), densidade de interface, distâncias Z e XY.
+2. Ângulo limite de suporte e orientação atual da peça no preview 3D.
+3. Filamento selecionado e se há material de suporte dedicado configurado.
+
+Só me pergunte o que não dá pra ver na tela:
+- Qual face apoiada no suporte fica visível no uso final da peça.
+- O problema: marca/aspereza na face apoiada, ou dificuldade física pra remover — com foto da face, se eu tiver.
+
+O QUE EU QUERO:
+1. Recomende o tipo e a orientação de suporte que reduzem marca na face visível, considerando a geometria vista no preview.
+2. Monte a tabela ANTES → DEPOIS (densidade de interface, distâncias Z e XY, ângulo limite) com os valores que você leu na tela.
+3. Diga se altura de camada menor nas interfaces de suporte ajuda nesse caso, e o custo em tempo.
+4. Sugira pintura de suporte manual pra reduzir suporte nas áreas visíveis sem perder sustentação nas áreas que precisam.
+5. Explique como remover sem estragar a face apoiada (ordem, aquecimento leve, ferramentas).
+6. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador (e pinte/bloqueie suporte se eu pedir).
+
+${AGENT_SAFETY_RULE}
+
+Regras: priorize o acabamento da face que vai ficar visível; não reduza o suporte a ponto de arriscar a peça cair durante a impressão.
+
+Dica de ouro: Densidade de interface mais baixa (10-15%) já solta fácil sem perder sustentação — o problema normalmente é densidade alta demais, não o tipo de suporte.`,
+  },
+  {
+    id: "troca-cores-ams-purga",
+    number: 30,
+    title: "Corrigir falhas na troca de cores",
+    subtitle: "AMS / purga / multicolor",
+    icon: "Shuffle",
+    recognize: [
+      "Cor nova sai contaminada com resquício da cor anterior",
+      "Trocas de filamento geram muita sobra/purga",
+      "Torre de limpeza falha ou solta no meio da troca",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em impressão multicolor (AMS, CFS, MMU ou sistema equivalente), com foco em reduzir contaminação e falhas de troca.
+
+O fatiador já está aberto na tela com o projeto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Sistema multicor configurado e cores atribuídas a cada slot, na ordem.
+2. Volumes de purga configurados, multiplicador e configuração da torre de limpeza.
+3. Retração configurada e número de trocas de cor estimado pelo fatiador.
+
+Só me pergunte o que não dá pra ver na tela:
+- Em que ponto a contaminação aparece (começo da troca, no meio, só em determinado par de cores).
+- Se o problema é visual (cor misturada) ou mecânico (torre cai, filamento emperra).
+
+O QUE EU QUERO:
+1. Diagnostique se o problema é de sequência de cores, volume de purga insuficiente, torre de limpeza mal dimensionada ou falha mecânica do sistema multicor.
+2. Monte a tabela ANTES → DEPOIS (sequência de cores, volumes de purga por par, torre de limpeza, retração) com os valores que você leu na tela.
+3. Recomende a ordem de cores que reduz contaminação (clara → escura costuma precisar de mais purga que o contrário).
+4. Sugira testes pra validar volume de purga sem desperdiçar uma impressão inteira (torre de teste pequena).
+5. Diga como identificar visualmente se a causa é purga insuficiente ou problema mecânico no sistema multicor.
+6. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador e refatie pra eu validar.
+
+${AGENT_SAFETY_RULE}
+
+Regras: não reduza purga a ponto de arriscar contaminação visível; isole causa mecânica de causa de configuração antes de recomendar.
+
+Dica de ouro: Contaminação que some ao trocar a ordem das cores é purga insuficiente; contaminação que persiste mesmo com purga alta costuma ser problema mecânico no sistema multicor.`,
+  },
+  {
+    id: "filamento-umido-diagnostico",
+    number: 31,
+    title: "Diagnosticar filamento úmido",
+    subtitle: "Secagem / qualidade do material",
+    icon: "Droplets",
+    recognize: [
+      "Estalos ou pequenas bolhas saindo do bico durante a impressão",
+      "Acabamento da superfície fica opaco ou irregular sem motivo aparente",
+      "Fios e defeitos pioram mesmo depois de calibrar temperatura e retração",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em qualidade de filamentos e secagem em impressão 3D FDM.
+
+O fatiador já está aberto na tela. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Material/filamento selecionado e faixa de temperatura configurada.
+2. Retração e fluxo atuais, pra descartar que o defeito já tem outra causa conhecida.
+
+Só me pergunte o que não dá pra ver na tela:
+- Os sintomas: estalos, bolhas, vapor saindo do bico, fios excessivos, superfície opaca ou com bolhinhas — com foto, se eu tiver.
+- Há quanto tempo o rolo está aberto, como ele foi armazenado (com ou sem sílica, embalagem a vácuo) e o clima do local.
+
+O QUE EU QUERO:
+1. Diga a probabilidade de o defeito ser umidade, cruzando os sintomas com o material e o tempo de rolo aberto.
+2. Diferencie umidade de temperatura excessiva, retração incorreta e problema de fluxo — explicando como cada um se parece na peça.
+3. Se for umidade, recomende o procedimento de secagem (temperatura e tempo) específico pro material identificado, e os riscos de secar errado (deformar o rolo).
+4. Recomende como armazenar esse filamento depois de seco (caixa com sílica, embalagem a vácuo, secador contínuo).
+5. Sugira um teste rápido (extrudar alguns centímetros longe da peça e observar/escutar) pra confirmar antes de uma impressão longa.
+6. Se confirmado que não é umidade, aponte a causa mais provável entre as alternativas e monte a tabela ANTES → DEPOIS correspondente, pedindo minha confirmação antes de aplicar no fatiador.
+
+${AGENT_SAFETY_RULE}
+
+Regras: não recomende temperatura de secagem acima do que o material aguenta sem deformar; seja claro sobre a diferença entre sintoma de umidade e de outra causa.
+
+Dica de ouro: Estalos durante a extrusão são quase sempre umidade — nenhuma configuração do fatiador resolve isso, só a secagem.`,
+  },
+  {
+    id: "entupimento-heat-creep",
+    number: 32,
+    title: "Evitar entupimentos e Heat Creep",
+    subtitle: "Hotend / alimentação",
+    icon: "AlertTriangle",
+    recognize: [
+      "Extrusora começa a pular/clicar no meio da impressão",
+      "Filamento para de avançar depois de um tempo de impressão",
+      "Impressão falha sempre depois do mesmo tanto de tempo/altura",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como técnico especializado em diagnóstico de hotend, entupimentos e Heat Creep em impressoras FDM.
+
+O fatiador já está aberto na tela. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Temperatura do bico configurada e material/filamento selecionado.
+2. Velocidade de impressão e fluxo volumétrico estimado nos trechos onde a falha costuma acontecer.
+3. Retração configurada (comprimento, velocidade, frequência de retrações no projeto).
+
+Só me pergunte o que não dá pra ver na tela:
+- Em que momento a falha acontece (sempre no mesmo tempo/altura, ou aleatório) e como ela se manifesta (clique/pulo da engrenagem, parada total, som estranho).
+- Ventoinha do hotend (do dissipador, não a de peça): está funcionando, limpa, fazendo barulho estranho?
+- Quando foi a última limpeza/troca do tubo PTFE ou manutenção da garganta quente.
+
+O QUE EU QUERO:
+1. Diferencie entupimento (resíduo/carbonização no bico) de Heat Creep (calor subindo e amolecendo o filamento antes da hora) pelos sintomas descritos.
+2. Monte uma sequência segura de verificações, da menos invasiva pra mais invasiva: ventoinha do hotend, temperatura, retração/fluxo, desmontagem e limpeza do bico.
+3. Para cada hipótese, diga um teste rápido que confirma ou descarta sem precisar desmontar a impressora.
+4. Monte a tabela ANTES → DEPOIS (temperatura, retração, fluxo) com os valores que você leu na tela, pra reduzir o risco enquanto a causa física não é resolvida.
+5. Diga quando o problema exige manutenção física (troca de tubo, limpeza de bico) e não dá pra resolver só por configuração.
+6. Mostre a tabela e peça minha confirmação antes de qualquer alteração. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador.
+
+${AGENT_SAFETY_RULE}
+
+Regras: comece pelos testes menos invasivos; avise claramente quando o problema for mecânico e não resolve só mudando configuração.
+
+Dica de ouro: Falha sempre no mesmo tempo/altura de impressão costuma ser Heat Creep por ventoinha do hotend fraca ou sem funcionar — confira essa ventoinha antes de qualquer outra coisa.`,
+  },
+  {
+    id: "encaixes-mecanicos-snap-fit",
+    number: 33,
+    title: "Melhorar encaixes mecânicos",
+    subtitle: "Snap fit / pinos / travas",
+    icon: "Shapes",
+    recognize: [
+      "Tampa fica bamba ou aperta demais pra encaixar",
+      "Trava quebra depois de poucos usos",
+      "Pino de encaixe racha na hora de montar",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como projetista especializado em encaixes mecânicos (snap fit, pinos e travas) impressos em FDM.
+
+O fatiador já está aberto na tela com o projeto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Material/filamento selecionado e número de paredes.
+2. Orientação atual da peça no preview 3D (direção das camadas em relação ao ponto de flexão do encaixe).
+3. Compensação XY e de furos, se já configuradas.
+
+Só me pergunte o que não dá pra ver na tela:
+- Tipo de encaixe: permanente, removível raramente, ou destravado com frequência.
+- Medidas reais se eu já tiver testado (folga atual, espessura da parte que flexiona).
+- Material do encaixe que vai receber a peça (plástico, madeira, metal) se for encaixe misto.
+
+O QUE EU QUERO:
+1. Recomende a espessura e a folga da parte que flexiona pro material e pra frequência de uso informados.
+2. Diga qual orientação de impressão deixa o ponto de flexão mais resistente (camadas alinhadas com o esforço, não perpendiculares).
+3. Monte a tabela ANTES → DEPOIS (compensação XY, número de paredes, orientação) com os valores que você leu na tela.
+4. Diferencie recomendação pra encaixe permanente, removível e por pressão — já que as folgas e espessuras mudam bastante entre os três.
+5. Sugira uma folga inicial pra teste e como ajustar conforme o resultado (mais apertado ou mais solto).
+6. Avalie durabilidade esperada pro uso informado e se vale reforçar com um material mais flexível ou mais paredes.
+7. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador (e gire a peça se eu pedir mudança de orientação).
+
+${AGENT_SAFETY_RULE}
+
+Regras: nunca recomende espessura tão fina que quebre no primeiro uso; sempre diferencie por frequência de uso.
+
+Dica de ouro: O ponto de flexão de um snap fit deve ter as camadas alinhadas no sentido do dobramento, nunca perpendiculares — perpendicular racha rápido.`,
+  },
+  {
+    id: "resistencia-por-orientacao",
+    number: 34,
+    title: "Otimizar peças para resistência",
+    subtitle: "Resistência / orientação",
+    icon: "Component",
+    recognize: [
+      "Peça quebra sempre no mesmo ponto sob carga",
+      "Componente cede ou trinca antes do esperado",
+      "Peça parece forte mas falha no primeiro uso real",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como engenheiro de materiais especializado em resistência mecânica orientada em impressão 3D FDM.
+
+O fatiador já está aberto na tela com o projeto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Material/filamento selecionado, temperatura, número de paredes, preenchimento (% e padrão).
+2. Orientação atual da peça no preview 3D.
+3. Adesão entre camadas: temperatura e ventoinha configuradas (ventoinha alta reduz adesão entre camadas em alguns materiais).
+
+Só me pergunte o que não dá pra ver na tela:
+- Direção e intensidade aproximada do esforço que a peça recebe no uso real (tração, flexão, impacto, torção).
+- Onde e como a peça costuma falhar (com foto do ponto de quebra, se eu tiver).
+
+O QUE EU QUERO:
+1. Identifique os pontos críticos da peça considerando a direção do esforço informado e a orientação atual (vista no preview).
+2. Recomende a melhor orientação pra alinhar as camadas com o esforço, evitando que a peça trabalhe "descascando" entre camadas.
+3. Monte a tabela ANTES → DEPOIS (temperatura, ventoinha, número de paredes, preenchimento) com os valores que você leu na tela.
+4. Proponha melhorias geométricas no ponto crítico (filetes, reforço, nervura) sem comprometer a função da peça.
+5. Avise claramente que não dá pra garantir capacidade de carga exata sem ensaio físico — dê uma estimativa qualitativa (melhora/não melhora), não um número de resistência inventado.
+6. Sugira um teste prático simples pra validar a melhoria antes de confiar a peça num uso crítico.
+7. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador (e gire a peça se eu pedir mudança de orientação).
+
+${AGENT_SAFETY_RULE}
+
+Regras: nunca afirme um valor de carga máxima sem dados de ensaio; priorize alinhar camadas com o esforço antes de qualquer outra mudança.
+
+Dica de ouro: A maioria das quebras "inesperadas" em FDM é camada trabalhando perpendicular ao esforço — resolver a orientação ajuda mais que qualquer configuração de temperatura.`,
+  },
+  {
+    id: "reducao-consumo-filamento",
+    number: 35,
+    title: "Reduzir consumo de filamento",
+    subtitle: "Economia / peso / geometria",
+    icon: "Scissors",
+    recognize: [
+      "Peça pesa mais do que parece necessário pro uso dela",
+      "Custo de material compromete a margem de venda",
+      "Duas peças parecidas gastam quantidades bem diferentes de filamento",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em otimização de consumo de material em impressão 3D FDM, sem comprometer dimensões externas obrigatórias.
+
+O fatiador já está aberto na tela com o projeto carregado (ou fatiado). Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Peso estimado atual, número de paredes, camadas de topo/fundo, preenchimento (% e padrão).
+2. Configuração de suporte (se houver) e quanto material ele consome.
+3. Dimensões externas da peça no preview 3D.
+
+Só me pergunte o que não dá pra ver na tela:
+- O que é obrigatório manter: dimensões externas, aparência visível, resistência mínima pro uso — e o que pode ser ajustado livremente.
+
+O QUE EU QUERO:
+1. Liste as oportunidades de economia em ordem de impacto: preenchimento, número de paredes, espessura de topo/fundo, suporte, orientação (pra reduzir suporte).
+2. Monte a tabela ANTES → DEPOIS com os valores que você leu na tela, mostrando o peso estimado de cada mudança.
+3. Compare peso, tempo e resistência esperada de cada alternativa, pra eu decidir o equilíbrio.
+4. Preserve rigorosamente as dimensões externas, aparência e qualquer restrição que eu marcar como obrigatória.
+5. Se o suporte for uma fração grande do consumo, avalie se uma reorientação reduziria ele sem piorar o acabamento visível.
+6. Mostre a tabela com o total de economia esperada e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador e refatie pra eu ver o peso real novo.
+
+${AGENT_SAFETY_RULE}
+
+Regras: nunca altere dimensão externa ou aparência marcada como obrigatória; mostre sempre peso antes/depois com números do próprio fatiador.
+
+Dica de ouro: Em peças grandes, cortar 1-2 camadas de topo/fundo que passam do mínimo necessário economiza mais filamento do que baixar o preenchimento.`,
+  },
+  {
+    id: "texto-fino-logotipos",
+    number: 36,
+    title: "Configurar impressão de letras e logotipos",
+    subtitle: "Texto fino / relevos",
+    icon: "Fingerprint",
+    recognize: [
+      "Letras pequenas somem ou ficam ilegíveis",
+      "Traços finos do logotipo saem grudados uns nos outros",
+      "Borda do relevo sai arredondada e perde definição",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em impressão de alta definição de textos, logotipos e relevos finos em FDM.
+
+O fatiador já está aberto na tela com o projeto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Diâmetro do bico configurado na impressora.
+2. Altura de camada, largura de linha (externa/interna) e gerador de paredes (clássico/Arachne).
+3. Dimensões da peça e, se possível, o tamanho aproximado do menor traço do texto/logotipo no preview 3D.
+
+Só me pergunte o que não dá pra ver na tela:
+- O tamanho real do menor traço, se eu souber medir (ex.: a letra mais fina tem cerca de X mm de espessura).
+- Restrições: pode escalar a peça pra melhorar a definição, ou o tamanho é fixo.
+
+O QUE EU QUERO:
+1. Diga se o traço mais fino é imprimível com o bico identificado, usando a regra de tamanho mínimo (normalmente perto da largura de uma linha).
+2. Monte a tabela ANTES → DEPOIS (largura de linha, altura de camada, gerador de paredes, velocidade da parede externa) pra máximo detalhe, com os valores que você leu na tela.
+3. Se o traço for pequeno demais pro bico atual, diga as opções: escalar a peça, trocar o bico, ou simplificar o relevo sem perder a identidade visual.
+4. Explique como manter as letras legíveis sem aumentar o tamanho total da peça, se isso for restrição.
+5. Avalie se o fluxo e a velocidade da parede externa estão adequados pra não "derreter" traços finos.
+6. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador.
+
+${AGENT_SAFETY_RULE}
+
+Regras: respeite as restrições de tamanho que eu marcar como obrigatórias; avise claramente quando um detalhe for fisicamente pequeno demais pro bico atual.
+
+Dica de ouro: Parede externa um pouco mais fina (perto de 0,42 mm com bico de 0,4 mm) resolve mais texto fino do que qualquer ajuste de velocidade ou temperatura.`,
+  },
+  {
+    id: "perfil-padrao-por-produto",
+    number: 37,
+    title: "Criar perfil ideal para cada produto",
+    subtitle: "Presets / padronização",
+    icon: "Settings2",
+    recognize: [
+      "O mesmo produto sai diferente de uma impressão pra outra",
+      "Preciso refazer a configuração toda vez que reimprimo algo",
+      "Impressoras diferentes dão resultado diferente pro mesmo arquivo",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em padronização de perfis de impressão 3D FDM pra produção repetida de um produto específico.
+
+O fatiador já está aberto na tela com o projeto do produto carregado. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Perfil de impressora, filamento e processo atualmente em uso.
+2. Todos os parâmetros já configurados especificamente pra esse produto (os que fogem do perfil padrão).
+3. Tempo e peso estimado da peça com a configuração atual.
+
+Só me pergunte o que não dá pra ver na tela:
+- Meta de qualidade exigida pra esse produto e meta de produtividade (quantas unidades por período).
+- Se esse produto vai ser impresso em mais de uma impressora/bico, e se são iguais entre si.
+
+O QUE EU QUERO:
+1. Organize os parâmetros em dois grupos: os que podem ser compartilhados entre impressoras (ex.: preenchimento, paredes, velocidades gerais) e os que precisam de calibração individual por máquina (ex.: Z-offset, fluxo exato, PA).
+2. Monte a tabela do perfil completo (processo, filamento, impressora) com os valores atuais que você leu na tela.
+3. Sugira testes de validação pra confirmar que o perfil está repetível (mesma peça, mesmo resultado) antes de rodar em produção.
+4. Proponha um esquema simples de controle de versão do perfil (nome, data, o que mudou), pra eu não perder o que já funcionou.
+5. Diga quais parâmetros têm mais risco de "desandar" se outra pessoa mexer sem querer, e como proteger isso.
+6. Mostre o perfil final e peça minha confirmação. Só depois que eu confirmar, salve como uma predefinição nova com nome claro no fatiador.
+
+${AGENT_SAFETY_RULE}
+
+Regras: nunca misture parâmetro calibrado por máquina com parâmetro compartilhado sem avisar; priorize repetibilidade sobre otimização fina.
+
+Dica de ouro: Separe sempre "perfil do produto" (paredes, preenchimento, velocidades) de "calibração da máquina" (Z-offset, fluxo, PA) — assim trocar de impressora não exige refazer tudo do zero.`,
+  },
+  {
+    id: "primeira-camada-nivelamento",
+    number: 38,
+    title: "Diagnosticar problemas na primeira camada",
+    subtitle: "Nivelamento / Z-offset",
+    icon: "ScanSearch",
+    recognize: [
+      "Primeira camada sai com falhas, buracos ou esmagada demais",
+      "Algumas regiões da mesa colam bem e outras soltam",
+      "Primeira camada boa num canto e ruim no canto oposto",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em diagnóstico de primeira camada, nivelamento e Z-offset em impressão 3D FDM.
+
+O fatiador já está aberto na tela. Antes de me perguntar qualquer coisa, leia direto da interface:
+1. Altura e fluxo da primeira camada, temperatura de mesa e de bico pra primeira camada.
+2. Velocidade da primeira camada e Z-offset, se visível no perfil da impressora.
+
+Só me pergunte o que não dá pra ver na tela:
+- Se o problema varia por região da mesa (ex.: bom no centro, ruim nas bordas, ou um canto específico sempre pior) — com foto da primeira camada, se eu tiver.
+- Última limpeza da mesa e se o nivelamento (automático ou manual) foi refeito recentemente.
+- Tipo de superfície de impressão (PEI liso, texturizado, vidro, outro).
+
+O QUE EU QUERO:
+1. Diferencie se o problema é de adesão (sujeira, temperatura, tipo de superfície) ou de nivelamento/Z-offset (esmagamento desigual entre regiões).
+2. Se o defeito varia por região da mesa, aponte isso como sinal forte de nivelamento irregular, não de adesão.
+3. Monte a tabela ANTES → DEPOIS (altura, fluxo, velocidade e temperatura da primeira camada, Z-offset) com os valores que você leu na tela.
+4. Dê a sequência de verificação: limpeza da mesa primeiro, depois nivelamento automático/manual, depois Z-offset fino, depois temperatura/fluxo.
+5. Sugira um teste de primeira camada (padrão de linhas ou quadrado grande) e como ler esmagamento certo, raso e excessivo.
+6. Mostre a tabela e peça minha confirmação. Só depois que eu confirmar, aplique os valores novos direto nos campos do fatiador.
+
+${AGENT_SAFETY_RULE}
+
+Regras: não ajuste Z-offset sem antes garantir que o nivelamento de base está ok; diferencie sempre defeito dimensional de defeito de adesão.
+
+Dica de ouro: Se a primeira camada varia de qualidade dependendo da região da mesa, o problema é nivelamento, não é receita de temperatura ou cola.`,
+  },
+  {
+    id: "farm-multiplas-impressoras",
+    number: 39,
+    title: "Otimizar produção com várias impressoras",
+    subtitle: "Farm 3D / produtividade",
+    icon: "Factory",
+    recognize: [
+      "Impressoras ficam paradas entre um trabalho e outro",
+      "Pedidos acumulam mesmo com várias máquinas disponíveis",
+      "Não dá pra saber quantas unidades a farm realmente entrega por dia",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como gestor técnico de uma fazenda de impressão 3D (farm), com foco em produtividade real.
+
+Esse SaaS (MAPH PRO 3D) já tem telas de Impressoras e Painel de Farm com os dados das máquinas — se eu disser "usa o que já está no SaaS", procure essas telas abertas em outra aba/janela do navegador e leia os dados de lá em vez de me perguntar de novo.
+
+Antes de me perguntar qualquer coisa, procure ler (no SaaS ou no fatiador, conforme eu indicar):
+1. Quantidade de impressoras disponíveis e o status de cada uma (livre, imprimindo, parada).
+2. Tempo médio de impressão dos produtos que rodam com mais frequência.
+
+Só me pergunte o que não dá pra ver na tela:
+- Horários em que alguém está disponível pra trocar mesa/retirar peça.
+- Demanda atual (pedidos por dia/semana) e estoque mínimo desejado por produto.
+- Histórico de paradas/perdas, se eu tiver uma estimativa (ex.: 1 em cada 10 falha).
+
+O QUE EU QUERO:
+1. Calcule a capacidade real diária e mensal da farm, considerando paradas entre trocas e taxa de falha informada (não só o tempo de impressão puro).
+2. Proponha uma distribuição de trabalhos entre as impressoras disponíveis, priorizando terminar nos horários em que alguém pode trocar a mesa.
+3. Sugira uma programação de lotes (quais produtos imprimir juntos, em qual máquina) pra reduzir tempo ocioso entre trabalhos.
+4. Defina um estoque mínimo por produto considerando a demanda informada e o tempo de produção.
+5. Proponha 2-3 indicadores simples de produtividade (ex.: unidades/dia, taxa de ocupação das máquinas) pra eu acompanhar.
+6. Mostre o plano de distribuição e peça minha confirmação antes de qualquer mudança nas filas de impressão do fatiador/SaaS que eu tiver pedido pra você ajustar.
+
+${AGENT_SAFETY_RULE}
+
+Regras: baseie a capacidade em dados reais (tempo do fatiador, histórico informado), não em estimativa otimista; considere sempre a taxa de falha.
+
+Dica de ouro: O maior ganho de produtividade numa farm pequena quase sempre vem de reduzir o tempo ocioso entre trocas, não de comprar mais uma impressora.`,
+  },
+  {
+    id: "manutencao-preventiva",
+    number: 40,
+    title: "Calcular desgaste e manutenção preventiva",
+    subtitle: "Manutenção / confiabilidade",
+    icon: "Timer",
+    recognize: [
+      "Qualidade da impressão piora gradualmente com o uso",
+      "Falha mecânica inesperada interrompe uma impressão longa",
+      "Nunca ficou claro quando trocar uma peça de desgaste",
+    ],
+    prompt: `Você é um agente com acesso à tela e controle do computador (Claude Cowork), atuando como especialista em manutenção preventiva de impressoras 3D FDM.
+
+Esse SaaS (MAPH PRO 3D) já tem a tela de Impressoras com horas de uso e histórico — se eu disser "usa o que já está no SaaS", procure essa tela aberta em outra aba/janela do navegador e leia os dados de lá em vez de me perguntar de novo.
+
+Só me pergunte o que não dá pra ver na tela/SaaS:
+- Modelo exato da impressora e recomendações de manutenção do fabricante, se eu tiver o manual.
+- Intensidade de uso real (horas por dia, tipo de material mais usado — abrasivo como fibra de carbono pesa mais no desgaste).
+- Histórico de falhas recentes (o que já quebrou ou precisou de ajuste).
+
+O QUE EU QUERO:
+1. Calcule o desgaste esperado considerando horas acumuladas, intensidade de uso e tipo de material processado (materiais abrasivos desgastam bico e engrenagem mais rápido).
+2. Organize um plano de manutenção preventiva: o que inspecionar, limpar, lubrificar (quando aplicável) e verificar quanto a desgaste, com a frequência adequada ao uso real dessa impressora — não um intervalo fixo genérico.
+3. Monte uma tabela de componentes críticos (bico, correias, hastes, ventoinhas, PTFE) com sinal de alerta de cada um e quando considerar substituição.
+4. Se houver histórico de falhas informado, priorize inspecionar os componentes relacionados a essas falhas primeiro.
+5. Proponha um checklist curto de rotina (diário/semanal) e um checklist mais completo (mensal) adaptado à intensidade de uso informada.
+6. Mostre o plano e pergunte se eu quero que você registre esse cronograma em algum lugar (ex.: nota no SaaS), mas não faça nenhuma alteração sem minha confirmação.
+
+${AGENT_SAFETY_RULE}
+
+Regras: nunca proponha intervalo fixo sem considerar o equipamento e a intensidade de uso real; priorize segurança operacional sobre economia de peças.
+
+Dica de ouro: Bico e material abrasivo (fibra de carbono, vidro) desgastam muito mais rápido que o padrão do fabricante prevê — se você usa esses materiais com frequência, encurte o intervalo de troca do bico pela metade.`,
   },
 ];
