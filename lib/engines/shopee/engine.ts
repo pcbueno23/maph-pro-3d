@@ -239,7 +239,7 @@ function resolverPrecoAntesCupomGeral(
   return { precoAntesCupom, limitadoPeloTeto, label };
 }
 
-function derivar(precoFinal: number, inputs: ShopeeInputs, valorCupomRS: number) {
+function derivar(precoFinal: number, inputs: ShopeeInputs) {
   const {
     fullCustoUnidade,
     valorCompra,
@@ -269,7 +269,9 @@ function derivar(precoFinal: number, inputs: ShopeeInputs, valorCupomRS: number)
   const custoAds = roasAlvo > 0 ? precoFinal / roasAlvo : 0;
   const valorTributacao = precoFinal * (tributacaoPercent / 100);
   const custoCampanhas = campanhasDestaque ? precoFinal * 0.035 : 0;
-  const custoTaxaTransacao = Math.max(0, precoFinal - valorCupomRS) * (TAXA_TRANSACAO_PERCENT / 100);
+  // precoFinal já é o preço líquido do cupom da loja (ver chamada abaixo) — não
+  // subtrair o cupom de novo aqui, senão a taxa de transação fica subavaliada.
+  const custoTaxaTransacao = precoFinal * (TAXA_TRANSACAO_PERCENT / 100);
   const custoAfiliado = precoFinal * ((afiliadoPercent || 0) / 100);
   const custoDevolucao = precoFinal * ((devolucaoPercent || 0) / 100);
   const valorAReceber = precoFinal - valorComissao;
@@ -340,8 +342,10 @@ function resolverPorMargem(inputs: ShopeeInputs): { preco: number; inviavel: boo
     const camp = campanhasDestaque ? pF * 0.035 : 0;
     const afiliado = pF * ((afiliadoPercent || 0) / 100);
     const devolucao = pF * ((devolucaoPercent || 0) / 100);
-    const cupom = cupomValorPara(pF, inputs);
-    const taxaTransacao = Math.max(0, pF - cupom) * (TAXA_TRANSACAO_PERCENT / 100);
+    // pF aqui já é o preço final alvo (líquido de cupom — ver `resolverPrecoAntesCupomGeral`
+    // mais abaixo, que resolve o cadastro a partir desse valor), então não subtrair o
+    // cupom de novo na taxa de transação.
+    const taxaTransacao = pF * (TAXA_TRANSACAO_PERCENT / 100);
     const rec = pF - valorComissao;
     const acel = rec * (SHOPEE_ACELERA_RATES[shopeeAcelera] || 0);
     const lucroAlvo = pF * (metaLucroPercent / 100);
@@ -571,7 +575,7 @@ export function calcularPrecoShopee(inputs: ShopeeInputs): ShopeeResult {
   // — então o que estiver "ativo agora" (oferta ou desconto normal) já bate sozinho,
   // sem precisar forçar/sobrescrever nada.
 
-  const custos = derivar(precoFinalSugerido, inputs, valorCupomRS);
+  const custos = derivar(precoFinalSugerido, inputs);
   const {
     custoBase,
     pctComissao,
